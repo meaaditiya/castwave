@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -8,7 +9,9 @@ import { HighlightTool } from '@/components/HighlightTool';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { Message } from '@/components/LiveChat';
 import { Card, CardHeader } from "@/components/ui/card";
-import { MessageSquare, Sparkles } from 'lucide-react';
+import { MessageSquare, Sparkles, Loader2 } from 'lucide-react';
+import { useAuth } from '@/context/AuthContext';
+import { useRouter } from 'next/navigation';
 
 const podcastDetails = {
   id: '2',
@@ -30,10 +33,16 @@ const initialMessages: Message[] = [
 
 export default function PodcastPage({ params }: { params: { id: string } }) {
   const [chatLog, setChatLog] = useState<Message[]>([]);
-  const [isMounted, setIsMounted] = useState(false);
+  const { currentUser, loading } = useAuth();
+  const router = useRouter();
 
   useEffect(() => {
-    setIsMounted(true);
+    if (!loading && !currentUser) {
+      router.push('/login');
+    }
+  }, [currentUser, loading, router]);
+
+  useEffect(() => {
     // Simulate messages loading after mount
     setChatLog(initialMessages);
   }, []);
@@ -42,10 +51,10 @@ export default function PodcastPage({ params }: { params: { id: string } }) {
     setChatLog(prev => [...prev, newMessage]);
   };
   
-  if (!isMounted) {
+  if (loading || !currentUser) {
     return (
         <div className="flex items-center justify-center h-screen">
-            {/* You can use a more sophisticated loader/skeleton here */}
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
     );
   }
