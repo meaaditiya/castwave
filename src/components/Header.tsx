@@ -1,6 +1,6 @@
 "use client";
 
-import { Mic, LogOut, Loader2 } from 'lucide-react';
+import { Mic, LogOut, Loader2, PlusCircle } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from './ui/button';
 import { useAuth } from '@/context/AuthContext';
@@ -29,10 +29,18 @@ export function Header() {
         {loading ? (
           <Loader2 className="animate-spin" />
         ) : currentUser ? (
-          <Button variant="ghost" onClick={handleLogout}>
-            <LogOut className="mr-2 h-4 w-4" />
-            Log Out
-          </Button>
+          <div className="flex items-center space-x-2">
+            <Button variant="outline" asChild>
+                <Link href="/podcast/create">
+                    <PlusCircle />
+                    Create Podcast
+                </Link>
+            </Button>
+            <Button variant="ghost" onClick={handleLogout}>
+                <LogOut className="mr-2 h-4 w-4" />
+                Log Out
+            </Button>
+          </div>
         ) : (
           <div className="flex items-center space-x-2">
             <Button variant="ghost" asChild>

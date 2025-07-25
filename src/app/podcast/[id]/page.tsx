@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -12,46 +11,49 @@ import { Card, CardHeader } from "@/components/ui/card";
 import { MessageSquare, Sparkles, Loader2 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
-
-const podcastDetails = {
-  id: '2',
-  title: 'The Future of AI',
-  host: 'Dr. Evelyn Reed',
-  hostAvatar: 'https://placehold.co/100x100.png',
-  isLive: true,
-  imageHint: 'scientist portrait'
-};
-
-const initialMessages: Message[] = [
-    { user: 'Alice', text: "What are your thoughts on GPT-4's reasoning abilities?" },
-    { user: 'Bob', text: 'I think the real breakthrough will be in unsupervised learning.' },
-    { user: 'Charlie', text: 'How far are we from AGI, realistically?' },
-    { user: 'David', text: 'I heard that new models are showing emergent properties. Is that true?' },
-    { user: 'Sarah', text: "The concept of 'long context windows' seems to be a game-changer for conversational AI." },
-    { user: 'Mike', text: "What are the ethical implications we should be most concerned about right now?" },
-];
+import { getPodcastById, Podcast } from '@/services/podcastService';
 
 export default function PodcastPage({ params }: { params: { id: string } }) {
+  const [podcast, setPodcast] = useState<Podcast | null>(null);
   const [chatLog, setChatLog] = useState<Message[]>([]);
-  const { currentUser, loading } = useAuth();
+  const { currentUser, loading: authLoading } = useAuth();
   const router = useRouter();
+  const [pageLoading, setPageLoading] = useState(true);
 
   useEffect(() => {
-    if (!loading && !currentUser) {
+    if (!authLoading && !currentUser) {
       router.push('/login');
     }
-  }, [currentUser, loading, router]);
+  }, [currentUser, authLoading, router]);
 
   useEffect(() => {
-    // Simulate messages loading after mount
-    setChatLog(initialMessages);
-  }, []);
+    const fetchPodcast = async () => {
+      setPageLoading(true);
+      try {
+        const podcastData = await getPodcastById(params.id);
+        if (podcastData) {
+          setPodcast(podcastData);
+        } else {
+          // Handle podcast not found, maybe redirect
+          toast({ variant: 'destructive', title: 'Error', description: 'Podcast not found.' });
+          router.push('/');
+        }
+      } catch (error) {
+        console.error(error);
+      } finally {
+        setPageLoading(false);
+      }
+    };
+    if (params.id) {
+        fetchPodcast();
+    }
+  }, [params.id, router]);
 
   const handleSendMessage = (newMessage: Message) => {
     setChatLog(prev => [...prev, newMessage]);
   };
   
-  if (loading || !currentUser) {
+  if (authLoading || pageLoading || !currentUser || !podcast) {
     return (
         <div className="flex items-center justify-center h-screen">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -60,6 +62,15 @@ export default function PodcastPage({ params }: { params: { id: string } }) {
   }
 
   const fullChatLog = chatLog.map(msg => `${msg.user}: ${msg.text}`).join('\n');
+  const podcastDetails = {
+    id: podcast.id,
+    title: podcast.title,
+    host: podcast.host,
+    hostAvatar: 'https://placehold.co/100x100.png',
+    isLive: podcast.isLive,
+    imageHint: 'scientist portrait'
+  };
+
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -78,7 +89,7 @@ export default function PodcastPage({ params }: { params: { id: string } }) {
                 </TabsList>
               </CardHeader>
               <TabsContent value="chat" className="flex-1 overflow-auto">
-                <LiveChat messages={chatLog} onSendMessage={handleSendMessage} />
+                <LiveChat messages={chatLog} onSendMessage={handleSendMessage} podcastId={podcast.id} />
               </TabsContent>
               <TabsContent value="highlights" className="flex-1 overflow-auto">
                 <HighlightTool chatLog={fullChatLog} />

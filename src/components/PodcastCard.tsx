@@ -2,23 +2,15 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Podcast } from '@/services/podcastService';
 
-interface PodcastCardProps {
-  id: string;
-  title: string;
-  host: string;
-  imageUrl: string;
-  isLive: boolean;
-  imageHint: string;
-}
-
-export function PodcastCard({ id, title, host, imageUrl, isLive, imageHint }: PodcastCardProps) {
+export function PodcastCard({ id, title, host, imageUrl, isLive, imageHint }: Podcast) {
   return (
     <Link href={`/podcast/${id}`} className="group">
       <Card className="hover:border-primary transition-colors duration-300 overflow-hidden h-full flex flex-col">
         <CardHeader className="p-0 relative">
           <Image
-            src={imageUrl}
+            src={imageUrl || 'https://placehold.co/400x400.png'}
             alt={title}
             width={400}
             height={400}
