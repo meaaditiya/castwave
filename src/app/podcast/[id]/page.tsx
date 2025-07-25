@@ -11,7 +11,8 @@ import { Card, CardHeader } from "@/components/ui/card";
 import { MessageSquare, Sparkles, Loader2 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
-import { getPodcastById, Podcast } from '@/services/podcastService';
+import { getPodcastById, Podcast, getMessages } from '@/services/podcastService';
+import { useToast } from '@/hooks/use-toast';
 
 export default function PodcastPage({ params }: { params: { id: string } }) {
   const [podcast, setPodcast] = useState<Podcast | null>(null);
@@ -19,6 +20,7 @@ export default function PodcastPage({ params }: { params: { id: string } }) {
   const { currentUser, loading: authLoading } = useAuth();
   const router = useRouter();
   const [pageLoading, setPageLoading] = useState(true);
+  const { toast } = useToast();
 
   useEffect(() => {
     if (!authLoading && !currentUser) {
@@ -40,6 +42,7 @@ export default function PodcastPage({ params }: { params: { id: string } }) {
         }
       } catch (error) {
         console.error(error);
+        toast({ variant: 'destructive', title: 'Error', description: 'Failed to load podcast.' });
       } finally {
         setPageLoading(false);
       }
@@ -47,11 +50,13 @@ export default function PodcastPage({ params }: { params: { id: string } }) {
     if (params.id) {
         fetchPodcast();
     }
-  }, [params.id, router]);
+  }, [params.id, router, toast]);
 
-  const handleSendMessage = (newMessage: Message) => {
-    setChatLog(prev => [...prev, newMessage]);
-  };
+  useEffect(() => {
+    if (!params.id) return;
+    const unsubscribe = getMessages(params.id, setChatLog);
+    return () => unsubscribe();
+  }, [params.id]);
   
   if (authLoading || pageLoading || !currentUser || !podcast) {
     return (
@@ -89,7 +94,7 @@ export default function PodcastPage({ params }: { params: { id: string } }) {
                 </TabsList>
               </CardHeader>
               <TabsContent value="chat" className="flex-1 overflow-auto">
-                <LiveChat messages={chatLog} onSendMessage={handleSendMessage} podcastId={podcast.id} />
+                <LiveChat podcastId={podcast.id} />
               </TabsContent>
               <TabsContent value="highlights" className="flex-1 overflow-auto">
                 <HighlightTool chatLog={fullChatLog} />
