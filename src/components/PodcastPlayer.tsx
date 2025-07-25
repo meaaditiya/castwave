@@ -4,8 +4,9 @@ import Image from 'next/image';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Play, Pause, Radio } from 'lucide-react';
+import { Play, Pause, Radio, Share2 } from 'lucide-react';
 import { useState } from 'react';
+import { useToast } from '@/hooks/use-toast';
 
 interface PodcastPlayerProps {
   title: string;
@@ -17,6 +18,24 @@ interface PodcastPlayerProps {
 
 export function PodcastPlayer({ title, host, hostAvatar, isLive, imageHint }: PodcastPlayerProps) {
   const [isPlaying, setIsPlaying] = useState(true);
+  const { toast } = useToast();
+
+  const handleShare = () => {
+    const url = window.location.href;
+    navigator.clipboard.writeText(url).then(() => {
+      toast({
+        title: "Link Copied!",
+        description: "The podcast link has been copied to your clipboard.",
+      });
+    }).catch(err => {
+      console.error('Failed to copy: ', err);
+      toast({
+        variant: 'destructive',
+        title: "Failed to Copy",
+        description: "Could not copy the link.",
+      })
+    });
+  };
 
   return (
     <Card className="overflow-hidden shadow-2xl shadow-primary/10">
@@ -55,6 +74,10 @@ export function PodcastPlayer({ title, host, hostAvatar, isLive, imageHint }: Po
           <Button variant="outline" size="lg" onClick={() => setIsPlaying(p => !p)} className="w-32">
             {isPlaying ? <Pause className="mr-2" /> : <Play className="mr-2" />}
             {isPlaying ? 'Pause' : 'Play'}
+          </Button>
+          <Button variant="outline" size="lg" onClick={handleShare}>
+            <Share2 className="mr-2" />
+            Share
           </Button>
         </div>
       </CardContent>
