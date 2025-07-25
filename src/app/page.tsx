@@ -5,10 +5,12 @@ import { Header } from '@/components/Header';
 import { PodcastCard } from '@/components/PodcastCard';
 import { getPodcasts, Podcast } from '@/services/podcastService';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useAuth } from '@/context/AuthContext';
 
 export default function Home() {
   const [podcasts, setPodcasts] = useState<Podcast[]>([]);
   const [loading, setLoading] = useState(true);
+  const { loading: authLoading } = useAuth();
 
   useEffect(() => {
     const unsubscribe = getPodcasts((newPodcasts) => {
@@ -26,7 +28,7 @@ export default function Home() {
         <h1 className="text-4xl font-headline font-bold mb-2">Active Podcasts</h1>
         <p className="text-muted-foreground mb-8">Join a live session and be part of the conversation.</p>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {loading ? (
+          {loading || authLoading ? (
             Array.from({ length: 8 }).map((_, i) => (
               <div key={i} className="space-y-2">
                 <Skeleton className="h-48 w-full" />
