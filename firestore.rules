@@ -2,29 +2,24 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Allow public read access to podcasts.
-    // Only allow creation/updates by authenticated users.
     match /podcasts/{podcastId} {
-      allow read: if true;
+      allow read;
       allow create: if request.auth != null;
-      // Only the host can update the podcast (e.g., to end it).
-      allow update: if request.auth != null && request.auth.uid == get(/databases/$(database)/documents/podcasts/$(podcastId)).data.hostId;
+      allow update, delete: if request.auth != null && request.auth.uid == resource.data.hostId;
 
-      // Messages can be read by anyone, but only created by authenticated users.
       match /messages/{messageId} {
-        allow read: if true;
+        allow read;
         allow create: if request.auth != null;
+        // Allow host to delete messages
+        allow delete: if request.auth != null && get(/databases/$(database)/documents/podcasts/$(podcastId)).data.hostId == request.auth.uid;
       }
 
-      // Rules for the participants subcollection
       match /participants/{userId} {
-        allow read: if true;
-
-        // Allow a user to create a participant document for themselves (request to join)
+        allow read;
+        // Allow users to add themselves to the participants list
         allow create: if request.auth != null && request.auth.uid == userId;
-
-        // Only the host of the podcast can update a participant's status (approve/deny/remove)
-        allow update: if request.auth != null && request.auth.uid == get(/databases/$(database)/documents/podcasts/$(podcastId)).data.hostId;
+        // Allow host to update participant status
+        allow update, delete: if request.auth != null && get(/databases/$(database)/documents/podcasts/$(podcastId)).data.hostId == request.auth.uid;
       }
     }
   }
