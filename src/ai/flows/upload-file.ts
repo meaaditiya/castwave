@@ -8,7 +8,8 @@
  */
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
-import { getStorage, ref, uploadString, getDownloadURL } from 'firebase/storage';
+import { ref, uploadString, getDownloadURL } from 'firebase/storage';
+import { storage } from '@/lib/firebase'; // Import the initialized storage instance
 
 const UploadFileInputSchema = z.object({
   fileDataUri: z
@@ -40,7 +41,6 @@ const uploadFileFlow = ai.defineFlow(
   },
   async (input) => {
     try {
-      const storage = getStorage();
       const storageRef = ref(storage, `thumbnails/${input.userId}_${Date.now()}_${input.fileName}`);
       
       const snapshot = await uploadString(storageRef, input.fileDataUri, 'data_url');
