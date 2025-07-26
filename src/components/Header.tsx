@@ -1,3 +1,4 @@
+
 "use client";
 
 import { Mic, LogOut, Loader2, PlusCircle, User } from 'lucide-react';
@@ -8,10 +9,13 @@ import { useRouter } from 'next/navigation';
 import { ThemeToggle } from './ThemeToggle';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from './ui/dropdown-menu';
 import { Avatar, AvatarFallback } from './ui/avatar';
+import { useState } from 'react';
 
 export function Header() {
   const { currentUser, logout, loading } = useAuth();
   const router = useRouter();
+  const [isCreatingSession, setIsCreatingSession] = useState(false);
+
 
   const handleLogout = async () => {
     try {
@@ -21,6 +25,12 @@ export function Header() {
       console.error("Failed to log out", error);
     }
   };
+
+  const handleCreateSessionClick = () => {
+    setIsCreatingSession(true);
+    router.push('/chatroom/create');
+  };
+
 
   const getInitials = (email: string | null | undefined) => {
     if (!email) return '..';
@@ -40,11 +50,13 @@ export function Header() {
               <Loader2 className="animate-spin" />
             ) : currentUser ? (
               <>
-                <Button variant="ghost" asChild className="hidden sm:flex">
-                    <Link href="/chatroom/create">
+                <Button variant="ghost" onClick={handleCreateSessionClick} disabled={isCreatingSession} className="hidden sm:flex">
+                    {isCreatingSession ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
                         <PlusCircle className="mr-2 h-4 w-4" />
-                        Create Session
-                    </Link>
+                    )}
+                    Create Session
                 </Button>
                  <DropdownMenu>
                     <DropdownMenuTrigger asChild>
