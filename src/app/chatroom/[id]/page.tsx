@@ -175,7 +175,7 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
                 />
               </TabsContent>
                {isHost && (
-                <TabsContent value="participants" className="flex-1 overflow-auto">
+                <TabsContent value="participants" className="flex-1 overflow-auto p-0">
                     <ParticipantsList chatRoomId={chatRoom.id} participants={participants} />
                 </TabsContent>
                )}

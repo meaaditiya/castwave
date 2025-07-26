@@ -9,7 +9,6 @@ import { Badge } from "./ui/badge";
 import { Check, Loader2, MinusCircle, User, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
-import { Card, CardContent } from "./ui/card";
 
 interface ParticipantsListProps {
     chatRoomId: string;
@@ -30,7 +29,11 @@ export function ParticipantsList({ chatRoomId, participants }: ParticipantsListP
     const [loadingStates, setLoadingStates] = useState<Record<string, boolean>>({});
 
     const sortedParticipants = [...participants].sort((a, b) => {
-        return statusOrder.indexOf(a.status) - statusOrder.indexOf(b.status);
+        if (a.status === 'pending' && b.status !== 'pending') return -1;
+        if (b.status === 'pending' && a.status !== 'pending') return 1;
+        if (a.displayName < b.displayName) return -1;
+        if (a.displayName > b.displayName) return 1;
+        return 0;
     });
 
     const handleUpdateStatus = async (userId: string, status: Participant['status']) => {
@@ -56,16 +59,16 @@ export function ParticipantsList({ chatRoomId, participants }: ParticipantsListP
     }
 
     return (
-        <ScrollArea className="h-full p-1 sm:p-4">
-            <div className="space-y-2">
+        <ScrollArea className="h-full">
+            <div className="space-y-0 p-1 sm:p-4">
                 {sortedParticipants.map(participant => (
                     <div key={participant.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 transition-colors">
-                        <Avatar>
-                            <AvatarFallback>{participant.displayName.substring(0,1)}</AvatarFallback>
+                        <Avatar className="h-8 w-8">
+                            <AvatarFallback>{participant.displayName.substring(0,1).toUpperCase()}</AvatarFallback>
                         </Avatar>
                         <div className="flex-1">
                             <p className="font-medium text-sm truncate">{participant.displayName}</p>
-                            <Badge variant={statusBadgeVariant[participant.status]} className="capitalize mt-1 text-xs px-1.5 py-0">{participant.status}</Badge>
+                            <Badge variant={statusBadgeVariant[participant.status]} className="capitalize mt-1 text-xs px-1.5 py-0.5">{participant.status}</Badge>
                         </div>
                         {loadingStates[participant.userId] ? (
                             <Loader2 className="animate-spin h-5 w-5 text-muted-foreground" />
