@@ -8,7 +8,7 @@ import * as z from 'zod';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { createChatRoomFlow, CreateChatRoomFlowInput } from '@/ai/flows/create-chat-room';
-import { uploadThumbnail } from '@/services/chatRoomService';
+import { getSignedUrl } from '@/ai/flows/get-signed-url';
 import { Header } from '@/components/Header';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -77,13 +77,28 @@ export default function CreateChatRoomPage() {
     setIsLoading(true);
 
     try {
-      const isLive = values.scheduleOption === 'now';
-      const thumbnailFile = values.thumbnail?.[0];
       let imageUrl: string | undefined = undefined;
+      const thumbnailFile = values.thumbnail?.[0];
 
       if (thumbnailFile) {
         try {
-            imageUrl = await uploadThumbnail(thumbnailFile, currentUser.uid);
+            const { uploadUrl, downloadUrl } = await getSignedUrl({
+                fileName: thumbnailFile.name,
+                contentType: thumbnailFile.type,
+                userId: currentUser.uid,
+            });
+
+            const uploadResponse = await fetch(uploadUrl, {
+                method: 'PUT',
+                body: thumbnailFile,
+                headers: { 'Content-Type': thumbnailFile.type },
+            });
+
+            if (!uploadResponse.ok) {
+                throw new Error('File upload failed.');
+            }
+            imageUrl = downloadUrl;
+
         } catch (uploadError) {
              console.error(uploadError);
              toast({
@@ -96,6 +111,7 @@ export default function CreateChatRoomPage() {
         }
       }
       
+      const isLive = values.scheduleOption === 'now';
       const input: CreateChatRoomFlowInput = {
         title: values.title,
         description: values.description,
@@ -136,7 +152,6 @@ export default function CreateChatRoomPage() {
     }
   }
 
-
   if (authLoading || !currentUser) {
     return (
         <div className="flex items-center justify-center h-screen">
@@ -144,7 +159,6 @@ export default function CreateChatRoomPage() {
         </div>
     );
   }
-
 
   return (
     <div className="min-h-screen flex flex-col">

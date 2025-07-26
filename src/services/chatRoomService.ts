@@ -36,21 +36,6 @@ export interface Participant {
     status: 'pending' | 'approved' | 'removed' | 'denied';
 }
 
-
-// Upload a thumbnail image to Firebase Storage
-export const uploadThumbnail = async (file: File, userId: string): Promise<string> => {
-    try {
-        const storageRef = ref(storage, `thumbnails/${userId}_${Date.now()}_${file.name}`);
-        const snapshot = await uploadBytes(storageRef, file);
-        const downloadURL = await getDownloadURL(snapshot.ref);
-        return downloadURL;
-    } catch (error) {
-        console.error("Error uploading thumbnail: ", error);
-        throw new Error("Could not upload thumbnail image.");
-    }
-}
-
-
 // Get a real-time stream of all chatRooms
 export const getChatRooms = (callback: (chatRooms: ChatRoom[]) => void) => {
     const q = query(collection(db, 'chatRooms'), orderBy('createdAt', 'desc'));
