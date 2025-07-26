@@ -180,8 +180,12 @@ export const deleteChatRoom = async (chatRoomId: string) => {
     }
 };
 
-export const sendMessage = async (chatRoomId: string, message: Omit<Message, 'upvotes' | 'downvotes' | 'voters'>) => {
+export const sendMessage = async (chatRoomId: string, message: Partial<Message>) => {
     try {
+        if (!message.text && !message.imageUrl) {
+            throw new Error("Message must have either text or an image.");
+        }
+
         const messagesCol = collection(db, 'chatRooms', chatRoomId, 'messages');
         await addDoc(messagesCol, {
             ...message,

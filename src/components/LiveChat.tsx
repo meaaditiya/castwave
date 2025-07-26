@@ -116,17 +116,21 @@ export function LiveChat({ chatRoom, canChat, participantStatus, isHost, message
     setIsSending(true);
 
     try {
-        let imageUrl: string | undefined = undefined;
-        if (imageFile) {
-            imageUrl = await uploadImage(chatRoom.id, imageFile);
-        }
-
-        await sendMessage(chatRoom.id, { 
+        const messagePayload: Partial<Message> = {
             user: currentUser.email || 'Anonymous',
             userId: currentUser.uid,
-            text: newMessage.trim() || undefined,
-            imageUrl: imageUrl
-        });
+        };
+
+        if (imageFile) {
+            messagePayload.imageUrl = await uploadImage(chatRoom.id, imageFile);
+        }
+        
+        if (newMessage.trim()) {
+            messagePayload.text = newMessage.trim();
+        }
+
+        await sendMessage(chatRoom.id, messagePayload);
+
         setNewMessage('');
         setImageFile(null);
         setImagePreview(null);
