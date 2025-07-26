@@ -2,12 +2,12 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { useForm, Controller } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
-import { createChatRoom, uploadThumbnail } from '@/services/chatRoomService';
+import { createChatRoomFlow, CreateChatRoomFlowInput } from '@/ai/flows/create-chat-room';
 import { Header } from '@/components/Header';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -63,6 +63,15 @@ export default function CreateChatRoomPage() {
 
   const scheduleOption = form.watch('scheduleOption');
 
+  const fileToDataURI = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = (error) => reject(error);
+      reader.readAsDataURL(file);
+    });
+  };
+
   async function onSubmit(values: z.infer<typeof formSchema>) {
     if (!currentUser) {
         toast({
@@ -78,23 +87,23 @@ export default function CreateChatRoomPage() {
     try {
       const isLive = values.scheduleOption === 'now';
       const thumbnailFile = values.thumbnail?.[0];
-      let imageUrl: string | undefined = undefined;
+      let thumbnailDataUri: string | undefined = undefined;
 
       if (thumbnailFile) {
-        // Upload the thumbnail and get the URL
-        imageUrl = await uploadThumbnail(thumbnailFile, currentUser.uid);
+        thumbnailDataUri = await fileToDataURI(thumbnailFile);
       }
-
-
-      await createChatRoom({
+      
+      const input: CreateChatRoomFlowInput = {
         title: values.title,
         description: values.description,
         host: currentUser.email || 'Anonymous',
         hostId: currentUser.uid,
         isLive,
         scheduledAt: isLive ? undefined : values.scheduledAt,
-        imageUrl,
-      });
+        thumbnailDataUri,
+      }
+      
+      await createChatRoomFlow(input);
       
       toast({
         title: 'Chat Room Created!',
@@ -102,6 +111,7 @@ export default function CreateChatRoomPage() {
       });
       router.push('/');
     } catch (error: any) {
+      console.error(error);
       toast({
         variant: 'destructive',
         title: 'Failed to Create Chat Room',
@@ -298,3 +308,5 @@ export default function CreateChatRoomPage() {
     </div>
   );
 }
+
+    

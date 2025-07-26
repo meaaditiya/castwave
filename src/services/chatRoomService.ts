@@ -1,7 +1,6 @@
 
 import { db, storage } from '@/lib/firebase';
 import { collection, addDoc, onSnapshot, query, where, orderBy, serverTimestamp, doc, getDoc, updateDoc, setDoc, deleteDoc, getDocs, writeBatch, runTransaction } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 
 
 export interface Message {
@@ -29,68 +28,12 @@ export interface ChatRoom {
     hostReply?: string;
 }
 
-export interface ChatRoomInput {
-    title: string;
-    description: string;
-    host: string;
-    hostId: string;
-    isLive: boolean;
-    scheduledAt?: Date;
-    imageUrl?: string;
-}
-
 export interface Participant {
     id?: string;
     userId: string;
     displayName: string;
     status: 'pending' | 'approved' | 'removed' | 'denied';
 }
-
-
-// Upload a thumbnail image to Firebase Storage
-export const uploadThumbnail = async (file: File, userId: string): Promise<string> => {
-    if (!file) throw new Error("No file provided for upload.");
-    try {
-        const storageRef = ref(storage, `thumbnails/${userId}_${Date.now()}_${file.name}`);
-        const snapshot = await uploadBytes(storageRef, file);
-        const downloadURL = await getDownloadURL(snapshot.ref);
-        return downloadURL;
-    } catch (error) {
-        console.error("Error uploading thumbnail: ", error);
-        throw new Error("Could not upload thumbnail image.");
-    }
-};
-
-
-// Create a new chatRoom
-export const createChatRoom = async (chatRoomData: ChatRoomInput) => {
-    try {
-        const docRef = await addDoc(collection(db, 'chatRooms'), {
-            title: chatRoomData.title,
-            description: chatRoomData.description,
-            host: chatRoomData.host,
-            hostId: chatRoomData.hostId,
-            isLive: chatRoomData.isLive,
-            createdAt: serverTimestamp(),
-            scheduledAt: chatRoomData.scheduledAt || null,
-            imageUrl: chatRoomData.imageUrl || 'https://placehold.co/400x400.png',
-            imageHint: 'community discussion'
-        });
-
-        // Automatically add the host as an approved participant
-        const hostParticipant: Participant = {
-            userId: chatRoomData.hostId,
-            displayName: chatRoomData.host,
-            status: 'approved'
-        };
-        await addParticipant(docRef.id, hostParticipant);
-        return docRef.id;
-
-    } catch (error) {
-        console.error("Error creating chat room: ", error);
-        throw new Error("Could not create chat room.");
-    }
-};
 
 // Get a real-time stream of all chatRooms
 export const getChatRooms = (callback: (chatRooms: ChatRoom[]) => void) => {
@@ -295,3 +238,5 @@ export const featureMessage = async (chatRoomId: string, message: Message, hostR
         throw new Error("Could not feature message.");
     }
 }
+
+    
