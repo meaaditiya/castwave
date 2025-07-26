@@ -52,13 +52,12 @@ export function HighlightTool({ chatLog }: HighlightToolProps) {
   };
 
   return (
-    <div className="flex flex-col h-full p-1 sm:p-4 space-y-4">
-      <CardHeader className="p-2 pt-0">
-        <CardTitle>AI Chat Summary</CardTitle>
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base">AI Chat Summary</CardTitle>
         <CardDescription>Get a quick summary of the conversation.</CardDescription>
       </CardHeader>
-      
-      <div className="px-2">
+      <CardContent className="space-y-4">
         <Button onClick={handleSummarize} disabled={isLoading} className="w-full">
             {isLoading ? (
             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -67,11 +66,7 @@ export function HighlightTool({ chatLog }: HighlightToolProps) {
             )}
             Generate Summary
         </Button>
-      </div>
-
-
-      <div className="flex-1 min-h-0">
-        <ScrollArea className="h-full pr-4">
+        <ScrollArea className="h-48 pr-4">
           {summary && (
             <Card className="bg-muted border-dashed">
                 <CardContent className="p-4 text-sm whitespace-pre-wrap font-sans">
@@ -91,7 +86,7 @@ export function HighlightTool({ chatLog }: HighlightToolProps) {
                 </div>
            )}
         </ScrollArea>
-      </div>
-    </div>
+      </CardContent>
+    </Card>
   );
 }

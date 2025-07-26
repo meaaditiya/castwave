@@ -15,8 +15,6 @@ interface ParticipantsListProps {
     participants: Participant[];
 }
 
-const statusOrder = ['pending', 'approved', 'denied', 'removed'];
-
 const statusBadgeVariant = {
     pending: 'secondary',
     approved: 'default',
@@ -59,8 +57,8 @@ export function ParticipantsList({ chatRoomId, participants }: ParticipantsListP
     }
 
     return (
-        <ScrollArea className="h-full">
-            <div className="space-y-0 p-1 sm:p-4">
+        <ScrollArea className="h-48">
+            <div className="space-y-0 p-1">
                 {sortedParticipants.map(participant => (
                     <div key={participant.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 transition-colors">
                         <Avatar className="h-8 w-8">

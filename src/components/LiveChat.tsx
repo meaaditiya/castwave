@@ -17,6 +17,7 @@ import { Textarea } from './ui/textarea';
 import { format } from 'date-fns';
 import { useDebouncedCallback } from 'use-debounce';
 import { TypingIndicator } from './TypingIndicator';
+import { CardContent } from './ui/card';
 
 interface LiveChatProps {
   chatRoom: ChatRoom;
@@ -226,7 +227,7 @@ export function LiveChat({ chatRoom, canChat, participantStatus, isHost, message
   }
 
   return (
-    <div className="relative flex flex-col h-full p-1 sm:p-4">
+    <CardContent className="flex flex-col flex-1 p-2 sm:p-4 overflow-hidden">
        {renderChatOverlay()}
        {!messages && (
         <div className="flex-1 flex items-center justify-center">
@@ -341,6 +342,6 @@ export function LiveChat({ chatRoom, canChat, participantStatus, isHost, message
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </CardContent>
   );
 }

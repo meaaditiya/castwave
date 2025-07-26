@@ -7,15 +7,15 @@ import { LiveScreen } from '@/components/LiveScreen';
 import { LiveChat } from '@/components/LiveChat';
 import { HighlightTool } from '@/components/HighlightTool';
 import { ParticipantsList } from '@/components/ParticipantsList';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { Message } from '@/services/chatRoomService';
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from '@/components/ui/skeleton';
 import { MessageSquare, Sparkles, Users } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
 import { getChatRoomStream, ChatRoom, getMessages, Participant, getParticipants, addParticipant } from '@/services/chatRoomService';
 import { useToast } from '@/hooks/use-toast';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 
 function ChatRoomPageSkeleton() {
     return (
@@ -40,19 +40,14 @@ function ChatRoomPageSkeleton() {
                 </div>
                 <div className="lg:col-span-1">
                     <Card className="h-full flex flex-col min-h-[500px] lg:min-h-0">
-                      <Tabs defaultValue="chat" className="w-full h-full flex flex-col">
-                        <CardHeader>
-                           <TabsList className="grid w-full grid-cols-2">
-                                <TabsTrigger value="chat" disabled><MessageSquare className="mr-2 h-4 w-4" />Live Chat</TabsTrigger>
-                                <TabsTrigger value="highlights" disabled><Sparkles className="mr-2 h-4 w-4" />AI Summary</TabsTrigger>
-                            </TabsList>
-                        </CardHeader>
-                        <TabsContent value="chat" className="flex-1 flex items-center justify-center">
-                            <div className="w-full h-full p-4">
-                              <Skeleton className="h-full w-full" />
-                            </div>
-                        </TabsContent>
-                       </Tabs>
+                      <CardHeader>
+                        <Skeleton className="h-8 w-1/2" />
+                      </CardHeader>
+                      <CardContent className="flex-1 flex items-center justify-center">
+                        <div className="w-full h-full p-4">
+                          <Skeleton className="h-full w-full" />
+                        </div>
+                      </CardContent>
                     </Card>
                 </div>
             </main>
@@ -155,17 +150,11 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
         <div className="lg:col-span-2">
           <LiveScreen {...chatRoomDetails} />
         </div>
-        <div className="lg:col-span-1 flex flex-col h-[80vh] lg:h-[calc(100vh-10rem)]">
-          <Card className="h-full flex flex-col flex-1">
-            <Tabs defaultValue="chat" className="w-full h-full flex flex-col">
-              <CardHeader className="p-2 sm:p-4">
-                 <TabsList className={`grid w-full ${isHost ? 'grid-cols-3' : 'grid-cols-2'}`}>
-                  <TabsTrigger value="chat"><MessageSquare className="mr-2 h-4 w-4" />Live Chat</TabsTrigger>
-                  {isHost && <TabsTrigger value="participants"><Users className="mr-2 h-4 w-4" />Participants</TabsTrigger>}
-                  <TabsTrigger value="summary"><Sparkles className="mr-2 h-4 w-4" />AI Summary</TabsTrigger>
-                </TabsList>
-              </CardHeader>
-              <TabsContent value="chat" className="flex-1 flex flex-col overflow-hidden">
+        <div className="lg:col-span-1 flex flex-col gap-4">
+            <Card className="flex flex-col h-[60vh]">
+                 <CardHeader>
+                    <CardTitle className="flex items-center gap-2"><MessageSquare className="h-5 w-5"/> Live Chat</CardTitle>
+                </CardHeader>
                 <LiveChat 
                     chatRoom={chatRoom} 
                     canChat={canChat} 
@@ -173,17 +162,32 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
                     isHost={isHost}
                     messages={chatLog}
                 />
-              </TabsContent>
-               {isHost && (
-                <TabsContent value="participants" className="flex-1 overflow-auto p-0">
-                    <ParticipantsList chatRoomId={chatRoom.id} participants={participants} />
-                </TabsContent>
-               )}
-              <TabsContent value="summary" className="flex-1 overflow-auto">
-                <HighlightTool chatLog={fullChatLog} />
-              </TabsContent>
-            </Tabs>
-          </Card>
+            </Card>
+
+            <Accordion type="single" collapsible className="w-full">
+                {isHost && (
+                    <AccordionItem value="participants">
+                        <AccordionTrigger>
+                            <span className="flex items-center gap-2 text-base font-semibold"><Users className="h-5 w-5" /> Participants</span>
+                        </AccordionTrigger>
+                        <AccordionContent>
+                           <Card>
+                             <CardContent className="p-0">
+                                <ParticipantsList chatRoomId={chatRoom.id} participants={participants} />
+                             </CardContent>
+                           </Card>
+                        </AccordionContent>
+                    </AccordionItem>
+                )}
+                 <AccordionItem value="summary">
+                    <AccordionTrigger>
+                        <span className="flex items-center gap-2 text-base font-semibold"><Sparkles className="h-5 w-5" /> AI Summary</span>
+                    </AccordionTrigger>
+                    <AccordionContent>
+                        <HighlightTool chatLog={fullChatLog} />
+                    </AccordionContent>
+                </AccordionItem>
+            </Accordion>
         </div>
       </main>
     </div>
