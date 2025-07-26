@@ -8,7 +8,7 @@ import * as z from 'zod';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { createChatRoomFlow, CreateChatRoomFlowInput } from '@/ai/flows/create-chat-room';
-import { getSignedUrl } from '@/ai/flows/get-signed-url';
+import { generateUploadUrl } from '@/ai/flows/generate-upload-url';
 import { Header } from '@/components/Header';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -82,10 +82,10 @@ export default function CreateChatRoomPage() {
 
       if (thumbnailFile) {
         try {
-            const { uploadUrl, downloadUrl } = await getSignedUrl({
-                fileName: thumbnailFile.name,
+            const { uploadUrl, downloadUrl } = await generateUploadUrl({
                 contentType: thumbnailFile.type,
                 userId: currentUser.uid,
+                fileName: thumbnailFile.name,
             });
 
             const uploadResponse = await fetch(uploadUrl, {
@@ -95,16 +95,17 @@ export default function CreateChatRoomPage() {
             });
 
             if (!uploadResponse.ok) {
-                throw new Error('File upload failed.');
+                const errorText = await uploadResponse.text();
+                throw new Error(`File upload failed: ${errorText}`);
             }
             imageUrl = downloadUrl;
 
-        } catch (uploadError) {
+        } catch (uploadError: any) {
              console.error(uploadError);
              toast({
                 variant: 'destructive',
                 title: 'Thumbnail Upload Failed',
-                description: 'Could not upload the thumbnail image. Please try again.',
+                description: uploadError.message || 'Could not upload the thumbnail image. Please try again.',
             });
             setIsLoading(false);
             return;
@@ -122,13 +123,13 @@ export default function CreateChatRoomPage() {
         imageUrl,
       }
       
-      await createChatRoomFlow(input);
+      const result = await createChatRoomFlow(input);
       
       toast({
         title: 'Chat Room Created!',
         description: isLive ? 'Your new chat room is now live.' : 'Your chat room has been scheduled.',
       });
-      router.push('/');
+      router.push(`/chatroom/${result.chatRoomId}`);
     } catch (error: any) {
       console.error(error);
       toast({
