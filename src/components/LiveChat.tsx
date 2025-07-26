@@ -14,6 +14,7 @@ import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 import type { Message } from '@/services/chatRoomService';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from './ui/dialog';
 import { Textarea } from './ui/textarea';
+import { format } from 'date-fns';
 
 
 interface LiveChatProps {
@@ -124,6 +125,16 @@ export function LiveChat({ chatRoomId, canChat, participantStatus, isHost, messa
         setIsFeaturing(false);
     }
   }
+  
+  const formatTimestamp = (timestamp: any) => {
+    if (!timestamp) return '';
+    try {
+      const date = timestamp.toDate();
+      return format(date, 'h:mm a');
+    } catch (error) {
+      return '';
+    }
+  };
 
   const renderChatOverlay = () => {
     if (canChat || isHost || !currentUser) return null;
@@ -184,6 +195,7 @@ export function LiveChat({ chatRoomId, canChat, participantStatus, isHost, messa
               <div className="flex-1">
                 <div className="flex items-center gap-2">
                     <span className={`font-bold text-sm ${getUserColor(msg.user)}`}>{msg.user}</span>
+                    <span className="text-xs text-muted-foreground">{formatTimestamp(msg.timestamp)}</span>
                      {isHost && (
                         <Button size="icon" variant="ghost" className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity text-amber-500" onClick={() => setMessageToFeature(msg)}>
                             <Star className="h-4 w-4" />

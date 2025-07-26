@@ -1,6 +1,7 @@
 
 import { db } from '@/lib/firebase';
 import { collection, addDoc, onSnapshot, query, where, orderBy, serverTimestamp, doc, getDoc, updateDoc, setDoc, deleteDoc, getDocs, writeBatch, runTransaction } from 'firebase/firestore';
+import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 
 export interface Message {
   id?: string;
@@ -20,6 +21,7 @@ export interface ChatRoom {
     hostId: string;
     isLive: boolean;
     createdAt: any;
+    scheduledAt?: any;
     imageUrl: string;
     imageHint: string;
     featuredMessage?: Message;
@@ -32,6 +34,8 @@ export interface ChatRoomInput {
     host: string;
     hostId: string;
     isLive: boolean;
+    scheduledAt?: Date;
+    thumbnail?: File;
 }
 
 export interface Participant {
@@ -44,11 +48,26 @@ export interface Participant {
 // Create a new chatRoom
 export const createChatRoom = async (chatRoomData: ChatRoomInput) => {
     try {
+        let imageUrl = 'https://placehold.co/400x400.png';
+        const imageHint = 'community discussion';
+
+        if (chatRoomData.thumbnail) {
+            const storage = getStorage();
+            const storageRef = ref(storage, `thumbnails/${chatRoomData.hostId}_${Date.now()}`);
+            const snapshot = await uploadBytes(storageRef, chatRoomData.thumbnail);
+            imageUrl = await getDownloadURL(snapshot.ref);
+        }
+
         const docRef = await addDoc(collection(db, 'chatRooms'), {
-            ...chatRoomData,
+            title: chatRoomData.title,
+            description: chatRoomData.description,
+            host: chatRoomData.host,
+            hostId: chatRoomData.hostId,
+            isLive: chatRoomData.isLive,
             createdAt: serverTimestamp(),
-            imageUrl: 'https://placehold.co/400x400.png',
-            imageHint: 'community discussion'
+            scheduledAt: chatRoomData.scheduledAt || null,
+            imageUrl: imageUrl,
+            imageHint: imageHint
         });
 
         // Automatically add the host as an approved participant
@@ -58,6 +77,7 @@ export const createChatRoom = async (chatRoomData: ChatRoomInput) => {
             status: 'approved'
         };
         await addParticipant(docRef.id, hostParticipant);
+        return docRef.id;
 
     } catch (error) {
         console.error("Error creating chat room: ", error);

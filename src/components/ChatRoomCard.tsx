@@ -1,10 +1,13 @@
+
 import Link from 'next/link';
 import Image from 'next/image';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from './ui/button';
-import { Trash2 } from 'lucide-react';
+import { Trash2, Calendar } from 'lucide-react';
 import { ChatRoom } from '@/services/chatRoomService';
+import { format } from 'date-fns';
+
 
 interface ChatRoomCardProps extends ChatRoom {
     isOwner: boolean;
@@ -12,13 +15,15 @@ interface ChatRoomCardProps extends ChatRoom {
 }
 
 
-export function ChatRoomCard({ id, title, host, imageUrl, isLive, imageHint, isOwner, onDelete }: ChatRoomCardProps) {
+export function ChatRoomCard({ id, title, host, imageUrl, isLive, imageHint, isOwner, onDelete, scheduledAt }: ChatRoomCardProps) {
   
   const handleDeleteClick = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     onDelete();
   }
+  
+  const isScheduled = scheduledAt && new Date() < scheduledAt.toDate();
 
   return (
     <Card className="hover:border-primary transition-colors duration-300 overflow-hidden h-full flex flex-col group">
@@ -41,6 +46,13 @@ export function ChatRoomCard({ id, title, host, imageUrl, isLive, imageHint, isO
                 LIVE
                 </Badge>
             )}
+             {isScheduled && !isLive && (
+                 <Badge variant="secondary" className="absolute top-2 right-2  shadow-lg">
+                    <Calendar className="mr-2 h-4 w-4" />
+                   {format(scheduledAt.toDate(), "MMM d, h:mm a")}
+                </Badge>
+             )}
+
             </CardHeader>
             <div className="p-4 flex-1 flex flex-col">
                 <CardTitle className="text-lg font-headline truncate">{title}</CardTitle>
