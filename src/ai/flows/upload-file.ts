@@ -10,7 +10,7 @@ import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
 import { getStorage, ref, uploadString, getDownloadURL } from 'firebase/storage';
 
-export const UploadFileInputSchema = z.object({
+const UploadFileInputSchema = z.object({
   fileDataUri: z
     .string()
     .describe(
@@ -21,7 +21,7 @@ export const UploadFileInputSchema = z.object({
 });
 export type UploadFileInput = z.infer<typeof UploadFileInputSchema>;
 
-export const UploadFileOutputSchema = z.object({
+const UploadFileOutputSchema = z.object({
   url: z.string().describe('The public URL of the uploaded file.'),
 });
 export type UploadFileOutput = z.infer<typeof UploadFileOutputSchema>;
