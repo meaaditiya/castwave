@@ -43,6 +43,7 @@ const uploadFileFlow = ai.defineFlow(
     try {
       const storageRef = ref(storage, `${input.userId}_${Date.now()}_${input.fileName}`);
       
+      // Correctly upload the data URI to Firebase Storage
       const snapshot = await uploadString(storageRef, input.fileDataUri, 'data_url');
       const downloadURL = await getDownloadURL(snapshot.ref);
 

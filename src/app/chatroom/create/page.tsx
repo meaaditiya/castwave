@@ -82,14 +82,15 @@ export default function CreateChatRoomPage() {
       let imageUrl: string | undefined = undefined;
 
       if (thumbnailFile) {
-        const reader = new FileReader();
-        const fileAsDataURL = await new Promise<string>((resolve) => {
-            reader.onloadend = () => {
-                resolve(reader.result as string);
-            };
+        // Convert file to data URI
+        const fileAsDataURL = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result as string);
+            reader.onerror = reject;
             reader.readAsDataURL(thumbnailFile);
         });
-
+        
+        // Call the Genkit flow to upload the file
         const uploadResult = await uploadFile({
             fileDataUri: fileAsDataURL,
             fileName: thumbnailFile.name,
@@ -118,7 +119,7 @@ export default function CreateChatRoomPage() {
       toast({
         variant: 'destructive',
         title: 'Failed to Create Chat Room',
-        description: error.message,
+        description: error.message || 'An unexpected error occurred.',
       });
     } finally {
       setIsLoading(false);
