@@ -242,8 +242,15 @@ export const requestToJoinChat = async (chatRoomId: string, userId: string, disp
             if ((participant.requestCount || 0) >= 3) {
                 throw new Error("You have reached the maximum number of requests to join.");
             }
+            if (participant.status === 'denied') {
+                 await setDoc(participantRef, {
+                    status: 'pending',
+                    requestCount: increment(1)
+                }, { merge: true });
+                return;
+            }
         }
-
+        
         await setDoc(participantRef, {
             userId,
             displayName,
@@ -260,7 +267,11 @@ export const requestToJoinChat = async (chatRoomId: string, userId: string, disp
 export const updateParticipantStatus = async (chatRoomId: string, userId: string, status: Participant['status']) => {
     try {
         const participantRef = doc(db, `chatRooms/${chatRoomId}/participants`, userId);
-        await updateDoc(participantRef, { status });
+        if (status === 'denied') {
+             await updateDoc(participantRef, { status });
+        } else {
+             await updateDoc(participantRef, { status });
+        }
     } catch(e) {
         console.error("Error updating participant status: ", e);
         throw new Error("Could not update participant status.");

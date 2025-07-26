@@ -19,10 +19,11 @@ export function generateThumbnailSvg(title: string): string {
     const width = 600;
     const height = 400;
 
-    // Theme colors (approximations)
-    const bgColor = "#1e293b"; // dark slate, similar to dark theme card
-    const primaryColor = "rgb(79, 128, 255)"; // primary blue
-    const textColor = "#f8fafc"; // light text
+    // Theme colors (approximations from globals.css dark theme)
+    const bgColor = "hsl(222.2, 84%, 4.9%)";
+    const primaryColor = "hsl(217.2, 91.2%, 59.8%)";
+    const secondaryColor = "hsl(217.2, 32.6%, 17.5%)";
+    const textColor = "hsl(210, 40%, 98%)";
 
     const wrappedTitle = wrapText(title, 25);
     const titleLines = wrappedTitle.length;
@@ -32,40 +33,56 @@ export function generateThumbnailSvg(title: string): string {
     const startY = (height - totalTextHeight) / 2 + fontSize - (titleLines > 1 ? (lineHeight/4) : 0);
 
     const titleTspans = wrappedTitle.map((line, index) => 
-        `<tspan x="${width / 2}" y="${startY + index * lineHeight}" dy="${index > 0 ? '0.2em' : '0'}">${line}</tspan>`
+        `<tspan x="${width / 2}" y="${startY + index * lineHeight}" dy="${index > 0 ? '0.2em' : '0'}">${line.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</tspan>`
     ).join('');
 
     return `
     <svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg">
+        <style>
+            .title-text {
+                font-family: 'Inter', sans-serif;
+                text-anchor: middle;
+                fill: ${textColor};
+                font-size: ${fontSize}px;
+                font-weight: bold;
+                text-shadow: 0 0 10px rgba(0,0,0,0.5);
+            }
+            .brand-text {
+                font-family: 'Inter', sans-serif;
+                text-anchor: middle;
+                fill: ${textColor};
+                font-size: 16px;
+                opacity: 0.6;
+            }
+        </style>
         <defs>
-            <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" style="stop-color:${bgColor};stop-opacity:1" />
-                <stop offset="100%" style="stop-color:#0f172a;stop-opacity:1" />
-            </linearGradient>
+            <radialGradient id="grad-bg" cx="50%" cy="50%" r="75%">
+                <stop offset="0%" stop-color="${secondaryColor}" />
+                <stop offset="100%" stop-color="${bgColor}" />
+            </radialGradient>
             <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
-                <feGaussianBlur stdDeviation="8" result="coloredBlur"/>
+                <feGaussianBlur stdDeviation="10" result="coloredBlur"/>
                 <feMerge>
                     <feMergeNode in="coloredBlur"/>
                     <feMergeNode in="SourceGraphic"/>
                 </feMerge>
             </filter>
         </defs>
-        <rect width="${width}" height="${height}" fill="url(#grad1)" />
+        <rect width="${width}" height="${height}" fill="url(#grad-bg)" />
         
         <!-- Abstract Shapes -->
-        <circle cx="${width * 0.1}" cy="${height * 0.9}" r="80" fill="${primaryColor}" opacity="0.1" filter="url(#glow)"/>
-        <circle cx="${width * 0.9}" cy="${height * 0.1}" r="120" fill="${primaryColor}" opacity="0.15" filter="url(#glow)"/>
-        <rect x="${width * 0.7}" y="${height * 0.6}" width="150" height="150" fill="${primaryColor}" opacity="0.05" transform="rotate(30 ${width * 0.7} ${height * 0.6})" />
-
-
-        <g style="font-family: 'Inter', sans-serif; text-anchor: middle;">
-            <text fill="${textColor}" font-size="${fontSize}" font-weight="bold">
-                ${titleTspans}
-            </text>
+        <g filter="url(#glow)" opacity="0.3">
+            <circle cx="${width * 0.15}" cy="${height * 0.85}" r="100" fill="${primaryColor}"/>
+            <circle cx="${width * 0.9}" cy="${height * 0.2}" r="150" fill="${primaryColor}" />
+            <ellipse cx="${width * 0.5}" cy="${height * 0.5}" rx="200" ry="100" fill="${secondaryColor}" transform="rotate(20 ${width/2} ${height/2})" />
+        </g>
+        
+        <g class="title-text">
+            ${titleTspans}
         </g>
         
         <!-- Bottom Brand -->
-        <text x="${width / 2}" y="${height - 20}" fill="${textColor}" font-size="16" style="font-family: 'Inter', sans-serif; text-anchor: middle;" opacity="0.5">
+        <text x="${width / 2}" y="${height - 25}" class="brand-text">
             CastWave
         </text>
     </svg>
