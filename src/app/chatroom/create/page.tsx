@@ -8,7 +8,6 @@ import * as z from 'zod';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { createChatRoomFlow, CreateChatRoomFlowInput } from '@/ai/flows/create-chat-room';
-import { generateUploadUrl } from '@/ai/flows/generate-upload-url';
 import { Header } from '@/components/Header';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -16,20 +15,18 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Mic, Calendar as CalendarIcon, Upload } from 'lucide-react';
+import { Loader2, Mic, Calendar as CalendarIcon } from 'lucide-react';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
-import Image from 'next/image';
 
 const formSchema = z.object({
   title: z.string().min(5, { message: 'Title must be at least 5 characters.' }),
   description: z.string().min(10, { message: 'Description must be at least 10 characters.' }),
   scheduleOption: z.enum(['now', 'later'], { required_error: 'You must select a schedule option.'}),
   scheduledAt: z.date().optional(),
-  thumbnail: z.any().optional(),
 }).refine((data) => {
     if (data.scheduleOption === 'later' && !data.scheduledAt) {
         return false;
@@ -45,7 +42,6 @@ export default function CreateChatRoomPage() {
   const router = useRouter();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
-  const [thumbnailPreview, setThumbnailPreview] = useState<string | null>(null);
 
   useEffect(() => {
     if (!authLoading && !currentUser) {
@@ -77,41 +73,6 @@ export default function CreateChatRoomPage() {
     setIsLoading(true);
 
     try {
-      let imageUrl: string | undefined = undefined;
-      const thumbnailFile = values.thumbnail?.[0];
-
-      if (thumbnailFile) {
-        try {
-            const { uploadUrl, downloadUrl } = await generateUploadUrl({
-                contentType: thumbnailFile.type,
-                userId: currentUser.uid,
-                fileName: thumbnailFile.name,
-            });
-
-            const uploadResponse = await fetch(uploadUrl, {
-                method: 'PUT',
-                body: thumbnailFile,
-                headers: { 'Content-Type': thumbnailFile.type },
-            });
-
-            if (!uploadResponse.ok) {
-                const errorText = await uploadResponse.text();
-                throw new Error(`File upload failed: ${errorText}`);
-            }
-            imageUrl = downloadUrl;
-
-        } catch (uploadError: any) {
-             console.error(uploadError);
-             toast({
-                variant: 'destructive',
-                title: 'Thumbnail Upload Failed',
-                description: uploadError.message || 'Could not upload the thumbnail image. Please try again.',
-            });
-            setIsLoading(false);
-            return;
-        }
-      }
-      
       const isLive = values.scheduleOption === 'now';
       const input: CreateChatRoomFlowInput = {
         title: values.title,
@@ -120,7 +81,6 @@ export default function CreateChatRoomPage() {
         hostId: currentUser.uid,
         isLive,
         scheduledAt: isLive ? undefined : values.scheduledAt,
-        imageUrl,
       }
       
       const result = await createChatRoomFlow(input);
@@ -139,17 +99,6 @@ export default function CreateChatRoomPage() {
       });
     } finally {
       setIsLoading(false);
-    }
-  }
-  
-  const handleThumbnailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-        const reader = new FileReader();
-        reader.onloadend = () => {
-            setThumbnailPreview(reader.result as string);
-        }
-        reader.readAsDataURL(file);
     }
   }
 
@@ -198,31 +147,6 @@ export default function CreateChatRoomPage() {
                           className="resize-none"
                           {...field}
                         />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                 <FormField
-                  control={form.control}
-                  name="thumbnail"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Thumbnail Image</FormLabel>
-                      <FormControl>
-                        <div className="flex items-center gap-4">
-                            {thumbnailPreview ? (
-                                <Image src={thumbnailPreview} alt="thumbnail preview" width={100} height={100} className="rounded-md object-cover h-24 w-24" />
-                            ) : (
-                                <div className="h-24 w-24 bg-muted rounded-md flex items-center justify-center">
-                                    <Upload className="h-8 w-8 text-muted-foreground" />
-                                </div>
-                            )}
-                            <Input id="picture" type="file" accept="image/*" className="flex-1" onChange={(e) => {
-                                field.onChange(e.target.files);
-                                handleThumbnailChange(e);
-                            }} />
-                        </div>
                       </FormControl>
                       <FormMessage />
                     </FormItem>
