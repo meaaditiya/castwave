@@ -103,15 +103,18 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
     const unsubscribeParticipants = getParticipants(chatRoomId, (newParticipants) => {
         setParticipants(newParticipants);
 
-        // Only auto-add if the chat room is not private or if the user is the host
-        if (currentUser && chatRoom && !chatRoom.isPrivate) {
+        if (currentUser && chatRoom) {
             const userInList = newParticipants.some(p => p.userId === currentUser.uid);
+            // If user is not in the list and not the host, add them.
             if (!userInList && chatRoom.hostId !== currentUser.uid) {
+                // For private rooms, automatically approve them.
+                // For public rooms, set their status to pending.
+                const status = chatRoom.isPrivate ? 'approved' : 'pending';
                 addParticipant(chatRoomId, {
                     userId: currentUser.uid,
                     displayName: currentUser.email || 'Anonymous',
-                    status: 'pending',
-                    requestCount: 0
+                    status: status,
+                    requestCount: status === 'pending' ? 1 : 0, // only count request for public rooms
                 });
             }
         }
