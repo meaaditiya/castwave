@@ -11,22 +11,24 @@ import { createChatRoom } from '@/services/chatRoomService';
 import { Header } from '@/components/Header';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Mic, Calendar as CalendarIcon, Clock } from 'lucide-react';
+import { Loader2, Mic, Calendar as CalendarIcon, Clock, Lock } from 'lucide-react';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { Switch } from '@/components/ui/switch';
 
 const formSchema = z.object({
   title: z.string().min(5, { message: 'Title must be at least 5 characters.' }),
   description: z.string().min(10, { message: 'Description must be at least 10 characters.' }),
   scheduleOption: z.enum(['now', 'later'], { required_error: 'You must select a schedule option.'}),
   scheduledAt: z.date().optional(),
+  isPrivate: z.boolean().default(false),
 }).refine((data) => {
     if (data.scheduleOption === 'later' && !data.scheduledAt) {
         return false;
@@ -49,6 +51,7 @@ export default function CreateChatRoomPage() {
       title: '',
       description: '',
       scheduleOption: 'now',
+      isPrivate: false,
     },
   });
 
@@ -82,11 +85,12 @@ export default function CreateChatRoomPage() {
             hostId: currentUser.uid,
             isLive,
             scheduledAt: isLive ? undefined : values.scheduledAt,
+            isPrivate: values.isPrivate,
         });
         
         toast({
             title: 'Chat Room Created!',
-            description: isLive ? 'Your new chat room is now live.' : 'Your chat room has been scheduled.',
+            description: values.isPrivate ? 'Your new private session is ready.' : (isLive ? 'Your new chat room is now live.' : 'Your chat room has been scheduled.'),
         });
         router.push(`/chatroom/${result.chatRoomId}`);
 
@@ -237,6 +241,30 @@ export default function CreateChatRoomPage() {
                     )}
                   />
                 )}
+
+                 <FormField
+                  control={form.control}
+                  name="isPrivate"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                      <div className="space-y-0.5">
+                        <FormLabel className="text-base flex items-center gap-2">
+                          <Lock className="h-4 w-4" />
+                          Private Session
+                        </FormLabel>
+                        <FormDescription>
+                          Private sessions will not be shown on the homepage. Only users with a direct link can join.
+                        </FormDescription>
+                      </div>
+                      <FormControl>
+                        <Switch
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
 
                 <Button type="submit" size="lg" className="w-full font-bold" disabled={isLoading}>
                   {isLoading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Mic className="mr-2 h-5 w-5" />}

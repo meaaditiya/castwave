@@ -1,6 +1,6 @@
 
 import { db } from '@/lib/firebase';
-import { collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, doc, getDoc, updateDoc, setDoc, deleteDoc, getDocs, writeBatch, runTransaction, increment } from 'firebase/firestore';
+import { collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, doc, getDoc, updateDoc, setDoc, deleteDoc, getDocs, writeBatch, runTransaction, increment, where } from 'firebase/firestore';
 
 export interface Message {
   id?: string;
@@ -21,6 +21,7 @@ export interface ChatRoom {
     hostId: string;
     isLive: boolean;
     createdAt: any;
+    isPrivate: boolean;
     scheduledAt?: any;
     imageUrl?: string;
     imageHint?: string;
@@ -35,6 +36,7 @@ export interface ChatRoomInput {
     host: string;
     hostId: string;
     isLive: boolean;
+    isPrivate: boolean;
     scheduledAt?: Date;
 }
 
@@ -59,6 +61,7 @@ export const createChatRoom = async (input: ChatRoomInput): Promise<{ chatRoomId
                 host: input.host,
                 hostId: input.hostId,
                 isLive: input.isLive,
+                isPrivate: input.isPrivate,
                 createdAt: serverTimestamp(),
                 scheduledAt: input.scheduledAt || null,
                 imageUrl: '',
@@ -83,7 +86,10 @@ export const createChatRoom = async (input: ChatRoomInput): Promise<{ chatRoomId
 };
 
 export const getChatRooms = (callback: (chatRooms: ChatRoom[]) => void) => {
-    const q = query(collection(db, 'chatRooms'), orderBy('createdAt', 'desc'));
+    const q = query(
+        collection(db, 'chatRooms'), 
+        orderBy('createdAt', 'desc')
+    );
     
     const unsubscribe = onSnapshot(q, (querySnapshot) => {
         const chatRooms: ChatRoom[] = [];
@@ -149,6 +155,11 @@ export const endChatRoom = async (chatRoomId: string) => {
 export const deleteChatRoom = async (chatRoomId: string) => {
     try {
         const batch = writeBatch(db);
+
+        // Delete polls
+        const pollsRef = collection(db, 'chatRooms', chatRoomId, 'polls');
+        const pollsSnap = await getDocs(pollsRef);
+        pollsSnap.forEach(doc => batch.delete(doc.ref));
 
         const messagesRef = collection(db, 'chatRooms', chatRoomId, 'messages');
         const messagesSnap = await getDocs(messagesRef);

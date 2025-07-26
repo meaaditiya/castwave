@@ -16,6 +16,7 @@ import { useRouter } from 'next/navigation';
 import { getChatRoomStream, ChatRoom, getMessages, Participant, getParticipants, addParticipant } from '@/services/chatRoomService';
 import { useToast } from '@/hooks/use-toast';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { LivePoll } from '@/components/LivePoll';
 
 function ChatRoomPageSkeleton() {
     return (
@@ -37,6 +38,7 @@ function ChatRoomPageSkeleton() {
                             </div>
                         </CardContent>
                     </Card>
+                    <Skeleton className="h-48 w-full rounded-lg" />
                 </div>
                 <div className="lg:col-span-1">
                     <Card className="h-full flex flex-col min-h-[500px] lg:min-h-0">
@@ -102,20 +104,22 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
     const unsubscribeParticipants = getParticipants(chatRoomId, (newParticipants) => {
         setParticipants(newParticipants);
 
-        const userInList = newParticipants.some(p => p.userId === currentUser.uid);
-
-        if (!userInList && chatRoom?.hostId && currentUser.uid && !authLoading && !isHost) {
-            addParticipant(chatRoomId, {
-                userId: currentUser.uid,
-                displayName: currentUser.email || 'Anonymous',
-                status: 'pending',
-                requestCount: 0
-            });
+        // Only auto-add if the chat room is not private or if the user is the host
+        if (currentUser && chatRoom && !chatRoom.isPrivate) {
+            const userInList = newParticipants.some(p => p.userId === currentUser.uid);
+            if (!userInList && chatRoom.hostId !== currentUser.uid) {
+                addParticipant(chatRoomId, {
+                    userId: currentUser.uid,
+                    displayName: currentUser.email || 'Anonymous',
+                    status: 'pending',
+                    requestCount: 0
+                });
+            }
         }
     });
 
     return () => unsubscribeParticipants();
-  }, [resolvedParams.id, currentUser, chatRoom, authLoading, isHost]);
+  }, [resolvedParams.id, currentUser, chatRoom, authLoading]);
 
 
   useEffect(() => {
@@ -147,8 +151,15 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
     <div className="min-h-screen flex flex-col">
       <Header />
       <main className="flex-1 container py-4 md:py-8 grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-8">
-        <div className="lg:col-span-2">
+        <div className="lg:col-span-2 space-y-4">
           <LiveScreen {...chatRoomDetails} />
+          {chatRoom.isLive && (
+              <LivePoll 
+                  chatRoomId={chatRoom.id}
+                  isHost={isHost}
+                  currentUserId={currentUser.uid}
+              />
+          )}
         </div>
         <div className="lg:col-span-1 flex flex-col gap-4">
           <Card className="flex flex-col h-[80vh] max-h-[80vh]">

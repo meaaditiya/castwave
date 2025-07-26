@@ -10,8 +10,9 @@ import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Input } from '@/components/ui/input';
-import { Search } from 'lucide-react';
+import { Search, Globe, Lock } from 'lucide-react';
 import { startChatRoom } from '@/services/chatRoomService';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 function HomePageSkeleton() {
     return (
@@ -38,23 +39,30 @@ export default function Home() {
   const [isDeleting, setIsDeleting] = useState(false);
   const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState('');
+  const [currentTab, setCurrentTab] = useState('public');
 
   useEffect(() => {
     setLoading(true);
     const unsubscribe = getChatRooms((newChatRooms) => {
       setAllChatRooms(newChatRooms);
-      setFilteredChatRooms(newChatRooms);
       setLoading(false);
     });
     return () => unsubscribe();
   }, []);
 
   useEffect(() => {
-    const results = allChatRooms.filter(room =>
+    let rooms = allChatRooms;
+    if (currentTab === 'public') {
+      rooms = rooms.filter(room => !room.isPrivate);
+    } else if (currentTab === 'my-sessions' && currentUser) {
+      rooms = rooms.filter(room => room.hostId === currentUser.uid);
+    }
+
+    const results = rooms.filter(room =>
       room.title.toLowerCase().includes(searchQuery.toLowerCase())
     );
     setFilteredChatRooms(results);
-  }, [searchQuery, allChatRooms]);
+  }, [searchQuery, allChatRooms, currentTab, currentUser]);
 
   const handleDelete = async () => {
     if (!chatRoomToDelete) return;
@@ -96,44 +104,59 @@ export default function Home() {
     }
   };
 
+  const renderRoomList = (rooms: ChatRoom[]) => {
+    if (loading || authLoading) return <HomePageSkeleton />;
+    if (rooms.length > 0) {
+        return (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                {rooms.map(chatRoom => (
+                    <ChatRoomCard 
+                        key={chatRoom.id} 
+                        {...chatRoom} 
+                        isOwner={currentUser?.uid === chatRoom.hostId}
+                        onDelete={() => setChatRoomToDelete(chatRoom.id)}
+                        onStartSession={() => handleStartSession(chatRoom.id)}
+                    />
+                ))}
+            </div>
+        );
+    }
+    return (
+        <div className="text-center py-16">
+            <p className="text-muted-foreground">No sessions found in this category. Why not create one?</p>
+        </div>
+    );
+  }
+
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
       <main className="flex-1 container py-8">
         <div className="mb-8">
-            <h1 className="text-4xl font-bold tracking-tighter mb-2">Active & Upcoming Sessions</h1>
+            <h1 className="text-4xl font-bold tracking-tighter mb-2">Explore Sessions</h1>
             <p className="text-muted-foreground text-lg">Join a live session, review a past broadcast, or see what's scheduled.</p>
         </div>
         
-        <div className="relative mb-8">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-          <Input 
-            placeholder="Search for a podcast by name..."
-            className="pl-10 text-base"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
+        <div className="flex flex-col md:flex-row gap-4 mb-8">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+            <Input 
+              placeholder="Search for a session by name..."
+              className="pl-10 text-base"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
+          <Tabs value={currentTab} onValueChange={setCurrentTab} className="w-full md:w-auto">
+              <TabsList className="grid w-full grid-cols-2 md:w-auto">
+                  <TabsTrigger value="public"><Globe className="mr-2 h-4 w-4"/>Public</TabsTrigger>
+                  <TabsTrigger value="my-sessions"><Lock className="mr-2 h-4 w-4"/>My Sessions</TabsTrigger>
+              </TabsList>
+          </Tabs>
         </div>
 
-        {loading || authLoading ? (
-            <HomePageSkeleton />
-        ) : filteredChatRooms.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {filteredChatRooms.map(chatRoom => (
-                <ChatRoomCard 
-                    key={chatRoom.id} 
-                    {...chatRoom} 
-                    isOwner={currentUser?.uid === chatRoom.hostId}
-                    onDelete={() => setChatRoomToDelete(chatRoom.id)}
-                    onStartSession={() => handleStartSession(chatRoom.id)}
-                    />
-                ))}
-            </div>
-        ) : (
-            <div className="text-center py-16">
-                <p className="text-muted-foreground">No chat rooms found. Why not create one?</p>
-            </div>
-        )}
+        {renderRoomList(filteredChatRooms)}
+
       </main>
 
        <AlertDialog open={!!chatRoomToDelete} onOpenChange={(open) => !open && setChatRoomToDelete(null)}>
