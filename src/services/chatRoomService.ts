@@ -1,7 +1,6 @@
 
 import { db } from '@/lib/firebase';
 import { collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, doc, getDoc, updateDoc, setDoc, deleteDoc, getDocs, writeBatch, runTransaction, increment } from 'firebase/firestore';
-import { generateThumbnailSvg } from '@/lib/thumbnail';
 
 export interface Message {
   id?: string;
@@ -53,7 +52,6 @@ export const createChatRoom = async (input: ChatRoomInput): Promise<{ chatRoomId
 
     try {
         await runTransaction(db, async (transaction) => {
-            const thumbnailUrl = `data:image/svg+xml;base64,${btoa(generateThumbnailSvg(input.title))}`;
             
             transaction.set(newChatRoomRef, {
                 title: input.title,
@@ -63,8 +61,8 @@ export const createChatRoom = async (input: ChatRoomInput): Promise<{ chatRoomId
                 isLive: input.isLive,
                 createdAt: serverTimestamp(),
                 scheduledAt: input.scheduledAt || null,
-                imageUrl: thumbnailUrl,
-                imageHint: 'abstract art'
+                imageUrl: '',
+                imageHint: ''
             });
 
             const participantRef = doc(db, 'chatRooms', newChatRoomRef.id, 'participants', input.hostId);
@@ -235,28 +233,29 @@ export const getParticipants = (chatRoomId: string, callback: (participants: Par
 export const requestToJoinChat = async (chatRoomId: string, userId: string, displayName: string) => {
     const participantRef = doc(db, `chatRooms/${chatRoomId}/participants`, userId);
     try {
-        const docSnap = await getDoc(participantRef);
+        await runTransaction(db, async (transaction) => {
+            const docSnap = await transaction.get(participantRef);
 
-        if (docSnap.exists()) {
-            const participant = docSnap.data() as Participant;
-            if ((participant.requestCount || 0) >= 3) {
-                throw new Error("You have reached the maximum number of requests to join.");
-            }
-            if (participant.status === 'denied') {
-                 await setDoc(participantRef, {
+            if (docSnap.exists()) {
+                const participant = docSnap.data() as Participant;
+                if ((participant.requestCount || 0) >= 3) {
+                    throw new Error("You have reached the maximum number of requests to join.");
+                }
+                if (participant.status === 'denied') {
+                     transaction.update(participantRef, {
+                        status: 'pending',
+                        requestCount: increment(1)
+                    });
+                }
+            } else {
+                transaction.set(participantRef, {
+                    userId,
+                    displayName,
                     status: 'pending',
-                    requestCount: increment(1)
-                }, { merge: true });
-                return;
+                    requestCount: 1
+                });
             }
-        }
-        
-        await setDoc(participantRef, {
-            userId,
-            displayName,
-            status: 'pending',
-            requestCount: increment(1)
-        }, { merge: true });
+        });
 
     } catch (error: any) {
         console.error("Error requesting to join chat: ", error);
