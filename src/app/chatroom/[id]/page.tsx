@@ -151,43 +151,44 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
           <LiveScreen {...chatRoomDetails} />
         </div>
         <div className="lg:col-span-1 flex flex-col gap-4">
-            <Card className="flex flex-col h-[60vh]">
-                 <CardHeader>
-                    <CardTitle className="flex items-center gap-2"><MessageSquare className="h-5 w-5"/> Live Chat</CardTitle>
-                </CardHeader>
-                <LiveChat 
-                    chatRoom={chatRoom} 
-                    canChat={canChat} 
-                    participantStatus={currentParticipant?.status}
-                    isHost={isHost}
-                    messages={chatLog}
-                />
-            </Card>
-
-            <Accordion type="single" collapsible className="w-full">
-                {isHost && (
-                    <AccordionItem value="participants">
-                        <AccordionTrigger>
-                            <span className="flex items-center gap-2 text-base font-semibold"><Users className="h-5 w-5" /> Participants</span>
-                        </AccordionTrigger>
-                        <AccordionContent>
-                           <Card>
-                             <CardContent className="p-0">
-                                <ParticipantsList chatRoomId={chatRoom.id} participants={participants} />
-                             </CardContent>
-                           </Card>
-                        </AccordionContent>
-                    </AccordionItem>
-                )}
-                 <AccordionItem value="summary">
-                    <AccordionTrigger>
-                        <span className="flex items-center gap-2 text-base font-semibold"><Sparkles className="h-5 w-5" /> AI Summary</span>
-                    </AccordionTrigger>
-                    <AccordionContent>
-                        <HighlightTool chatLog={fullChatLog} />
-                    </AccordionContent>
-                </AccordionItem>
-            </Accordion>
+          <Card className="flex flex-col h-[80vh] max-h-[80vh]">
+              <CardHeader>
+                  <CardTitle className="flex items-center gap-2"><MessageSquare className="h-5 w-5"/> Live Chat</CardTitle>
+              </CardHeader>
+              <LiveChat 
+                  chatRoom={chatRoom} 
+                  canChat={canChat} 
+                  participantStatus={currentParticipant?.status}
+                  isHost={isHost}
+                  messages={chatLog}
+              />
+              <div className="mt-auto border-t">
+                  <Accordion type="single" collapsible className="w-full">
+                      {isHost && (
+                          <AccordionItem value="participants" className="border-b-0">
+                              <AccordionTrigger className="px-6 py-4">
+                                  <span className="flex items-center gap-2 text-base font-semibold"><Users className="h-5 w-5" /> Participants</span>
+                              </AccordionTrigger>
+                              <AccordionContent>
+                                <div className="px-2">
+                                  <ParticipantsList chatRoomId={chatRoom.id} participants={participants} />
+                                </div>
+                              </AccordionContent>
+                          </AccordionItem>
+                      )}
+                      <AccordionItem value="summary" className="border-b-0">
+                          <AccordionTrigger className="px-6 py-4">
+                              <span className="flex items-center gap-2 text-base font-semibold"><Sparkles className="h-5 w-5" /> AI Summary</span>
+                          </AccordionTrigger>
+                          <AccordionContent>
+                            <div className="px-4 pb-2">
+                              <HighlightTool chatLog={fullChatLog} />
+                            </div>
+                          </AccordionContent>
+                      </AccordionItem>
+                  </Accordion>
+              </div>
+          </Card>
         </div>
       </main>
     </div>

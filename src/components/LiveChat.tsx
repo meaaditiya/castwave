@@ -227,7 +227,7 @@ export function LiveChat({ chatRoom, canChat, participantStatus, isHost, message
   }
 
   return (
-    <CardContent className="flex flex-col flex-1 p-2 sm:p-4 overflow-hidden">
+    <CardContent className="flex flex-col flex-1 p-2 sm:p-4 overflow-hidden relative">
        {renderChatOverlay()}
        {!messages && (
         <div className="flex-1 flex items-center justify-center">
