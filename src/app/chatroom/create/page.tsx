@@ -22,6 +22,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import Image from 'next/image';
+import { uploadFile } from '@/ai/flows/upload-file';
 
 const formSchema = z.object({
   title: z.string().min(5, { message: 'Title must be at least 5 characters.' }),
@@ -78,6 +79,25 @@ export default function CreateChatRoomPage() {
     try {
       const isLive = values.scheduleOption === 'now';
       const thumbnailFile = values.thumbnail?.[0];
+      let imageUrl: string | undefined = undefined;
+
+      if (thumbnailFile) {
+        const reader = new FileReader();
+        const fileAsDataURL = await new Promise<string>((resolve) => {
+            reader.onloadend = () => {
+                resolve(reader.result as string);
+            };
+            reader.readAsDataURL(thumbnailFile);
+        });
+
+        const uploadResult = await uploadFile({
+            fileDataUri: fileAsDataURL,
+            fileName: thumbnailFile.name,
+            userId: currentUser.uid,
+        });
+        imageUrl = uploadResult.url;
+      }
+
 
       await createChatRoom({
         title: values.title,
@@ -86,7 +106,7 @@ export default function CreateChatRoomPage() {
         hostId: currentUser.uid,
         isLive,
         scheduledAt: isLive ? undefined : values.scheduledAt,
-        thumbnail: thumbnailFile,
+        imageUrl,
       });
       
       toast({
