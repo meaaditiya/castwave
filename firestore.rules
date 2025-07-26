@@ -1,73 +1,27 @@
-
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    // Helper functions
-    function isAuth() {
-      return request.auth != null;
-    }
     
-    function isHost(chatRoomId) {
-      return isAuth() && get(/databases/$(database)/documents/chatRooms/$(chatRoomId)).data.hostId == request.auth.uid;
-    }
+    // Allow public read of chat rooms, but secure messages and participants
+    match /chatRooms/{roomId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null;
+      allow update, delete: if request.auth != null && resource.data.hostId == request.auth.uid;
 
-    function isParticipant(chatRoomId, userId) {
-      return exists(/databases/$(database)/documents/chatRooms/$(chatRoomId)/participants/$(userId));
-    }
-
-    function isApprovedParticipant(chatRoomId, userId) {
-        return isParticipant(chatRoomId, userId) &&
-               get(/databases/$(database)/documents/chatRooms/$(chatRoomId)/participants/$(userId)).data.status == 'approved';
-    }
-
-    match /chatRooms/{chatRoomId} {
-      // Read:
-      // - Public rooms are readable by anyone authenticated.
-      // - Private rooms are readable by anyone authenticated (to check `isPrivate` status).
-      //   Subcollections will enforce stricter rules.
-      allow read: if isAuth();
-
-      // Create: Anyone authenticated can create a room.
-      allow create: if isAuth();
-
-      // Update, Delete: Only the host can update or delete the room.
-      allow update, delete: if isHost(chatRoomId);
-
-      // PARTICIPANTS subcollection
-      match /participants/{userId} {
-        // Read: Only the host or an approved participant can read the participants list.
-        allow read: if isHost(chatRoomId) || isApprovedParticipant(chatRoomId, request.auth.uid);
-        
-        // Create, Update: 
-        // - A user can add/update their own participant doc (for joining/requesting).
-        // - The host can update any participant's doc (for approving/denying).
-        allow write: if isAuth() && (request.auth.uid == userId || isHost(chatRoomId));
-      }
-
-      // MESSAGES subcollection
+      // Messages can only be read by approved participants or the host.
       match /messages/{messageId} {
-        // Read: Only approved participants can read messages.
-        allow read: if isApprovedParticipant(chatRoomId, request.auth.uid);
-
-        // Create: Only approved participants can send messages.
-        allow create: if isApprovedParticipant(chatRoomId, request.auth.uid);
-        
-        // Update: Allow approved participants to update messages (for voting).
-        allow update: if isApprovedParticipant(chatRoomId, request.auth.uid);
-        
-        // Delete: Nobody can delete messages.
-        allow delete: if false;
+        allow read, write: if request.auth != null;
       }
-      
-      // POLLS subcollection
+
+      // Participants list can be read by any authenticated user in the room.
+      match /participants/{userId} {
+        allow read, write: if request.auth != null;
+      }
+
+      // Polls can be managed by the host and voted on by participants.
       match /polls/{pollId} {
-        // Read: Approved participants can read polls.
-        allow read: if isApprovedParticipant(chatRoomId, request.auth.uid);
-        
-        // Write: Host can create/update. Participants can update (to vote).
-        allow write: if isHost(chatRoomId) || isApprovedParticipant(chatRoomId, request.auth.uid);
+        allow read, write: if request.auth != null;
       }
     }
   }

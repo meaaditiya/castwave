@@ -91,6 +91,10 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
         toast({ variant: 'destructive', title: 'Error', description: 'Chat Room not found.' });
         router.push('/');
       }
+    }, (error) => {
+        console.error("Error fetching chat room:", error);
+        toast({ variant: 'destructive', title: 'Error', description: 'Could not load chat room. You may not have permission to view it.' });
+        router.push('/');
     });
   
     return () => unsubscribeChatRoom();
@@ -107,13 +111,23 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
         
         if (!userInList && chatRoom.hostId !== currentUser.uid) {
             const status = chatRoom.isPrivate ? 'approved' : 'pending';
-            addParticipant(chatRoomId, {
-                userId: currentUser.uid,
-                displayName: currentUser.email || 'Anonymous',
-                status: status,
-                requestCount: status === 'pending' ? 1 : 0,
-            });
+             if (chatRoom.isPrivate) {
+                addParticipant(chatRoomId, {
+                    userId: currentUser.uid,
+                    displayName: currentUser.email || 'Anonymous',
+                    status: 'approved',
+                });
+            } else if (status === 'pending') {
+                 addParticipant(chatRoomId, {
+                    userId: currentUser.uid,
+                    displayName: currentUser.email || 'Anonymous',
+                    status: 'pending',
+                    requestCount: 1,
+                });
+            }
         }
+    }, (error) => {
+        console.error("Error fetching participants:", error);
     });
 
     return () => unsubscribeParticipants();
@@ -123,7 +137,9 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
   useEffect(() => {
     const chatRoomId = resolvedParams.id;
     if (!chatRoomId || !canChat) return;
-    const unsubscribeMessages = getMessages(chatRoomId, setChatLog);
+    const unsubscribeMessages = getMessages(chatRoomId, setChatLog, (error) => {
+        console.error("Error fetching messages:", error);
+    });
     return () => unsubscribeMessages();
   }, [resolvedParams.id, canChat]);
 

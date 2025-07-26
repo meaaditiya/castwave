@@ -102,7 +102,7 @@ export const getChatRooms = (callback: (chatRooms: ChatRoom[]) => void) => {
     return unsubscribe;
 };
 
-export const getChatRoomStream = (id: string, callback: (chatRoom: ChatRoom | null) => void) => {
+export const getChatRoomStream = (id: string, callback: (chatRoom: ChatRoom | null) => void, onError?: (error: Error) => void) => {
     const docRef = doc(db, 'chatRooms', id);
     const unsubscribe = onSnapshot(docRef, (docSnap) => {
         if (docSnap.exists()) {
@@ -111,7 +111,7 @@ export const getChatRoomStream = (id: string, callback: (chatRoom: ChatRoom | nu
             console.log("No such document!");
             callback(null);
         }
-    });
+    }, onError);
     return unsubscribe;
 };
 
@@ -205,7 +205,7 @@ export const sendMessage = async (chatRoomId: string, message: Partial<Message>)
     }
 };
 
-export const getMessages = (chatRoomId: string, callback: (messages: Message[]) => void) => {
+export const getMessages = (chatRoomId: string, callback: (messages: Message[]) => void, onError?: (error: Error) => void) => {
     const messagesCol = collection(db, 'chatRooms', chatRoomId, 'messages');
     const q = query(messagesCol, orderBy('timestamp', 'asc'));
 
@@ -215,7 +215,7 @@ export const getMessages = (chatRoomId: string, callback: (messages: Message[]) 
             messages.push({id: doc.id, ...doc.data()} as Message);
         });
         callback(messages);
-    });
+    }, onError);
 
     return unsubscribe;
 };
@@ -230,14 +230,14 @@ export const addParticipant = async (chatRoomId: string, participant: Omit<Parti
     }
 };
 
-export const getParticipants = (chatRoomId: string, callback: (participants: Participant[]) => void) => {
+export const getParticipants = (chatRoomId: string, callback: (participants: Participant[]) => void, onError?: (error: Error) => void) => {
     const participantsCol = collection(db, `chatRooms/${chatRoomId}/participants`);
     const q = query(participantsCol);
     
     const unsubscribe = onSnapshot(q, (snapshot) => {
         const participants = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Participant));
         callback(participants);
-    });
+    }, onError);
     return unsubscribe;
 }
 
