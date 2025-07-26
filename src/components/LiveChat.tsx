@@ -1,14 +1,16 @@
+
 "use client";
 
 import { useState, useRef, useEffect } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Send, Loader2 } from 'lucide-react';
+import { Send, Loader2, Hand } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback } from './ui/avatar';
 import { useAuth } from '@/context/AuthContext';
-import { sendMessage, getMessages } from '@/services/podcastService';
+import { sendMessage, getMessages, requestToJoinChat } from '@/services/podcastService';
 import { useToast } from '@/hooks/use-toast';
+import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 
 export interface Message {
   user: string;
@@ -18,6 +20,8 @@ export interface Message {
 
 interface LiveChatProps {
   podcastId: string;
+  canChat: boolean;
+  participantStatus?: 'pending' | 'approved' | 'removed' | 'denied';
 }
 
 const userColors = [
@@ -33,10 +37,11 @@ const getUserColor = (userName: string) => {
     return userColors[Math.abs(hash % userColors.length)];
 }
 
-export function LiveChat({ podcastId }: LiveChatProps) {
+export function LiveChat({ podcastId, canChat, participantStatus }: LiveChatProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(true);
+  const [isRequesting, setIsRequesting] = useState(false);
   const { currentUser } = useAuth();
   const { toast } = useToast();
   const scrollAreaRef = useRef<HTMLDivElement>(null);
@@ -59,6 +64,20 @@ export function LiveChat({ podcastId }: LiveChatProps) {
     }
   }, [messages]);
 
+  const handleRequestJoin = async () => {
+    if (!currentUser) return;
+    setIsRequesting(true);
+    try {
+        await requestToJoinChat(podcastId, currentUser.uid, currentUser.email || 'Anonymous');
+        toast({ title: "Request Sent", description: "The host has been notified." });
+    } catch(e) {
+        console.error(e);
+        toast({ variant: 'destructive', title: 'Error', description: 'Could not send request.' });
+    } finally {
+        setIsRequesting(false);
+    }
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newMessage.trim() || !currentUser || !currentUser.email) {
@@ -77,8 +96,48 @@ export function LiveChat({ podcastId }: LiveChatProps) {
     }
   };
 
+  const renderChatOverlay = () => {
+    if (canChat || !currentUser) return null;
+
+    let alertContent;
+    switch (participantStatus) {
+        case 'pending':
+            alertContent = { title: "Request Pending", description: "Your request to join the chat is awaiting host approval." };
+            break;
+        case 'denied':
+            alertContent = { title: "Request Denied", description: "The host has denied your request to join the chat." };
+            break;
+        case 'removed':
+             alertContent = { title: "Removed from Chat", description: "The host has removed you from the chat." };
+             break;
+        default:
+            return (
+                <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex flex-col items-center justify-center z-10 p-4">
+                    <div className="text-center space-y-4">
+                        <p>You need permission to join the chat.</p>
+                        <Button onClick={handleRequestJoin} disabled={isRequesting}>
+                           {isRequesting ? <Loader2 className="animate-spin" /> : <Hand />}
+                           Request to Join Chat
+                        </Button>
+                    </div>
+                </div>
+            )
+    }
+
+    return (
+        <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-10 p-4">
+            <Alert variant="default" className="max-w-sm">
+                <Hand className="h-4 w-4" />
+                <AlertTitle>{alertContent.title}</AlertTitle>
+                <AlertDescription>{alertContent.description}</AlertDescription>
+            </Alert>
+        </div>
+    );
+  }
+
   return (
-    <div className="flex flex-col h-full p-1 sm:p-4">
+    <div className="relative flex flex-col h-full p-1 sm:p-4">
+       {renderChatOverlay()}
        {loading ? (
         <div className="flex-1 flex items-center justify-center">
           <Loader2 className="h-6 w-6 animate-spin text-primary" />
@@ -99,17 +158,22 @@ export function LiveChat({ podcastId }: LiveChatProps) {
               </div>
             </div>
           ))}
+           {messages.length === 0 && (
+                <div className="text-center text-muted-foreground pt-10">
+                    <p>No messages yet. Be the first to start the conversation!</p>
+                </div>
+            )}
         </div>
       </ScrollArea>
       )}
       <form onSubmit={handleSubmit} className="mt-4 flex gap-2 border-t pt-4">
         <Input
-          placeholder={currentUser ? "Join the conversation..." : "You must be logged in to chat."}
+          placeholder={canChat ? "Join the conversation..." : "You must be approved to chat."}
           value={newMessage}
           onChange={(e) => setNewMessage(e.target.value)}
-          disabled={!currentUser}
+          disabled={!canChat || !newMessage.trim()}
         />
-        <Button type="submit" size="icon" aria-label="Send message" disabled={!currentUser || !newMessage.trim()}>
+        <Button type="submit" size="icon" aria-label="Send message" disabled={!canChat || !newMessage.trim()}>
           <Send />
         </Button>
       </form>

@@ -1,5 +1,6 @@
+
 import { db } from '@/lib/firebase';
-import { collection, addDoc, onSnapshot, query, where, orderBy, serverTimestamp, doc, getDoc } from 'firebase/firestore';
+import { collection, addDoc, onSnapshot, query, where, orderBy, serverTimestamp, doc, getDoc, updateDoc, setDoc, deleteDoc, getDocs } from 'firebase/firestore';
 import type { Message } from '@/components/LiveChat';
 
 export interface Podcast {
@@ -20,6 +21,13 @@ export interface PodcastInput {
     host: string;
     hostId: string;
     isLive: boolean;
+}
+
+export interface Participant {
+    id: string;
+    userId: string;
+    displayName: string;
+    status: 'pending' | 'approved' | 'removed' | 'denied';
 }
 
 // Create a new podcast
@@ -72,6 +80,17 @@ export const getPodcastById = async (id: string): Promise<Podcast | null> => {
     }
 };
 
+// End a podcast
+export const endPodcast = async (podcastId: string) => {
+    try {
+        const docRef = doc(db, 'podcasts', podcastId);
+        await updateDoc(docRef, { isLive: false });
+    } catch(e) {
+        console.error("Error ending podcast: ", e);
+        throw new Error("Could not end podcast.");
+    }
+}
+
 // Send a chat message
 export const sendMessage = async (podcastId: string, message: { user: string; text: string }) => {
     try {
@@ -101,3 +120,37 @@ export const getMessages = (podcastId: string, callback: (messages: Message[]) =
 
     return unsubscribe;
 };
+
+// Get a real-time stream of participants for a podcast
+export const getParticipants = (podcastId: string, callback: (participants: Participant[]) => void) => {
+    const participantsCol = collection(db, `podcasts/${podcastId}/participants`);
+    const q = query(participantsCol);
+    
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+        const participants = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Participant));
+        callback(participants);
+    });
+    return unsubscribe;
+}
+
+// Request to join the chat
+export const requestToJoinChat = async (podcastId: string, userId: string, displayName: string) => {
+    try {
+        const participantRef = doc(db, `podcasts/${podcastId}/participants`, userId);
+        await setDoc(participantRef, { userId, displayName, status: 'pending' }, { merge: true });
+    } catch (error) {
+        console.error("Error requesting to join chat: ", error);
+        throw new Error("Could not send request.");
+    }
+}
+
+// Update participant status
+export const updateParticipantStatus = async (podcastId: string, userId: string, status: Participant['status']) => {
+    try {
+        const participantRef = doc(db, `podcasts/${podcastId}/participants`, userId);
+        await updateDoc(participantRef, { status });
+    } catch(e) {
+        console.error("Error updating participant status: ", e);
+        throw new Error("Could not update participant status.");
+    }
+}

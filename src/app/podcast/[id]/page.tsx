@@ -6,14 +6,15 @@ import { Header } from '@/components/Header';
 import { PodcastPlayer } from '@/components/PodcastPlayer';
 import { LiveChat } from '@/components/LiveChat';
 import { HighlightTool } from '@/components/HighlightTool';
+import { ParticipantsList } from '@/components/ParticipantsList';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { Message } from '@/components/LiveChat';
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Skeleton } from '@/components/ui/skeleton';
-import { MessageSquare, Sparkles } from 'lucide-react';
+import { MessageSquare, Sparkles, Users } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
-import { getPodcastById, Podcast, getMessages } from '@/services/podcastService';
+import { getPodcastById, Podcast, getMessages, Participant, getParticipants } from '@/services/podcastService';
 import { useToast } from '@/hooks/use-toast';
 
 function PodcastPageSkeleton() {
@@ -46,10 +47,12 @@ function PodcastPageSkeleton() {
                     <Card className="h-full flex flex-col min-h-[500px] lg:min-h-0">
                       <Tabs defaultValue="chat" className="w-full h-full flex flex-col">
                         <CardHeader>
+                          <Tabs defaultValue="chat" className="w-full">
                            <TabsList className="grid w-full grid-cols-2">
                                 <TabsTrigger value="chat" disabled><MessageSquare className="mr-2 h-4 w-4" />Live Chat</TabsTrigger>
                                 <TabsTrigger value="highlights" disabled><Sparkles className="mr-2 h-4 w-4" />AI Highlights</TabsTrigger>
                             </TabsList>
+                          </Tabs>
                         </CardHeader>
                         <TabsContent value="chat" className="flex-1 flex items-center justify-center">
                             <div className="w-full h-full p-4">
@@ -68,16 +71,40 @@ function PodcastPageSkeleton() {
 export default function PodcastPage({ params }: { params: { id: string } }) {
   const [podcast, setPodcast] = useState<Podcast | null>(null);
   const [chatLog, setChatLog] = useState<Message[]>([]);
+  const [participants, setParticipants] = useState<Participant[]>([]);
   const { currentUser, loading: authLoading } = useAuth();
   const router = useRouter();
   const [pageLoading, setPageLoading] = useState(true);
   const { toast } = useToast();
+
+  const isHost = currentUser && podcast && currentUser.uid === podcast.hostId;
+  const currentParticipant = participants.find(p => p.userId === currentUser?.uid);
+  const canChat = currentParticipant?.status === 'approved';
 
   useEffect(() => {
     if (!authLoading && !currentUser) {
       router.push('/login');
     }
   }, [currentUser, authLoading, router]);
+
+  useEffect(() => {
+    const podcastId = params.id;
+    if (!podcastId || !currentUser) return;
+
+    const unsubscribe = getParticipants(podcastId, setParticipants);
+
+    // Add current user to participants if not already there
+    const participantExists = participants.some(p => p.userId === currentUser.uid);
+    if (!participantExists) {
+        const participantData = {
+            userId: currentUser.uid,
+            displayName: currentUser.email || 'Anonymous',
+            status: 'pending' as 'pending' | 'approved' | 'removed'
+        };
+    }
+    return () => unsubscribe();
+
+}, [params.id, currentUser, participants]);
 
   useEffect(() => {
     const fetchPodcast = async () => {
@@ -120,7 +147,8 @@ export default function PodcastPage({ params }: { params: { id: string } }) {
     host: podcast.host,
     hostAvatar: 'https://placehold.co/100x100.png',
     isLive: podcast.isLive,
-    imageHint: 'scientist portrait'
+    imageHint: 'scientist portrait',
+    isHost: isHost
   };
 
 
@@ -135,14 +163,24 @@ export default function PodcastPage({ params }: { params: { id: string } }) {
           <Card className="h-full flex flex-col min-h-[500px] lg:min-h-0">
             <Tabs defaultValue="chat" className="w-full h-full flex flex-col">
               <CardHeader>
-                <TabsList className="grid w-full grid-cols-2">
+                 <TabsList className={`grid w-full ${isHost ? 'grid-cols-3' : 'grid-cols-2'}`}>
                   <TabsTrigger value="chat"><MessageSquare className="mr-2 h-4 w-4" />Live Chat</TabsTrigger>
+                  {isHost && <TabsTrigger value="participants"><Users className="mr-2 h-4 w-4" />Participants</TabsTrigger>}
                   <TabsTrigger value="highlights"><Sparkles className="mr-2 h-4 w-4" />AI Highlights</TabsTrigger>
                 </TabsList>
               </CardHeader>
               <TabsContent value="chat" className="flex-1 overflow-auto">
-                <LiveChat podcastId={podcast.id} />
+                <LiveChat 
+                    podcastId={podcast.id} 
+                    canChat={canChat} 
+                    participantStatus={currentParticipant?.status}
+                />
               </TabsContent>
+               {isHost && (
+                <TabsContent value="participants" className="flex-1 overflow-auto">
+                    <ParticipantsList podcastId={podcast.id} participants={participants} />
+                </TabsContent>
+               )}
               <TabsContent value="highlights" className="flex-1 overflow-auto">
                 <HighlightTool chatLog={fullChatLog} />
               </TabsContent>
