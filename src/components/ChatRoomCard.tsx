@@ -51,12 +51,13 @@ export function ChatRoomCard({ id, title, host, imageUrl, isLive, imageHint, isO
             <CardHeader className="p-0 relative">
                 <div className="overflow-hidden">
                     <Image
-                        src={imageUrl || `https://placehold.co/600x400.png`}
+                        src={imageUrl || ''}
                         alt={title}
                         width={600}
                         height={400}
-                        className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-300"
+                        className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-300 bg-secondary"
                         data-ai-hint={imageHint || 'abstract art'}
+                        unoptimized={true}
                     />
                 </div>
                 <div className="absolute top-2 right-2 flex flex-col items-end gap-2">
