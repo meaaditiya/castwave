@@ -15,7 +15,7 @@ const UploadFileInputSchema = z.object({
   fileDataUri: z
     .string()
     .describe(
-      "The file to upload, as a data URI that must include a MIME type and use Base64 encoding. Expected format: 'data:<mimetype>;base64,<encoded_data>'."
+      "The file to upload, as a data URI that must include a MIME type and use Base64 encoding. Expected format: 'data:<mimetype>;base64,<encoded_data>'"
     ),
   fileName: z.string().describe('The name of the file.'),
   userId: z.string().describe('The ID of the user uploading the file.'),
@@ -41,7 +41,7 @@ const uploadFileFlow = ai.defineFlow(
   },
   async (input) => {
     try {
-      const storageRef = ref(storage, `thumbnails/${input.userId}_${Date.now()}_${input.fileName}`);
+      const storageRef = ref(storage, `${input.userId}_${Date.now()}_${input.fileName}`);
       
       const snapshot = await uploadString(storageRef, input.fileDataUri, 'data_url');
       const downloadURL = await getDownloadURL(snapshot.ref);
