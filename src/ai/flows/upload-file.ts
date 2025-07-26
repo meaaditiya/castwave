@@ -21,10 +21,12 @@ const UploadFileInputSchema = z.object({
 });
 export type UploadFileInput = z.infer<typeof UploadFileInputSchema>;
 
+
 const UploadFileOutputSchema = z.object({
   url: z.string().describe('The public URL of the uploaded file.'),
 });
 export type UploadFileOutput = z.infer<typeof UploadFileOutputSchema>;
+
 
 export async function uploadFile(input: UploadFileInput): Promise<UploadFileOutput> {
   return uploadFileFlow(input);
