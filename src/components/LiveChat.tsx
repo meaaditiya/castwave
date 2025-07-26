@@ -8,7 +8,7 @@ import { Send, Loader2, Hand, ThumbsUp, ThumbsDown, Star, ArrowDown } from 'luci
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback } from './ui/avatar';
 import { useAuth } from '@/context/AuthContext';
-import { sendMessage, requestToJoinChat, voteOnMessage, featureMessage, updateTypingStatus, ChatRoom } from '@/services/chatRoomService';
+import { sendMessage, requestToJoinChat, voteOnMessage, featureMessage, updateTypingStatus, ChatRoom, Participant } from '@/services/chatRoomService';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 import type { Message } from '@/services/chatRoomService';
@@ -24,7 +24,7 @@ interface LiveChatProps {
   canChat: boolean;
   isHost: boolean;
   messages: Message[];
-  participantStatus?: 'pending' | 'approved' | 'removed' | 'denied';
+  participant?: Participant;
 }
 
 const userColors = [
@@ -40,7 +40,7 @@ const getUserColor = (userName: string) => {
     return userColors[Math.abs(hash % userColors.length)];
 }
 
-export function LiveChat({ chatRoom, canChat, participantStatus, isHost, messages }: LiveChatProps) {
+export function LiveChat({ chatRoom, canChat, participant, isHost, messages }: LiveChatProps) {
   const [newMessage, setNewMessage] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [isRequesting, setIsRequesting] = useState(false);
@@ -113,9 +113,9 @@ export function LiveChat({ chatRoom, canChat, participantStatus, isHost, message
     try {
         await requestToJoinChat(chatRoom.id, currentUser.uid, currentUser.email || 'Anonymous');
         toast({ title: "Request Sent", description: "The host has been notified." });
-    } catch(e) {
+    } catch(e: any) {
         console.error(e);
-        toast({ variant: 'destructive', title: 'Error', description: 'Could not send request.' });
+        toast({ variant: 'destructive', title: 'Error', description: e.message || 'Could not send request.' });
     } finally {
         setIsRequesting(false);
     }
@@ -188,15 +188,31 @@ export function LiveChat({ chatRoom, canChat, participantStatus, isHost, message
     .map(([, name]) => name);
     
   const renderChatOverlay = () => {
-    if (canChat || isHost || !currentUser) return null;
+    if (canChat || isHost || !currentUser || !participant) return null;
 
     let alertContent;
-    switch (participantStatus) {
+    switch (participant.status) {
         case 'pending':
             alertContent = { title: "Request Pending", description: "Your request to join the chat is awaiting host approval." };
             break;
         case 'denied':
-            alertContent = { title: "Request Denied", description: "The host has denied your request to join the chat." };
+            const requestsLeft = 3 - (participant.requestCount || 0);
+            if (requestsLeft > 0) {
+                 return (
+                    <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex flex-col items-center justify-center z-10 p-4">
+                        <div className="text-center space-y-4">
+                            <p className='font-semibold'>The host denied your request.</p>
+                            <p className='text-sm text-muted-foreground'>You can request to join {requestsLeft} more {requestsLeft === 1 ? 'time' : 'times'}.</p>
+                            <Button onClick={handleRequestJoin} disabled={isRequesting}>
+                               {isRequesting ? <Loader2 className="animate-spin" /> : <Hand />}
+                               Request to Join Again
+                            </Button>
+                        </div>
+                    </div>
+                )
+            } else {
+                 alertContent = { title: "Request Denied", description: "You have reached the maximum number of requests to join." };
+            }
             break;
         case 'removed':
              alertContent = { title: "Removed from Chat", description: "The host has removed you from the chat." };

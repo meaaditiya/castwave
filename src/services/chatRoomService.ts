@@ -1,6 +1,7 @@
 
 import { db } from '@/lib/firebase';
-import { collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, doc, getDoc, updateDoc, setDoc, deleteDoc, getDocs, writeBatch, runTransaction } from 'firebase/firestore';
+import { collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, doc, getDoc, updateDoc, setDoc, deleteDoc, getDocs, writeBatch, runTransaction, increment } from 'firebase/firestore';
+import { generateThumbnailSvg } from '@/lib/thumbnail';
 
 export interface Message {
   id?: string;
@@ -43,6 +44,7 @@ export interface Participant {
     userId: string;
     displayName: string;
     status: 'pending' | 'approved' | 'removed' | 'denied';
+    requestCount?: number;
 }
 
 export const createChatRoom = async (input: ChatRoomInput): Promise<{ chatRoomId: string }> => {
@@ -51,6 +53,8 @@ export const createChatRoom = async (input: ChatRoomInput): Promise<{ chatRoomId
 
     try {
         await runTransaction(db, async (transaction) => {
+            const thumbnailUrl = `data:image/svg+xml;base64,${btoa(generateThumbnailSvg(input.title))}`;
+            
             transaction.set(newChatRoomRef, {
                 title: input.title,
                 description: input.description,
@@ -59,7 +63,7 @@ export const createChatRoom = async (input: ChatRoomInput): Promise<{ chatRoomId
                 isLive: input.isLive,
                 createdAt: serverTimestamp(),
                 scheduledAt: input.scheduledAt || null,
-                imageUrl: `https://placehold.co/600x400.png`,
+                imageUrl: thumbnailUrl,
                 imageHint: 'abstract art'
             });
 
@@ -67,7 +71,8 @@ export const createChatRoom = async (input: ChatRoomInput): Promise<{ chatRoomId
             transaction.set(participantRef, {
                 userId: input.hostId,
                 displayName: input.host,
-                status: 'approved'
+                status: 'approved',
+                requestCount: 0
             });
         });
         
@@ -206,7 +211,7 @@ export const getMessages = (chatRoomId: string, callback: (messages: Message[]) 
     return unsubscribe;
 };
 
-export const addParticipant = async (chatRoomId: string, participant: Participant) => {
+export const addParticipant = async (chatRoomId: string, participant: Omit<Participant, 'id'>) => {
     try {
         const participantRef = doc(db, `chatRooms/${chatRoomId}/participants`, participant.userId);
         await setDoc(participantRef, participant, { merge: true });
@@ -228,12 +233,27 @@ export const getParticipants = (chatRoomId: string, callback: (participants: Par
 }
 
 export const requestToJoinChat = async (chatRoomId: string, userId: string, displayName: string) => {
+    const participantRef = doc(db, `chatRooms/${chatRoomId}/participants`, userId);
     try {
-        const participantRef = doc(db, `chatRooms/${chatRoomId}/participants`, userId);
-        await setDoc(participantRef, { userId, displayName, status: 'pending' }, { merge: true });
-    } catch (error) {
+        const docSnap = await getDoc(participantRef);
+
+        if (docSnap.exists()) {
+            const participant = docSnap.data() as Participant;
+            if ((participant.requestCount || 0) >= 3) {
+                throw new Error("You have reached the maximum number of requests to join.");
+            }
+        }
+
+        await setDoc(participantRef, {
+            userId,
+            displayName,
+            status: 'pending',
+            requestCount: increment(1)
+        }, { merge: true });
+
+    } catch (error: any) {
         console.error("Error requesting to join chat: ", error);
-        throw new Error("Could not send request.");
+        throw new Error(error.message || "Could not send request.");
     }
 }
 

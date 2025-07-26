@@ -104,18 +104,18 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
 
         const userInList = newParticipants.some(p => p.userId === currentUser.uid);
 
-        if (!userInList && chatRoom?.hostId && currentUser.uid && !authLoading) {
-            const status = chatRoom.hostId === currentUser.uid ? 'approved' : 'pending';
+        if (!userInList && chatRoom?.hostId && currentUser.uid && !authLoading && !isHost) {
             addParticipant(chatRoomId, {
                 userId: currentUser.uid,
                 displayName: currentUser.email || 'Anonymous',
-                status: status
+                status: 'pending',
+                requestCount: 0
             });
         }
     });
 
     return () => unsubscribeParticipants();
-  }, [resolvedParams.id, currentUser, chatRoom, authLoading]);
+  }, [resolvedParams.id, currentUser, chatRoom, authLoading, isHost]);
 
 
   useEffect(() => {
@@ -158,7 +158,7 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
               <LiveChat 
                   chatRoom={chatRoom} 
                   canChat={canChat} 
-                  participantStatus={currentParticipant?.status}
+                  participant={currentParticipant}
                   isHost={isHost}
                   messages={chatLog}
               />
