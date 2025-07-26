@@ -14,7 +14,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { MessageSquare, Sparkles, Users } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
-import { getPodcastById, Podcast, getMessages, Participant, getParticipants } from '@/services/podcastService';
+import { getPodcastById, Podcast, getMessages, Participant, getParticipants, addParticipant } from '@/services/podcastService';
 import { useToast } from '@/hooks/use-toast';
 
 function PodcastPageSkeleton() {
@@ -47,12 +47,10 @@ function PodcastPageSkeleton() {
                     <Card className="h-full flex flex-col min-h-[500px] lg:min-h-0">
                       <Tabs defaultValue="chat" className="w-full h-full flex flex-col">
                         <CardHeader>
-                          <Tabs defaultValue="chat" className="w-full">
                            <TabsList className="grid w-full grid-cols-2">
                                 <TabsTrigger value="chat" disabled><MessageSquare className="mr-2 h-4 w-4" />Live Chat</TabsTrigger>
                                 <TabsTrigger value="highlights" disabled><Sparkles className="mr-2 h-4 w-4" />AI Highlights</TabsTrigger>
                             </TabsList>
-                          </Tabs>
                         </CardHeader>
                         <TabsContent value="chat" className="flex-1 flex items-center justify-center">
                             <div className="w-full h-full p-4">
@@ -69,6 +67,7 @@ function PodcastPageSkeleton() {
 
 
 export default function PodcastPage({ params }: { params: { id: string } }) {
+  const resolvedParams = use(params);
   const [podcast, setPodcast] = useState<Podcast | null>(null);
   const [chatLog, setChatLog] = useState<Message[]>([]);
   const [participants, setParticipants] = useState<Participant[]>([]);
@@ -79,7 +78,7 @@ export default function PodcastPage({ params }: { params: { id: string } }) {
 
   const isHost = currentUser && podcast && currentUser.uid === podcast.hostId;
   const currentParticipant = participants.find(p => p.userId === currentUser?.uid);
-  const canChat = currentParticipant?.status === 'approved';
+  const canChat = isHost || currentParticipant?.status === 'approved';
 
   useEffect(() => {
     if (!authLoading && !currentUser) {
@@ -87,28 +86,36 @@ export default function PodcastPage({ params }: { params: { id: string } }) {
     }
   }, [currentUser, authLoading, router]);
 
+
   useEffect(() => {
-    const podcastId = params.id;
+    const podcastId = resolvedParams.id;
     if (!podcastId || !currentUser) return;
 
-    const unsubscribe = getParticipants(podcastId, setParticipants);
+    // Set up participants listener
+    const unsubscribe = getParticipants(podcastId, (newParticipants) => {
+        setParticipants(newParticipants);
 
-    // Add current user to participants if not already there
-    const participantExists = participants.some(p => p.userId === currentUser.uid);
-    if (!participantExists) {
-        const participantData = {
-            userId: currentUser.uid,
-            displayName: currentUser.email || 'Anonymous',
-            status: 'pending' as 'pending' | 'approved' | 'removed'
-        };
-    }
+        // Check if the current user (host or regular user) is in the participants list
+        const userInList = newParticipants.some(p => p.userId === currentUser.uid);
+
+        if (!userInList) {
+            const status = podcast?.hostId === currentUser.uid ? 'approved' : 'pending';
+             // If they are not, add them. Host is auto-approved.
+            addParticipant(podcastId, {
+                userId: currentUser.uid,
+                displayName: currentUser.email || 'Anonymous',
+                status: status
+            });
+        }
+    });
+
     return () => unsubscribe();
+  }, [resolvedParams.id, currentUser, podcast]);
 
-}, [params.id, currentUser, participants]);
 
   useEffect(() => {
     const fetchPodcast = async () => {
-      const podcastId = params.id;
+      const podcastId = resolvedParams.id;
       if (!podcastId) return;
       setPageLoading(true);
       try {
@@ -127,14 +134,14 @@ export default function PodcastPage({ params }: { params: { id: string } }) {
       }
     };
     fetchPodcast();
-  }, [params, router, toast]);
+  }, [resolvedParams, router, toast]);
 
   useEffect(() => {
-    const podcastId = params.id;
+    const podcastId = resolvedParams.id;
     if (!podcastId) return;
     const unsubscribe = getMessages(podcastId, setChatLog);
     return () => unsubscribe();
-  }, [params]);
+  }, [resolvedParams]);
 
   if (authLoading || pageLoading || !currentUser || !podcast) {
     return <PodcastPageSkeleton />;
@@ -174,6 +181,7 @@ export default function PodcastPage({ params }: { params: { id: string } }) {
                     podcastId={podcast.id} 
                     canChat={canChat} 
                     participantStatus={currentParticipant?.status}
+                    isHost={isHost}
                 />
               </TabsContent>
                {isHost && (

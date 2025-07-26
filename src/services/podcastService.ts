@@ -24,7 +24,7 @@ export interface PodcastInput {
 }
 
 export interface Participant {
-    id: string;
+    id?: string;
     userId: string;
     displayName: string;
     status: 'pending' | 'approved' | 'removed' | 'denied';
@@ -33,13 +33,21 @@ export interface Participant {
 // Create a new podcast
 export const createPodcast = async (podcastData: PodcastInput) => {
     try {
-        await addDoc(collection(db, 'podcasts'), {
+        const docRef = await addDoc(collection(db, 'podcasts'), {
             ...podcastData,
             createdAt: serverTimestamp(),
-            // Using a placeholder image for now
             imageUrl: 'https://placehold.co/400x400.png',
             imageHint: 'podcast technology'
         });
+
+        // Automatically add the host as an approved participant
+        const hostParticipant: Participant = {
+            userId: podcastData.hostId,
+            displayName: podcastData.host,
+            status: 'approved'
+        };
+        await addParticipant(docRef.id, hostParticipant);
+
     } catch (error) {
         console.error("Error creating podcast: ", error);
         throw new Error("Could not create podcast.");
@@ -119,6 +127,17 @@ export const getMessages = (podcastId: string, callback: (messages: Message[]) =
     });
 
     return unsubscribe;
+};
+
+// Add a participant to the podcast
+export const addParticipant = async (podcastId: string, participant: Participant) => {
+    try {
+        const participantRef = doc(db, `podcasts/${podcastId}/participants`, participant.userId);
+        await setDoc(participantRef, participant, { merge: true });
+    } catch (error) {
+        console.error("Error adding participant: ", error);
+        throw new Error("Could not add participant.");
+    }
 };
 
 // Get a real-time stream of participants for a podcast

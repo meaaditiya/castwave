@@ -21,6 +21,7 @@ export interface Message {
 interface LiveChatProps {
   podcastId: string;
   canChat: boolean;
+  isHost: boolean;
   participantStatus?: 'pending' | 'approved' | 'removed' | 'denied';
 }
 
@@ -37,7 +38,7 @@ const getUserColor = (userName: string) => {
     return userColors[Math.abs(hash % userColors.length)];
 }
 
-export function LiveChat({ podcastId, canChat, participantStatus }: LiveChatProps) {
+export function LiveChat({ podcastId, canChat, participantStatus, isHost }: LiveChatProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(true);
@@ -97,7 +98,7 @@ export function LiveChat({ podcastId, canChat, participantStatus }: LiveChatProp
   };
 
   const renderChatOverlay = () => {
-    if (canChat || !currentUser) return null;
+    if (canChat || isHost || !currentUser) return null;
 
     let alertContent;
     switch (participantStatus) {
