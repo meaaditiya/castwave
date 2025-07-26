@@ -56,37 +56,37 @@ export function LiveChat({ chatRoom, canChat, participantStatus, isHost, message
       viewport.scrollTo({ top: viewport.scrollHeight, behavior });
     }
   }, []);
-
-  useEffect(() => {
+  
+  const handleScroll = useCallback(() => {
     const viewport = scrollViewportRef.current;
     if (!viewport) return;
-
-    const handleScroll = () => {
-        const isAtBottom = viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight < 1;
-        if (showNewMessageButton && isAtBottom) {
-            setShowNewMessageButton(false);
-        }
-    };
-
-    viewport.addEventListener('scroll', handleScroll);
-    return () => viewport.removeEventListener('scroll', handleScroll);
+    const isAtBottom = viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight < 1;
+    if (showNewMessageButton && isAtBottom) {
+        setShowNewMessageButton(false);
+    }
   }, [showNewMessageButton]);
 
+  useEffect(() => {
+    const viewport = scrollViewportRef.current;
+    if (!viewport) return;
+    viewport.addEventListener('scroll', handleScroll);
+    return () => viewport.removeEventListener('scroll', handleScroll);
+  }, [handleScroll]);
 
   useEffect(() => {
     const viewport = scrollViewportRef.current;
     if (!viewport) return;
-
-    const isAtBottom = viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight < 150;
-
-    if (!isAtBottom) {
-        if (messages.length > 0 && messages.length > (messages?.length || 0)) {
-            setShowNewMessageButton(true);
-        }
-    } else {
+  
+    // A bit of tolerance to consider it "at the bottom"
+    const isScrolledToBottom = viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight <= 150;
+  
+    // If a new message comes in and we are already at the bottom, scroll down.
+    if (isScrolledToBottom) {
       scrollToBottom('smooth');
+    } else {
+      // If we are not at the bottom, show the "new message" button.
+      setShowNewMessageButton(true);
     }
-
   }, [messages, scrollToBottom]);
 
 
@@ -130,6 +130,8 @@ export function LiveChat({ chatRoom, canChat, participantStatus, isHost, message
             text: newMessage.trim(),
         });
         setNewMessage('');
+        setShowNewMessageButton(false);
+        scrollToBottom('smooth');
     } catch (error: any) {
       console.error(error);
       toast({ variant: 'destructive', title: 'Error', description: error.message || 'Could not send message.' });

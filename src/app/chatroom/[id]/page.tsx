@@ -155,7 +155,7 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
         <div className="lg:col-span-2">
           <LiveScreen {...chatRoomDetails} />
         </div>
-        <div className="lg:col-span-1 flex flex-col h-[80vh] lg:h-auto">
+        <div className="lg:col-span-1 flex flex-col h-[80vh] lg:h-[calc(100vh-10rem)]">
           <Card className="h-full flex flex-col flex-1">
             <Tabs defaultValue="chat" className="w-full h-full flex flex-col">
               <CardHeader className="p-2 sm:p-4">
