@@ -103,7 +103,7 @@ export function LiveScreen({ id, title, host, hostAvatar, isLive, imageHint, isH
                             </Avatar>
                             <div className="bg-primary/10 border border-primary/20 p-3 rounded-lg rounded-tl-none flex-1">
                                 <p className="text-sm font-bold text-primary">{host} (Host)</p>
-                                <p className="text-base font-medium text-primary-foreground/90">{hostReply}</p>
+                                <p className="text-base font-medium text-foreground">{hostReply}</p>
                             </div>
                         </div>
                     )}
@@ -134,10 +134,10 @@ export function LiveScreen({ id, title, host, hostAvatar, isLive, imageHint, isH
             </div>
         </>
        ) : (
-        <>
-            <MicOff size={80} className="text-muted-foreground" />
+        <div className="flex flex-col items-center justify-center text-center space-y-4">
+            <MicOff size={80} className="text-muted-foreground mx-auto" />
             <p className="text-muted-foreground">This chat room has ended.</p>
-        </>
+        </div>
        )}
       </CardContent>
     </Card>
