@@ -68,6 +68,7 @@ export default function PodcastPage({ params }: { params: { id: string } }) {
   const router = useRouter();
   const [pageLoading, setPageLoading] = useState(true);
   const { toast } = useToast();
+  // Access params correctly inside useEffect or derived state
   const podcastId = params.id;
 
   useEffect(() => {
@@ -78,6 +79,7 @@ export default function PodcastPage({ params }: { params: { id: string } }) {
 
   useEffect(() => {
     const fetchPodcast = async () => {
+      if (!podcastId) return;
       setPageLoading(true);
       try {
         const podcastData = await getPodcastById(podcastId);
@@ -94,9 +96,7 @@ export default function PodcastPage({ params }: { params: { id: string } }) {
         setPageLoading(false);
       }
     };
-    if (podcastId) {
-        fetchPodcast();
-    }
+    fetchPodcast();
   }, [podcastId, router, toast]);
 
   useEffect(() => {
@@ -104,7 +104,7 @@ export default function PodcastPage({ params }: { params: { id: string } }) {
     const unsubscribe = getMessages(podcastId, setChatLog);
     return () => unsubscribe();
   }, [podcastId]);
-  
+
   if (authLoading || pageLoading || !currentUser || !podcast) {
     return <PodcastPageSkeleton />;
   }
