@@ -155,8 +155,8 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
         <div className="lg:col-span-2">
           <LiveScreen {...chatRoomDetails} />
         </div>
-        <div className="lg:col-span-1 flex flex-col">
-          <Card className="h-full flex flex-col flex-1 min-h-[500px] lg:min-h-0">
+        <div className="lg:col-span-1 flex flex-col h-[80vh] lg:h-auto">
+          <Card className="h-full flex flex-col flex-1">
             <Tabs defaultValue="chat" className="w-full h-full flex flex-col">
               <CardHeader className="p-2 sm:p-4">
                  <TabsList className={`grid w-full ${isHost ? 'grid-cols-3' : 'grid-cols-2'}`}>

@@ -61,7 +61,7 @@ export function LiveScreen({ id, title, host, hostAvatar, isLive, imageHint, isH
   }
 
   return (
-    <Card className="overflow-hidden shadow-lg h-full flex flex-col">
+    <Card className="overflow-hidden shadow-lg h-full flex flex-col lg:min-h-[500px]">
       <CardHeader className="flex flex-row items-center gap-4 p-4 md:p-6">
         <Avatar className="h-16 w-16 border-2 border-primary">
           <AvatarImage src={hostAvatar} alt={host} data-ai-hint={imageHint} />
