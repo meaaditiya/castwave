@@ -14,7 +14,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { MessageSquare, Sparkles, Users } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
-import { getChatRoomById, ChatRoom, getMessages, Participant, getParticipants, addParticipant } from '@/services/chatRoomService';
+import { getChatRoomStream, ChatRoom, getMessages, Participant, getParticipants, addParticipant } from '@/services/chatRoomService';
 import { useToast } from '@/hooks/use-toast';
 
 function ChatRoomPageSkeleton() {
@@ -81,13 +81,32 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
     }
   }, [currentUser, authLoading, router]);
 
+  useEffect(() => {
+    const chatRoomId = resolvedParams.id;
+    if (!chatRoomId || !currentUser) return;
+  
+    setPageLoading(true);
+  
+    // Set up real-time listener for the chat room itself
+    const unsubscribeChatRoom = getChatRoomStream(chatRoomId, (chatRoomData) => {
+      if (chatRoomData) {
+        setChatRoom(chatRoomData);
+        setPageLoading(false); // Consider page loaded once we have room data
+      } else {
+        toast({ variant: 'destructive', title: 'Error', description: 'Chat Room not found.' });
+        router.push('/');
+      }
+    });
+  
+    return () => unsubscribeChatRoom();
+  }, [resolvedParams.id, currentUser, router, toast]);
 
   useEffect(() => {
     const chatRoomId = resolvedParams.id;
     if (!chatRoomId || !currentUser) return;
 
     // Set up participants listener
-    const unsubscribe = getParticipants(chatRoomId, (newParticipants) => {
+    const unsubscribeParticipants = getParticipants(chatRoomId, (newParticipants) => {
         setParticipants(newParticipants);
 
         const userInList = newParticipants.some(p => p.userId === currentUser.uid);
@@ -103,39 +122,16 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
         }
     });
 
-    return () => unsubscribe();
+    return () => unsubscribeParticipants();
   }, [resolvedParams.id, currentUser, chatRoom]);
 
 
   useEffect(() => {
-    const fetchChatRoom = async () => {
-      const chatRoomId = resolvedParams.id;
-      if (!chatRoomId) return;
-      setPageLoading(true);
-      try {
-        const chatRoomData = await getChatRoomById(chatRoomId);
-        if (chatRoomData) {
-          setChatRoom(chatRoomData);
-        } else {
-          toast({ variant: 'destructive', title: 'Error', description: 'Chat Room not found.' });
-          router.push('/');
-        }
-      } catch (error) {
-        console.error(error);
-        toast({ variant: 'destructive', title: 'Error', description: 'Failed to load chat room.' });
-      } finally {
-        setPageLoading(false);
-      }
-    };
-    fetchChatRoom();
-  }, [resolvedParams, router, toast]);
-
-  useEffect(() => {
     const chatRoomId = resolvedParams.id;
     if (!chatRoomId) return;
-    const unsubscribe = getMessages(chatRoomId, setChatLog);
-    return () => unsubscribe();
-  }, [resolvedParams]);
+    const unsubscribeMessages = getMessages(chatRoomId, setChatLog);
+    return () => unsubscribeMessages();
+  }, [resolvedParams.id]);
 
   if (authLoading || pageLoading || !currentUser || !chatRoom) {
     return <ChatRoomPageSkeleton />;

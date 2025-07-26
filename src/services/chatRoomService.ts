@@ -80,6 +80,20 @@ export const getChatRooms = (callback: (chatRooms: ChatRoom[]) => void) => {
     return unsubscribe;
 };
 
+// Get a real-time stream for a single chat room
+export const getChatRoomStream = (id: string, callback: (chatRoom: ChatRoom | null) => void) => {
+    const docRef = doc(db, 'chatRooms', id);
+    const unsubscribe = onSnapshot(docRef, (docSnap) => {
+        if (docSnap.exists()) {
+            callback({ id: docSnap.id, ...docSnap.data() } as ChatRoom);
+        } else {
+            console.log("No such document!");
+            callback(null);
+        }
+    });
+    return unsubscribe;
+};
+
 
 // Get a single chatRoom by ID
 export const getChatRoomById = async (id: string): Promise<ChatRoom | null> => {

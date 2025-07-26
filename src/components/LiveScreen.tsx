@@ -61,13 +61,13 @@ export function LiveScreen({ id, title, host, hostAvatar, isLive, imageHint, isH
 
   return (
     <Card className="overflow-hidden shadow-2xl shadow-primary/10">
-      <CardHeader className="flex flex-row items-center gap-4 p-6">
+      <CardHeader className="flex flex-row items-center gap-4 p-4 md:p-6">
         <Avatar className="h-16 w-16 border-2 border-primary">
           <AvatarImage src={hostAvatar} alt={host} data-ai-hint={imageHint} />
           <AvatarFallback>{host.substring(0, 2)}</AvatarFallback>
         </Avatar>
         <div className="flex-1">
-          <CardTitle className="text-2xl font-headline">{title}</CardTitle>
+          <CardTitle className="text-xl md:text-2xl font-headline">{title}</CardTitle>
           <CardDescription>Hosted by {host}</CardDescription>
         </div>
         {isLive && (
@@ -76,40 +76,57 @@ export function LiveScreen({ id, title, host, hostAvatar, isLive, imageHint, isH
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
               <span className="relative inline-flex rounded-full h-3 w-3 bg-primary"></span>
             </span>
-            <span>LIVE</span>
+            <span className="hidden sm:block">LIVE</span>
           </div>
         )}
       </CardHeader>
-      <CardContent className="bg-card/50 p-6 flex flex-col items-center justify-center space-y-4 border-t min-h-[300px]">
+      <CardContent className="bg-card/50 p-4 md:p-6 flex flex-col justify-center space-y-4 border-t min-h-[300px] md:min-h-[400px]">
        {isLive ? (
         <>
             {featuredMessage ? (
-                 <div className="w-full text-center space-y-4 animate-in fade-in-50">
-                    <div className="bg-primary/10 p-4 rounded-lg">
-                        <p className="text-sm text-muted-foreground">{featuredMessage.user} asked:</p>
-                        <p className="text-lg font-medium">"{featuredMessage.text}"</p>
+                 <div className="w-full space-y-4 animate-in fade-in-50 duration-500">
+                    {/* User's Message */}
+                    <div className="flex items-start space-x-3">
+                        <Avatar className="h-8 w-8 border">
+                            <AvatarFallback>{featuredMessage.user?.substring(0,1) || 'A'}</AvatarFallback>
+                        </Avatar>
+                        <div className="bg-muted p-3 rounded-lg rounded-tl-none flex-1">
+                            <p className="text-sm font-bold text-muted-foreground">{featuredMessage.user}</p>
+                            <p className="text-base">{featuredMessage.text}</p>
+                        </div>
                     </div>
+                    {/* Host's Reply */}
                     {hostReply && (
-                        <div className="bg-background p-4 rounded-lg border">
-                            <p className="text-sm text-muted-foreground">{host} replied:</p>
-                            <p className="text-xl font-bold text-primary">{hostReply}</p>
+                        <div className="flex items-start space-x-3">
+                             <Avatar className="h-8 w-8 border-2 border-primary">
+                                <AvatarFallback className="text-primary font-bold">{host?.substring(0,1) || 'H'}</AvatarFallback>
+                            </Avatar>
+                            <div className="bg-primary/10 border border-primary/20 p-3 rounded-lg rounded-tl-none flex-1">
+                                <p className="text-sm font-bold text-primary">{host} (Host)</p>
+                                <p className="text-base font-medium text-primary-foreground/90">{hostReply}</p>
+                            </div>
                         </div>
                     )}
                 </div>
             ) : (
                 <div className="text-center text-muted-foreground space-y-2">
-                    <Star className="mx-auto h-12 w-12 text-primary/20" />
-                    <p>Featured messages will appear here.</p>
+                    <MessageSquare className="mx-auto h-12 w-12 text-primary/20" />
+                    <p className="font-bold">The Screen is Live!</p>
+                    {isHost ? (
+                        <p className="text-sm">Click the <Star className="inline h-4 w-4 text-amber-500" /> icon next to a message in the chat to feature it here.</p>
+                    ) : (
+                        <p className="text-sm">The host can feature important messages here.</p>
+                    )}
                 </div>
             )}
            
-            <div className="flex items-center space-x-4 pt-4">
-                <Button variant="outline" size="lg" onClick={handleShare}>
+            <div className="flex items-center space-x-4 pt-4 mt-auto justify-center">
+                <Button variant="outline" onClick={handleShare}>
                     <Share2 className="mr-2" />
                     Share
                 </Button>
                 {isHost && (
-                    <Button variant="destructive" size="lg" onClick={handleEndChatRoom} disabled={isEnding}>
+                    <Button variant="destructive" onClick={handleEndChatRoom} disabled={isEnding}>
                     {isEnding ? <Loader2 className="animate-spin" /> : <MicOff />}
                         End Chat Room
                     </Button>
