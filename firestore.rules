@@ -3,49 +3,48 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper functions
+    // Helper function to check if a user is authenticated
     function isSignedIn() {
       return request.auth != null;
     }
 
-    function isOwner(resource) {
-      return request.auth.uid == resource.data.hostId;
+    // Helper function to check if the user is the host of a specific chat room
+    function isHost(chatRoomId) {
+      return isSignedIn() && request.auth.uid == get(/databases/$(database)/documents/chatRooms/$(chatRoomId)).data.hostId;
     }
 
     match /chatRooms/{chatRoomId} {
-      // Anyone authenticated can read chat rooms
+      // Anyone can read chat rooms (for the main list)
       allow read: if isSignedIn();
-      
-      // Only authenticated users can create a chat room
+      // Only authenticated users can create rooms
       allow create: if isSignedIn();
-      
-      // Only the host can update or delete their own chat room
-      allow update, delete: if isSignedIn() && isOwner(resource);
+      // Only the host can update or delete the chat room document
+      allow update, delete: if isHost(chatRoomId);
 
-      // Rules for subcollections
-      match /participants/{participantId} {
-        // Anyone authenticated can read the participants list.
-        // This is necessary to check status (pending, approved, etc.)
-        allow read: if isSignedIn();
-
-        // An authenticated user can add themselves to the participants list.
-        // They can also update their own status (e.g. re-requesting).
-        allow create, update: if isSignedIn() && request.auth.uid == participantId;
-        
-        // Only the host can update other participants (approve, deny, remove).
-        // This is covered by a more specific rule below.
-        allow update: if isSignedIn() && isOwner(get(/databases/$(database)/documents/chatRooms/$(chatRoomId)));
+      // Rules for the 'participants' subcollection
+      match /participants/{userId} {
+        // The host can read, create, update, delete any participant record
+        allow read, write: if isHost(chatRoomId);
+        // Any signed-in user can create THEIR OWN participant record (to request to join)
+        allow create: if isSignedIn() && request.auth.uid == userId;
       }
 
+      // Rules for the 'messages' subcollection
       match /messages/{messageId} {
-        // Anyone can read messages
+        // Anyone signed in can read messages
         allow read: if isSignedIn();
-        
-        // A user can send a message only if they are an approved participant.
+        // Only approved participants can write messages
         allow create: if isSignedIn() && get(/databases/$(database)/documents/chatRooms/$(chatRoomId)/participants/$(request.auth.uid)).data.status == 'approved';
-
-        // A user can vote on a message (update) if they are an approved participant.
-        allow update: if isSignedIn() && get(/databases/$(database)/documents/chatRooms/$(chatRoomId)/participants/$(request.auth.uid)).data.status == 'approved';
+        // Only the host can update or delete messages (e.g., for moderation)
+        allow update, delete: if isHost(chatRoomId);
+      }
+      
+      // Rules for the 'polls' subcollection
+      match /polls/{pollId} {
+        // Anyone signed in can read polls
+        allow read: if isSignedIn();
+        // Only the host can create, update, or delete polls
+        allow write: if isHost(chatRoomId);
       }
     }
   }
