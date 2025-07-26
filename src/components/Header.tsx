@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { Button } from './ui/button';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
+import { ThemeToggle } from './ThemeToggle';
 
 export function Header() {
   const { currentUser, logout, loading } = useAuth();
@@ -26,31 +27,34 @@ export function Header() {
           <Mic className="h-6 w-6 text-primary" />
           <span className="font-bold text-lg font-headline">CastWave</span>
         </Link>
-        {loading ? (
-          <Loader2 className="animate-spin" />
-        ) : currentUser ? (
-          <div className="flex items-center space-x-2">
-            <Button variant="outline" asChild>
-                <Link href="/podcast/create">
-                    <PlusCircle />
-                    Create Podcast
-                </Link>
-            </Button>
-            <Button variant="ghost" onClick={handleLogout}>
-                <LogOut className="mr-2 h-4 w-4" />
-                Log Out
-            </Button>
-          </div>
-        ) : (
-          <div className="flex items-center space-x-2">
-            <Button variant="ghost" asChild>
-              <Link href="/login">Log In</Link>
-            </Button>
-            <Button className="bg-accent hover:bg-accent/90" asChild>
-              <Link href="/signup">Sign Up</Link>
-            </Button>
-          </div>
-        )}
+        <div className="flex items-center space-x-2">
+            <ThemeToggle />
+            {loading ? (
+              <Loader2 className="animate-spin" />
+            ) : currentUser ? (
+              <>
+                <Button variant="outline" asChild>
+                    <Link href="/podcast/create">
+                        <PlusCircle />
+                        <span className="hidden sm:inline-block">Create Podcast</span>
+                    </Link>
+                </Button>
+                <Button variant="ghost" onClick={handleLogout}>
+                    <LogOut />
+                    <span className="hidden sm:inline-block">Log Out</span>
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button variant="ghost" asChild>
+                  <Link href="/login">Log In</Link>
+                </Button>
+                <Button asChild>
+                  <Link href="/signup">Sign Up</Link>
+                </Button>
+              </>
+            )}
+        </div>
       </div>
     </header>
   );

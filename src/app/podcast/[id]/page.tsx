@@ -21,17 +21,17 @@ function PodcastPageSkeleton() {
     return (
         <div className="min-h-screen flex flex-col">
             <Header />
-            <main className="flex-1 container py-8 grid lg:grid-cols-3 gap-8">
+            <main className="flex-1 container py-4 md:py-8 grid lg:grid-cols-3 gap-4 md:gap-8">
                 <div className="lg:col-span-2 space-y-4">
                      <Card>
-                        <CardHeader className="flex flex-row items-center gap-4 p-6">
+                        <CardHeader className="flex flex-row items-center gap-4 p-4 md:p-6">
                             <Skeleton className="h-16 w-16 rounded-full" />
                             <div className="flex-1 space-y-2">
                                 <Skeleton className="h-6 w-3/4" />
                                 <Skeleton className="h-4 w-1/2" />
                             </div>
                         </CardHeader>
-                        <CardContent className="p-6 border-t">
+                        <CardContent className="p-4 md:p-6 border-t">
                             <div className="flex flex-col items-center justify-center space-y-4">
                                 <Skeleton className="h-20 w-20 rounded-full" />
                                 <Skeleton className="h-4 w-48" />
@@ -95,11 +95,10 @@ export default function PodcastPage({ params }: { params: { id: string } }) {
     const unsubscribe = getParticipants(podcastId, (newParticipants) => {
         setParticipants(newParticipants);
 
-        // Check if the current user (host or regular user) is in the participants list
         const userInList = newParticipants.some(p => p.userId === currentUser.uid);
 
-        if (!userInList) {
-            const status = podcast?.hostId === currentUser.uid ? 'approved' : 'pending';
+        if (!userInList && podcast?.hostId && currentUser.uid) {
+            const status = podcast.hostId === currentUser.uid ? 'approved' : 'pending';
              // If they are not, add them. Host is auto-approved.
             addParticipant(podcastId, {
                 userId: currentUser.uid,
@@ -162,14 +161,14 @@ export default function PodcastPage({ params }: { params: { id: string } }) {
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
-      <main className="flex-1 container py-8 grid lg:grid-cols-3 gap-8">
+      <main className="flex-1 container py-4 md:py-8 grid lg:grid-cols-3 gap-4 md:gap-8">
         <div className="lg:col-span-2">
           <PodcastPlayer {...podcastDetails} />
         </div>
         <div className="lg:col-span-1">
           <Card className="h-full flex flex-col min-h-[500px] lg:min-h-0">
             <Tabs defaultValue="chat" className="w-full h-full flex flex-col">
-              <CardHeader>
+              <CardHeader className="p-2 sm:p-4">
                  <TabsList className={`grid w-full ${isHost ? 'grid-cols-3' : 'grid-cols-2'}`}>
                   <TabsTrigger value="chat"><MessageSquare className="mr-2 h-4 w-4" />Live Chat</TabsTrigger>
                   {isHost && <TabsTrigger value="participants"><Users className="mr-2 h-4 w-4" />Participants</TabsTrigger>}

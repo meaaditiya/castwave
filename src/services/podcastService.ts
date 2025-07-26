@@ -1,6 +1,6 @@
 
 import { db } from '@/lib/firebase';
-import { collection, addDoc, onSnapshot, query, where, orderBy, serverTimestamp, doc, getDoc, updateDoc, setDoc, deleteDoc, getDocs } from 'firebase/firestore';
+import { collection, addDoc, onSnapshot, query, where, orderBy, serverTimestamp, doc, getDoc, updateDoc, setDoc, deleteDoc, getDocs, writeBatch } from 'firebase/firestore';
 import type { Message } from '@/components/LiveChat';
 
 export interface Podcast {
@@ -98,6 +98,31 @@ export const endPodcast = async (podcastId: string) => {
         throw new Error("Could not end podcast.");
     }
 }
+
+// Delete a podcast and its subcollections
+export const deletePodcast = async (podcastId: string) => {
+    try {
+        const batch = writeBatch(db);
+
+        const messagesRef = collection(db, 'podcasts', podcastId, 'messages');
+        const messagesSnap = await getDocs(messagesRef);
+        messagesSnap.forEach(doc => batch.delete(doc.ref));
+
+        const participantsRef = collection(db, 'podcasts', podcastId, 'participants');
+        const participantsSnap = await getDocs(participantsRef);
+        participantsSnap.forEach(doc => batch.delete(doc.ref));
+
+        const podcastRef = doc(db, 'podcasts', podcastId);
+        batch.delete(podcastRef);
+
+        await batch.commit();
+
+    } catch (error) {
+        console.error('Error deleting podcast:', error);
+        throw new Error('Could not delete podcast and its data.');
+    }
+};
+
 
 // Send a chat message
 export const sendMessage = async (podcastId: string, message: { user: string; text: string }) => {
