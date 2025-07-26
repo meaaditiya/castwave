@@ -4,11 +4,11 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Send, Loader2, Hand, ThumbsUp, ThumbsDown, Star, ArrowDown } from 'lucide-react';
+import { Send, Loader2, Hand, ThumbsUp, ThumbsDown, Star, ArrowDown, Image as ImageIcon } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback } from './ui/avatar';
 import { useAuth } from '@/context/AuthContext';
-import { sendMessage, requestToJoinChat, voteOnMessage, featureMessage, updateTypingStatus, ChatRoom } from '@/services/chatRoomService';
+import { sendMessage, requestToJoinChat, voteOnMessage, featureMessage, updateTypingStatus, ChatRoom, uploadImage } from '@/services/chatRoomService';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 import type { Message } from '@/services/chatRoomService';
@@ -16,6 +16,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Textarea } from './ui/textarea';
 import { format } from 'date-fns';
 import { useDebouncedCallback } from 'use-debounce';
+import Image from 'next/image';
 
 interface LiveChatProps {
   chatRoom: ChatRoom;
@@ -46,19 +47,37 @@ export function LiveChat({ chatRoom, canChat, participantStatus, isHost, message
   const { toast } = useToast();
   const scrollViewportRef = useRef<HTMLDivElement>(null);
   const [showNewMessageButton, setShowNewMessageButton] = useState(false);
-
-
   const [messageToFeature, setMessageToFeature] = useState<Message | null>(null);
   const [hostReply, setHostReply] = useState('');
   const [isFeaturing, setIsFeaturing] = useState(false);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const scrollToBottom = useCallback((behavior: 'smooth' | 'auto' = 'smooth') => {
     const viewport = scrollViewportRef.current;
     if (viewport) {
       viewport.scrollTo({ top: viewport.scrollHeight, behavior });
-      setShowNewMessageButton(false);
     }
   }, []);
+
+  useEffect(() => {
+    const viewport = scrollViewportRef.current;
+    if (!viewport) return;
+
+    const handleScroll = () => {
+        if (showNewMessageButton) {
+            const isAtBottom = viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight < 1;
+            if (isAtBottom) {
+                setShowNewMessageButton(false);
+            }
+        }
+    };
+
+    viewport.addEventListener('scroll', handleScroll);
+    return () => viewport.removeEventListener('scroll', handleScroll);
+  }, [showNewMessageButton]);
+
 
   useEffect(() => {
     const viewport = scrollViewportRef.current;
@@ -67,12 +86,12 @@ export function LiveChat({ chatRoom, canChat, participantStatus, isHost, message
     // A buffer to consider the user "at the bottom" even if not perfectly scrolled down.
     const isAtBottom = viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight < 150;
 
-    if (isAtBottom) {
-        // If the user is at the bottom, auto-scroll smoothly to the new message.
-        scrollToBottom('smooth');
+    if (!isAtBottom) {
+        if (messages.length > 0) {
+            setShowNewMessageButton(true);
+        }
     } else {
-        // If the user has scrolled up, show the "new message" button.
-        setShowNewMessageButton(true);
+      scrollToBottom('smooth');
     }
 
   }, [messages, scrollToBottom]);
@@ -84,12 +103,33 @@ export function LiveChat({ chatRoom, canChat, participantStatus, isHost, message
   }, 3000);
 
   useEffect(() => {
-    if (newMessage && canChat) {
+    if ((newMessage || imageFile) && canChat) {
         if (!currentUser) return;
         updateTypingStatus(chatRoom.id, currentUser.uid, currentUser.email || 'Anonymous', true);
         debouncedTypingUpdate(false);
     }
-  }, [newMessage, canChat, chatRoom.id, currentUser, debouncedTypingUpdate]);
+  }, [newMessage, imageFile, canChat, chatRoom.id, currentUser, debouncedTypingUpdate]);
+
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setImageFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const removeImage = () => {
+    setImageFile(null);
+    setImagePreview(null);
+    if(fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
 
   const handleRequestJoin = async () => {
     if (!currentUser) return;
@@ -107,24 +147,41 @@ export function LiveChat({ chatRoom, canChat, participantStatus, isHost, message
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!currentUser || !newMessage.trim()) return;
+    if (!currentUser || (!newMessage.trim() && !imageFile)) return;
 
     setIsSending(true);
 
     try {
-        await sendMessage(chatRoom.id, {
+        let imageUrl: string | undefined = undefined;
+        if (imageFile) {
+            imageUrl = await uploadImage(chatRoom.id, imageFile);
+        }
+
+        const messagePayload: Partial<Message> = {
             user: currentUser.email || 'Anonymous',
             userId: currentUser.uid,
-            text: newMessage.trim(),
-        });
+        };
+
+        if (newMessage.trim()) {
+            messagePayload.text = newMessage.trim();
+        }
+        if (imageUrl) {
+            messagePayload.imageUrl = imageUrl;
+        }
+
+        await sendMessage(chatRoom.id, messagePayload);
 
         setNewMessage('');
+        removeImage();
+
     } catch (error: any) {
       console.error(error);
       toast({ variant: 'destructive', title: 'Error', description: error.message || 'Could not send message.' });
     } finally {
         setIsSending(false);
-        updateTypingStatus(chatRoom.id, currentUser.uid, currentUser.email || 'Anonymous', false);
+        if (currentUser) {
+            updateTypingStatus(chatRoom.id, currentUser.uid, currentUser.email || 'Anonymous', false);
+        }
     }
   };
 
@@ -236,6 +293,17 @@ export function LiveChat({ chatRoom, canChat, participantStatus, isHost, message
                         )}
                     </div>
                     {msg.text && <p className="text-sm text-foreground/90 whitespace-pre-wrap">{msg.text}</p>}
+                    {msg.imageUrl && (
+                        <div className="mt-2">
+                           <Image 
+                             src={msg.imageUrl} 
+                             alt="User uploaded media"
+                             width={200}
+                             height={200}
+                             className="rounded-lg object-cover"
+                           />
+                        </div>
+                    )}
                     <div className="flex items-center gap-4 mt-1 text-muted-foreground">
                         <div className="flex items-center gap-1">
                             <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => handleVote(msg.id!, 'upvotes')} disabled={!canChat || msg.voters?.[currentUser?.uid!]}>
@@ -261,11 +329,14 @@ export function LiveChat({ chatRoom, canChat, participantStatus, isHost, message
             </div>
         </ScrollArea>
         {showNewMessageButton && (
-            <div className="absolute bottom-4 left-1/2 -translate-x-1/2">
+            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20">
                 <Button 
                     size="sm" 
-                    className="rounded-full shadow-lg" 
-                    onClick={() => scrollToBottom('smooth')}
+                    className="rounded-full shadow-lg animate-in fade-in-50" 
+                    onClick={() => {
+                        scrollToBottom('smooth');
+                        setShowNewMessageButton(false);
+                    }}
                 >
                     <ArrowDown className="mr-2 h-4 w-4" />
                     New Messages
@@ -280,15 +351,27 @@ export function LiveChat({ chatRoom, canChat, participantStatus, isHost, message
           }
       </div>
       <div className="border-t pt-2 mt-auto">
+        {imagePreview && (
+          <div className="relative mb-2 w-24 h-24">
+            <Image src={imagePreview} alt="Image preview" layout="fill" className="object-cover rounded-md" />
+            <Button size="icon" variant="destructive" className="absolute -top-2 -right-2 h-6 w-6 rounded-full" onClick={removeImage}>
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+        )}
         <form onSubmit={handleSubmit} className="flex gap-2">
+            <input type="file" accept="image/*" ref={fileInputRef} onChange={handleImageChange} className="hidden" />
+            <Button type="button" size="icon" variant="outline" onClick={() => fileInputRef.current?.click()} disabled={!canChat || isSending}>
+                <ImageIcon />
+            </Button>
             <Input
-            placeholder={canChat ? "Join the conversation..." : "You must be approved to chat."}
-            value={newMessage}
-            onChange={(e) => setNewMessage(e.target.value)}
-            disabled={!canChat || isSending}
+              placeholder={canChat ? "Join the conversation..." : "You must be approved to chat."}
+              value={newMessage}
+              onChange={(e) => setNewMessage(e.target.value)}
+              disabled={!canChat || isSending}
             />
-            <Button type="submit" size="icon" aria-label="Send message" disabled={!canChat || isSending || !newMessage.trim()}>
-            {isSending ? <Loader2 className="animate-spin" /> : <Send />}
+            <Button type="submit" size="icon" aria-label="Send message" disabled={!canChat || isSending || (!newMessage.trim() && !imageFile)}>
+              {isSending ? <Loader2 className="animate-spin" /> : <Send />}
             </Button>
         </form>
       </div>
