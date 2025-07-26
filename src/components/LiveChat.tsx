@@ -4,7 +4,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Send, Loader2, Hand, ThumbsUp, ThumbsDown, Star } from 'lucide-react';
+import { Send, Loader2, Hand, ThumbsUp, ThumbsDown, Star, ArrowDown } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback } from './ui/avatar';
 import { useAuth } from '@/context/AuthContext';
@@ -44,22 +44,39 @@ export function LiveChat({ chatRoom, canChat, participantStatus, isHost, message
   const [isRequesting, setIsRequesting] = useState(false);
   const { currentUser } = useAuth();
   const { toast } = useToast();
-  const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const scrollViewportRef = useRef<HTMLDivElement>(null);
+  const [showNewMessageButton, setShowNewMessageButton] = useState(false);
+
 
   const [messageToFeature, setMessageToFeature] = useState<Message | null>(null);
   const [hostReply, setHostReply] = useState('');
   const [isFeaturing, setIsFeaturing] = useState(false);
 
-  const scrollToBottom = useCallback(() => {
-    const viewport = scrollAreaRef.current?.querySelector('div[data-radix-scroll-area-viewport]');
+  const scrollToBottom = useCallback((behavior: 'smooth' | 'auto' = 'smooth') => {
+    const viewport = scrollViewportRef.current;
     if (viewport) {
-      viewport.scrollTo({ top: viewport.scrollHeight, behavior: 'smooth' });
+      viewport.scrollTo({ top: viewport.scrollHeight, behavior });
+      setShowNewMessageButton(false);
     }
   }, []);
 
   useEffect(() => {
-    scrollToBottom();
+    const viewport = scrollViewportRef.current;
+    if (!viewport) return;
+
+    // A buffer to consider the user "at the bottom" even if not perfectly scrolled down.
+    const isAtBottom = viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight < 150;
+
+    if (isAtBottom) {
+        // If the user is at the bottom, auto-scroll smoothly to the new message.
+        scrollToBottom('smooth');
+    } else {
+        // If the user has scrolled up, show the "new message" button.
+        setShowNewMessageButton(true);
+    }
+
   }, [messages, scrollToBottom]);
+
 
   const debouncedTypingUpdate = useDebouncedCallback((isTyping: boolean) => {
       if (!currentUser) return;
@@ -198,50 +215,65 @@ export function LiveChat({ chatRoom, canChat, participantStatus, isHost, message
           <Loader2 className="h-6 w-6 animate-spin text-primary" />
         </div>
       )}
-      <ScrollArea className="flex-1 pr-4" ref={scrollAreaRef}>
-        <div className="space-y-4">
-          {messages && messages.map((msg) => (
-            <div key={msg.id} className="flex items-start space-x-3 group">
-              <Avatar className="h-8 w-8">
-                <AvatarFallback className={`${getUserColor(msg.user)}/20 border ${getUserColor(msg.user)}/50`}>
-                    {msg.user?.substring(0,1) || 'A'}
-                </AvatarFallback>
-              </Avatar>
-              <div className="flex-1">
-                <div className="flex items-center gap-2">
-                    <span className={`font-bold text-sm ${getUserColor(msg.user)}`}>{msg.user}</span>
-                    <span className="text-xs text-muted-foreground">{formatTimestamp(msg.timestamp)}</span>
-                     {isHost && (
-                        <Button size="icon" variant="ghost" className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity text-amber-500" onClick={() => setMessageToFeature(msg)}>
-                            <Star className="h-4 w-4" />
-                        </Button>
-                     )}
-                </div>
-                {msg.text && <p className="text-sm text-foreground/90 whitespace-pre-wrap">{msg.text}</p>}
-                <div className="flex items-center gap-4 mt-1 text-muted-foreground">
-                    <div className="flex items-center gap-1">
-                        <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => handleVote(msg.id!, 'upvotes')} disabled={!canChat || msg.voters?.[currentUser?.uid!]}>
-                            <ThumbsUp className={`h-4 w-4 ${msg.voters?.[currentUser?.uid!] === 'upvotes' ? 'text-primary' : ''}`} />
-                        </Button>
-                        <span className="text-xs">{msg.upvotes}</span>
+      <div className="flex-1 min-h-0 relative">
+        <ScrollArea className="h-full pr-4" viewportRef={scrollViewportRef}>
+            <div className="space-y-4">
+            {messages && messages.map((msg) => (
+                <div key={msg.id} className="flex items-start space-x-3 group">
+                <Avatar className="h-8 w-8">
+                    <AvatarFallback className={`${getUserColor(msg.user)}/20 border ${getUserColor(msg.user)}/50`}>
+                        {msg.user?.substring(0,1) || 'A'}
+                    </AvatarFallback>
+                </Avatar>
+                <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                        <span className={`font-bold text-sm ${getUserColor(msg.user)}`}>{msg.user}</span>
+                        <span className="text-xs text-muted-foreground">{formatTimestamp(msg.timestamp)}</span>
+                        {isHost && (
+                            <Button size="icon" variant="ghost" className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity text-amber-500" onClick={() => setMessageToFeature(msg)}>
+                                <Star className="h-4 w-4" />
+                            </Button>
+                        )}
                     </div>
-                     <div className="flex items-center gap-1">
-                        <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => handleVote(msg.id!, 'downvotes')} disabled={!canChat || msg.voters?.[currentUser?.uid!]}>
-                           <ThumbsDown className={`h-4 w-4 ${msg.voters?.[currentUser?.uid!] === 'downvotes' ? 'text-destructive' : ''}`} />
-                        </Button>
-                        <span className="text-xs">{msg.downvotes}</span>
+                    {msg.text && <p className="text-sm text-foreground/90 whitespace-pre-wrap">{msg.text}</p>}
+                    <div className="flex items-center gap-4 mt-1 text-muted-foreground">
+                        <div className="flex items-center gap-1">
+                            <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => handleVote(msg.id!, 'upvotes')} disabled={!canChat || msg.voters?.[currentUser?.uid!]}>
+                                <ThumbsUp className={`h-4 w-4 ${msg.voters?.[currentUser?.uid!] === 'upvotes' ? 'text-primary' : ''}`} />
+                            </Button>
+                            <span className="text-xs">{msg.upvotes}</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                            <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => handleVote(msg.id!, 'downvotes')} disabled={!canChat || msg.voters?.[currentUser?.uid!]}>
+                            <ThumbsDown className={`h-4 w-4 ${msg.voters?.[currentUser?.uid!] === 'downvotes' ? 'text-destructive' : ''}`} />
+                            </Button>
+                            <span className="text-xs">{msg.downvotes}</span>
+                        </div>
                     </div>
                 </div>
-              </div>
+                </div>
+            ))}
+            {messages && messages.length === 0 && (
+                    <div className="text-center text-muted-foreground pt-10">
+                        <p>No messages yet. Be the first to start the conversation!</p>
+                    </div>
+                )}
             </div>
-          ))}
-           {messages && messages.length === 0 && (
-                <div className="text-center text-muted-foreground pt-10">
-                    <p>No messages yet. Be the first to start the conversation!</p>
-                </div>
-            )}
-        </div>
-      </ScrollArea>
+        </ScrollArea>
+        {showNewMessageButton && (
+            <div className="absolute bottom-4 left-1/2 -translate-x-1/2">
+                <Button 
+                    size="sm" 
+                    className="rounded-full shadow-lg" 
+                    onClick={() => scrollToBottom('smooth')}
+                >
+                    <ArrowDown className="mr-2 h-4 w-4" />
+                    New Messages
+                </Button>
+            </div>
+        )}
+      </div>
+
       <div className="h-5 text-xs text-muted-foreground italic px-1 pt-1">
           {typingUsers.length > 0 && 
             `${typingUsers.slice(0, 2).join(', ')}${typingUsers.length > 2 ? ' and others' : ''} ${typingUsers.length > 1 ? 'are' : 'is'} typing...`
