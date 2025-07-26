@@ -98,7 +98,6 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
 
   useEffect(() => {
     const chatRoomId = resolvedParams.id;
-    // Wait for chatRoom and currentUser to be loaded
     if (!chatRoomId || !currentUser || !chatRoom) return;
     
     const unsubscribeParticipants = getParticipants(chatRoomId, (newParticipants) => {
@@ -123,10 +122,10 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
 
   useEffect(() => {
     const chatRoomId = resolvedParams.id;
-    if (!chatRoomId) return;
+    if (!chatRoomId || !canChat) return;
     const unsubscribeMessages = getMessages(chatRoomId, setChatLog);
     return () => unsubscribeMessages();
-  }, [resolvedParams.id]);
+  }, [resolvedParams.id, canChat]);
 
   if (authLoading || pageLoading || !currentUser || !chatRoom) {
     return <ChatRoomPageSkeleton />;
