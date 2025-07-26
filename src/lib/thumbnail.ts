@@ -37,31 +37,14 @@ export function generateThumbnailSvg(title: string): string {
     ).join('');
 
     return `
-    <svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg">
-        <style>
-            .title-text {
-                font-family: 'Inter', sans-serif;
-                text-anchor: middle;
-                fill: ${textColor};
-                font-size: ${fontSize}px;
-                font-weight: bold;
-                text-shadow: 0 0 10px rgba(0,0,0,0.5);
-            }
-            .brand-text {
-                font-family: 'Inter', sans-serif;
-                text-anchor: middle;
-                fill: ${textColor};
-                font-size: 16px;
-                opacity: 0.6;
-            }
-        </style>
+    <svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg" style="font-family: 'Inter', sans-serif;">
         <defs>
             <radialGradient id="grad-bg" cx="50%" cy="50%" r="75%">
                 <stop offset="0%" stop-color="${secondaryColor}" />
                 <stop offset="100%" stop-color="${bgColor}" />
             </radialGradient>
             <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
-                <feGaussianBlur stdDeviation="10" result="coloredBlur"/>
+                <feGaussianBlur stdDeviation="15" result="coloredBlur"/>
                 <feMerge>
                     <feMergeNode in="coloredBlur"/>
                     <feMergeNode in="SourceGraphic"/>
@@ -71,18 +54,18 @@ export function generateThumbnailSvg(title: string): string {
         <rect width="${width}" height="${height}" fill="url(#grad-bg)" />
         
         <!-- Abstract Shapes -->
-        <g filter="url(#glow)" opacity="0.3">
-            <circle cx="${width * 0.15}" cy="${height * 0.85}" r="100" fill="${primaryColor}"/>
-            <circle cx="${width * 0.9}" cy="${height * 0.2}" r="150" fill="${primaryColor}" />
-            <ellipse cx="${width * 0.5}" cy="${height * 0.5}" rx="200" ry="100" fill="${secondaryColor}" transform="rotate(20 ${width/2} ${height/2})" />
+        <g opacity="0.4" filter="url(#glow)">
+            <circle cx="${width * 0.2}" cy="${height * 0.8}" r="120" fill="${primaryColor}"/>
+            <circle cx="${width * 0.9}" cy="${height * 0.25}" r="160" fill="${primaryColor}" />
+            <ellipse cx="${width * 0.5}" cy="${height * 0.5}" rx="220" ry="120" fill="${secondaryColor}" transform="rotate(25 ${width/2} ${height/2})" />
         </g>
         
-        <g class="title-text">
+        <text text-anchor="middle" fill="${textColor}" font-size="${fontSize}px" font-weight="bold" x="${width / 2}" y="${startY}">
             ${titleTspans}
-        </g>
+        </text>
         
         <!-- Bottom Brand -->
-        <text x="${width / 2}" y="${height - 25}" class="brand-text">
+        <text text-anchor="middle" fill="${textColor}" font-size="16px" opacity="0.7" x="${width / 2}" y="${height - 25}">
             CastWave
         </text>
     </svg>
