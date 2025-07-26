@@ -6,7 +6,7 @@ import { ThemeProvider } from '@/context/ThemeContext';
 
 export const metadata: Metadata = {
   title: 'CastWave',
-  description: 'A real-time live podcasting platform.',
+  description: 'A real-time live chat room platform.',
 };
 
 export default function RootLayout({

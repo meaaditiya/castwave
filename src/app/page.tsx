@@ -2,25 +2,25 @@
 
 import { useState, useEffect } from 'react';
 import { Header } from '@/components/Header';
-import { PodcastCard } from '@/components/PodcastCard';
-import { getPodcasts, Podcast, deletePodcast as deletePodcastService } from '@/services/podcastService';
+import { ChatRoomCard } from '@/components/ChatRoomCard';
+import { getChatRooms, ChatRoom, deleteChatRoom as deleteChatRoomService } from '@/services/chatRoomService';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 
 export default function Home() {
-  const [podcasts, setPodcasts] = useState<Podcast[]>([]);
+  const [chatRooms, setChatRooms] = useState<ChatRoom[]>([]);
   const [loading, setLoading] = useState(true);
   const { currentUser, loading: authLoading } = useAuth();
-  const [podcastToDelete, setPodcastToDelete] = useState<string | null>(null);
+  const [chatRoomToDelete, setChatRoomToDelete] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
     const timer = setTimeout(() => {
-        const unsubscribe = getPodcasts((newPodcasts) => {
-          setPodcasts(newPodcasts);
+        const unsubscribe = getChatRooms((newChatRooms) => {
+          setChatRooms(newChatRooms);
           setLoading(false);
         });
         return () => unsubscribe();
@@ -30,25 +30,25 @@ export default function Home() {
   }, []);
   
   const handleDelete = async () => {
-    if (!podcastToDelete) return;
+    if (!chatRoomToDelete) return;
 
     setIsDeleting(true);
     try {
-        await deletePodcastService(podcastToDelete);
+        await deleteChatRoomService(chatRoomToDelete);
         toast({
-            title: 'Podcast Deleted',
-            description: 'The podcast has been successfully deleted.',
+            title: 'Chat Room Deleted',
+            description: 'The chat room has been successfully deleted.',
         });
     } catch (error) {
-        console.error('Failed to delete podcast', error);
+        console.error('Failed to delete chat room', error);
         toast({
             variant: 'destructive',
             title: 'Error',
-            description: 'Failed to delete the podcast.',
+            description: 'Failed to delete the chat room.',
         });
     } finally {
         setIsDeleting(false);
-        setPodcastToDelete(null);
+        setChatRoomToDelete(null);
     }
   };
 
@@ -57,7 +57,7 @@ export default function Home() {
     <div className="min-h-screen flex flex-col">
       <Header />
       <main className="flex-1 container py-8">
-        <h1 className="text-4xl font-headline font-bold mb-2">Active Podcasts</h1>
+        <h1 className="text-4xl font-headline font-bold mb-2">Active Chat Rooms</h1>
         <p className="text-muted-foreground mb-8">Join a live session or review a past broadcast.</p>
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {loading || authLoading ? (
@@ -69,24 +69,24 @@ export default function Home() {
               </div>
             ))
           ) : (
-            podcasts.map(podcast => (
-              <PodcastCard 
-                key={podcast.id} 
-                {...podcast} 
-                isOwner={currentUser?.uid === podcast.hostId}
-                onDelete={() => setPodcastToDelete(podcast.id)}
+            chatRooms.map(chatRoom => (
+              <ChatRoomCard 
+                key={chatRoom.id} 
+                {...chatRoom} 
+                isOwner={currentUser?.uid === chatRoom.hostId}
+                onDelete={() => setChatRoomToDelete(chatRoom.id)}
                 />
             ))
           )}
         </div>
       </main>
 
-       <AlertDialog open={!!podcastToDelete} onOpenChange={(open) => !open && setPodcastToDelete(null)}>
+       <AlertDialog open={!!chatRoomToDelete} onOpenChange={(open) => !open && setChatRoomToDelete(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Are you sure?</AlertDialogTitle>
             <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete the podcast and all of its associated data.
+              This action cannot be undone. This will permanently delete the chat room and all of its associated data.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

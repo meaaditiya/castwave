@@ -34,9 +34,9 @@ export function Header() {
             ) : currentUser ? (
               <>
                 <Button variant="outline" asChild>
-                    <Link href="/podcast/create">
+                    <Link href="/chatroom/create">
                         <PlusCircle />
-                        <span className="hidden sm:inline-block">Create Podcast</span>
+                        <span className="hidden sm:inline-block">Create Chat Room</span>
                     </Link>
                 </Button>
                 <Button variant="ghost" onClick={handleLogout}>

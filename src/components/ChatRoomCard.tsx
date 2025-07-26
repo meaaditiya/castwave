@@ -4,15 +4,15 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/componen
 import { Badge } from '@/components/ui/badge';
 import { Button } from './ui/button';
 import { Trash2 } from 'lucide-react';
-import { Podcast } from '@/services/podcastService';
+import { ChatRoom } from '@/services/chatRoomService';
 
-interface PodcastCardProps extends Podcast {
+interface ChatRoomCardProps extends ChatRoom {
     isOwner: boolean;
     onDelete: () => void;
 }
 
 
-export function PodcastCard({ id, title, host, imageUrl, isLive, imageHint, isOwner, onDelete }: PodcastCardProps) {
+export function ChatRoomCard({ id, title, host, imageUrl, isLive, imageHint, isOwner, onDelete }: ChatRoomCardProps) {
   
   const handleDeleteClick = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -22,7 +22,7 @@ export function PodcastCard({ id, title, host, imageUrl, isLive, imageHint, isOw
 
   return (
     <Card className="hover:border-primary transition-colors duration-300 overflow-hidden h-full flex flex-col group">
-       <Link href={`/podcast/${id}`} className="flex flex-col h-full">
+       <Link href={`/chatroom/${id}`} className="flex flex-col h-full">
             <CardHeader className="p-0 relative">
             <Image
                 src={imageUrl || 'https://placehold.co/400x400.png'}
@@ -33,7 +33,7 @@ export function PodcastCard({ id, title, host, imageUrl, isLive, imageHint, isOw
                 data-ai-hint={imageHint}
             />
             {isLive && (
-                <Badge className="absolute top-2 right-2 bg-accent text-accent-foreground border-accent-foreground/20 shadow-lg">
+                <Badge className="absolute top-2 right-2 bg-primary text-primary-foreground border-primary-foreground/20 shadow-lg">
                 <span className="relative flex h-2 w-2 mr-2">
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
                     <span className="relative inline-flex rounded-full h-2 w-2 bg-white"></span>
@@ -51,7 +51,7 @@ export function PodcastCard({ id, title, host, imageUrl, isLive, imageHint, isOw
             <CardFooter className="p-2 justify-end">
                 <Button variant="ghost" size="icon" onClick={handleDeleteClick} className="text-muted-foreground hover:text-destructive hover:bg-destructive/10">
                     <Trash2 className="h-4 w-4"/>
-                    <span className="sr-only">Delete Podcast</span>
+                    <span className="sr-only">Delete Chat Room</span>
                 </Button>
             </CardFooter>
         )}

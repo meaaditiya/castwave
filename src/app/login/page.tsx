@@ -58,7 +58,7 @@ export default function LoginPage() {
       <Card className="w-full max-w-sm">
         <CardHeader>
           <CardTitle>Log In</CardTitle>
-          <CardDescription>Access your account to join live podcasts.</CardDescription>
+          <CardDescription>Access your account to join live chat rooms.</CardDescription>
         </CardHeader>
         <CardContent>
           <Form {...form}>

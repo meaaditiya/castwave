@@ -4,24 +4,23 @@
 import { useState, useRef, useEffect } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Send, Loader2, Hand } from 'lucide-react';
+import { Send, Loader2, Hand, ThumbsUp, ThumbsDown, Star } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback } from './ui/avatar';
 import { useAuth } from '@/context/AuthContext';
-import { sendMessage, getMessages, requestToJoinChat } from '@/services/podcastService';
+import { sendMessage, requestToJoinChat, voteOnMessage, featureMessage } from '@/services/chatRoomService';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
+import type { Message } from '@/services/chatRoomService';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from './ui/dialog';
+import { Textarea } from './ui/textarea';
 
-export interface Message {
-  user: string;
-  text: string;
-  timestamp?: any;
-}
 
 interface LiveChatProps {
-  podcastId: string;
+  chatRoomId: string;
   canChat: boolean;
   isHost: boolean;
+  messages: Message[];
   participantStatus?: 'pending' | 'approved' | 'removed' | 'denied';
 }
 
@@ -38,8 +37,7 @@ const getUserColor = (userName: string) => {
     return userColors[Math.abs(hash % userColors.length)];
 }
 
-export function LiveChat({ podcastId, canChat, participantStatus, isHost }: LiveChatProps) {
-  const [messages, setMessages] = useState<Message[]>([]);
+export function LiveChat({ chatRoomId, canChat, participantStatus, isHost, messages }: LiveChatProps) {
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(true);
   const [isRequesting, setIsRequesting] = useState(false);
@@ -47,16 +45,14 @@ export function LiveChat({ podcastId, canChat, participantStatus, isHost }: Live
   const { toast } = useToast();
   const scrollAreaRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    if (!podcastId) return;
-    setLoading(true);
-    const unsubscribe = getMessages(podcastId, (newMessages) => {
-      setMessages(newMessages);
-      setLoading(false);
-    });
+  const [messageToFeature, setMessageToFeature] = useState<Message | null>(null);
+  const [hostReply, setHostReply] = useState('');
+  const [isFeaturing, setIsFeaturing] = useState(false);
 
-    return () => unsubscribe();
-  }, [podcastId]);
+  useEffect(() => {
+    if(messages.length > 0) setLoading(false)
+  }, [messages])
+
 
   useEffect(() => {
     const viewport = scrollAreaRef.current?.querySelector('div[data-radix-scroll-area-viewport]');
@@ -69,7 +65,7 @@ export function LiveChat({ podcastId, canChat, participantStatus, isHost }: Live
     if (!currentUser) return;
     setIsRequesting(true);
     try {
-        await requestToJoinChat(podcastId, currentUser.uid, currentUser.email || 'Anonymous');
+        await requestToJoinChat(chatRoomId, currentUser.uid, currentUser.email || 'Anonymous');
         toast({ title: "Request Sent", description: "The host has been notified." });
     } catch(e) {
         console.error(e);
@@ -89,13 +85,45 @@ export function LiveChat({ podcastId, canChat, participantStatus, isHost }: Live
     };
 
     try {
-      await sendMessage(podcastId, { user: currentUser.email, text: newMessage });
+      await sendMessage(chatRoomId, { 
+          user: currentUser.email, 
+          text: newMessage,
+          upvotes: 0,
+          downvotes: 0,
+          voters: {}
+      });
       setNewMessage('');
     } catch (error) {
       console.error(error);
       toast({ variant: 'destructive', title: 'Error', description: 'Could not send message.' });
     }
   };
+
+  const handleVote = async (messageId: string, voteType: 'upvotes' | 'downvotes') => {
+    if (!currentUser) return;
+    try {
+        await voteOnMessage(chatRoomId, messageId, currentUser.uid, voteType);
+    } catch(e) {
+        console.error(e);
+        toast({ variant: 'destructive', title: 'Error', description: 'Failed to cast vote.'})
+    }
+  }
+
+  const handleFeatureMessage = async () => {
+    if (!messageToFeature || !hostReply.trim()) return;
+    setIsFeaturing(true);
+    try {
+        await featureMessage(chatRoomId, messageToFeature, hostReply);
+        toast({ title: "Message Featured", description: "The message is now on the live screen."});
+        setMessageToFeature(null);
+        setHostReply('');
+    } catch(e) {
+        console.error(e);
+        toast({ variant: 'destructive', title: 'Error', description: 'Failed to feature message.'})
+    } finally {
+        setIsFeaturing(false);
+    }
+  }
 
   const renderChatOverlay = () => {
     if (canChat || isHost || !currentUser) return null;
@@ -146,16 +174,37 @@ export function LiveChat({ podcastId, canChat, participantStatus, isHost }: Live
       ) : (
       <ScrollArea className="flex-1 pr-4" ref={scrollAreaRef}>
         <div className="space-y-4">
-          {messages.map((msg, index) => (
-            <div key={index} className="flex items-start space-x-3">
+          {messages.map((msg) => (
+            <div key={msg.id} className="flex items-start space-x-3 group">
               <Avatar className="h-8 w-8">
                 <AvatarFallback className={`${getUserColor(msg.user)}/20 border ${getUserColor(msg.user)}/50`}>
                     {msg.user?.substring(0,1) || 'A'}
                 </AvatarFallback>
               </Avatar>
-              <div className="flex flex-col">
-                <span className={`font-bold text-sm ${getUserColor(msg.user)}`}>{msg.user}</span>
+              <div className="flex-1">
+                <div className="flex items-center gap-2">
+                    <span className={`font-bold text-sm ${getUserColor(msg.user)}`}>{msg.user}</span>
+                     {isHost && (
+                        <Button size="icon" variant="ghost" className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity text-amber-500" onClick={() => setMessageToFeature(msg)}>
+                            <Star className="h-4 w-4" />
+                        </Button>
+                     )}
+                </div>
                 <p className="text-sm text-foreground/90">{msg.text}</p>
+                <div className="flex items-center gap-4 mt-1 text-muted-foreground">
+                    <div className="flex items-center gap-1">
+                        <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => handleVote(msg.id!, 'upvotes')} disabled={!canChat || msg.voters?.[currentUser?.uid!]}>
+                            <ThumbsUp className={`h-4 w-4 ${msg.voters?.[currentUser?.uid!] === 'upvotes' ? 'text-primary' : ''}`} />
+                        </Button>
+                        <span className="text-xs">{msg.upvotes}</span>
+                    </div>
+                     <div className="flex items-center gap-1">
+                        <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => handleVote(msg.id!, 'downvotes')} disabled={!canChat || msg.voters?.[currentUser?.uid!]}>
+                           <ThumbsDown className={`h-4 w-4 ${msg.voters?.[currentUser?.uid!] === 'downvotes' ? 'text-destructive' : ''}`} />
+                        </Button>
+                        <span className="text-xs">{msg.downvotes}</span>
+                    </div>
+                </div>
               </div>
             </div>
           ))}
@@ -178,6 +227,34 @@ export function LiveChat({ podcastId, canChat, participantStatus, isHost }: Live
           <Send />
         </Button>
       </form>
+       <Dialog open={!!messageToFeature} onOpenChange={(open) => !open && setMessageToFeature(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Feature a Message</DialogTitle>
+            <DialogDescription>
+              Write a reply to this message. It will be shown on the main screen for everyone to see.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <blockquote className="border-l-2 pl-4 italic text-sm text-muted-foreground">
+                "{messageToFeature?.text}"
+            </blockquote>
+            <Textarea
+                placeholder="Your reply..."
+                value={hostReply}
+                onChange={(e) => setHostReply(e.target.value)}
+                className="mt-4"
+                rows={4}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setMessageToFeature(null)}>Cancel</Button>
+            <Button onClick={handleFeatureMessage} disabled={isFeaturing}>
+              {isFeaturing ? <Loader2 className="animate-spin" /> : "Feature Message"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -1,7 +1,7 @@
 
 "use client";
 
-import { Participant, updateParticipantStatus } from "@/services/podcastService";
+import { Participant, updateParticipantStatus } from "@/services/chatRoomService";
 import { Avatar, AvatarFallback } from "./ui/avatar";
 import { Button } from "./ui/button";
 import { ScrollArea } from "./ui/scroll-area";
@@ -12,7 +12,7 @@ import { useState } from "react";
 import { Card, CardContent } from "./ui/card";
 
 interface ParticipantsListProps {
-    podcastId: string;
+    chatRoomId: string;
     participants: Participant[];
 }
 
@@ -25,7 +25,7 @@ const statusBadgeVariant = {
     removed: 'destructive'
 } as const;
 
-export function ParticipantsList({ podcastId, participants }: ParticipantsListProps) {
+export function ParticipantsList({ chatRoomId, participants }: ParticipantsListProps) {
     const { toast } = useToast();
     const [loadingStates, setLoadingStates] = useState<Record<string, boolean>>({});
 
@@ -36,7 +36,7 @@ export function ParticipantsList({ podcastId, participants }: ParticipantsListPr
     const handleUpdateStatus = async (userId: string, status: Participant['status']) => {
         setLoadingStates(prev => ({ ...prev, [userId]: true }));
         try {
-            await updateParticipantStatus(podcastId, userId, status);
+            await updateParticipantStatus(chatRoomId, userId, status);
         } catch(e) {
             console.error(e);
             toast({ variant: 'destructive', title: "Error", description: `Failed to update status for user ${userId}`});

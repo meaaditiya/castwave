@@ -6,7 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
-import { createPodcast } from '@/services/podcastService';
+import { createChatRoom } from '@/services/chatRoomService';
 import { Header } from '@/components/Header';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -21,7 +21,7 @@ const formSchema = z.object({
   description: z.string().min(10, { message: 'Description must be at least 10 characters.' }),
 });
 
-export default function CreatePodcastPage() {
+export default function CreateChatRoomPage() {
   const { currentUser, loading: authLoading } = useAuth();
   const router = useRouter();
   const { toast } = useToast();
@@ -46,7 +46,7 @@ export default function CreatePodcastPage() {
         toast({
             variant: 'destructive',
             title: 'Not Authenticated',
-            description: 'You must be logged in to create a podcast.',
+            description: 'You must be logged in to create a chat room.',
         });
         return;
     }
@@ -57,7 +57,7 @@ export default function CreatePodcastPage() {
     router.push('/');
 
     try {
-      await createPodcast({
+      await createChatRoom({
         title: values.title,
         description: values.description,
         host: currentUser.email || 'Anonymous',
@@ -65,17 +65,17 @@ export default function CreatePodcastPage() {
         isLive: true,
       });
       toast({
-        title: 'Podcast Created!',
-        description: 'Your new podcast is now live.',
+        title: 'Chat Room Created!',
+        description: 'Your new chat room is now live.',
       });
     } catch (error: any) {
       toast({
         variant: 'destructive',
-        title: 'Failed to Create Podcast',
+        title: 'Failed to Create Chat Room',
         description: error.message,
       });
        // If creation fails, bring them back to the create page
-      router.push('/podcast/create');
+      router.push('/chatroom/create');
     } finally {
       setIsLoading(false);
     }
@@ -96,7 +96,7 @@ export default function CreatePodcastPage() {
       <main className="flex-1 container py-8 flex items-center justify-center">
         <Card className="w-full max-w-2xl">
           <CardHeader>
-            <CardTitle>Create a New Podcast</CardTitle>
+            <CardTitle>Create a New Chat Room</CardTitle>
             <CardDescription>Fill out the details below to start your live session.</CardDescription>
           </CardHeader>
           <CardContent>
@@ -107,7 +107,7 @@ export default function CreatePodcastPage() {
                   name="title"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Podcast Title</FormLabel>
+                      <FormLabel>Chat Room Title</FormLabel>
                       <FormControl>
                         <Input placeholder="e.g., The Future of Web Development" {...field} />
                       </FormControl>
@@ -120,10 +120,10 @@ export default function CreatePodcastPage() {
                   name="description"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Podcast Description</FormLabel>
+                      <FormLabel>Chat Room Description</FormLabel>
                       <FormControl>
                         <Textarea
-                          placeholder="Describe what your podcast will be about..."
+                          placeholder="Describe what your chat room will be about..."
                           className="resize-none"
                           {...field}
                         />
@@ -134,7 +134,7 @@ export default function CreatePodcastPage() {
                 />
                 <Button type="submit" className="w-full" disabled={isLoading}>
                   {isLoading ? <Loader2 className="animate-spin" /> : <Mic />}
-                  Start Live Podcast
+                  Start Live Chat Room
                 </Button>
               </form>
             </Form>
