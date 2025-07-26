@@ -7,8 +7,9 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
-import { createChatRoomFlow } from '@/ai/flows/create-chat-room';
-import { generateUploadUrl } from '@/ai/flows/generate-upload-url';
+import { createChatRoom } from '@/services/chatRoomService';
+import { storage } from '@/lib/firebase';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { Header } from '@/components/Header';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -93,34 +94,17 @@ export default function CreateChatRoomPage() {
     try {
         let imageUrl: string | undefined = undefined;
 
-        // 1. If a thumbnail is selected, get a signed URL and upload it
         if (values.thumbnail && values.thumbnail.length > 0) {
             const file = values.thumbnail[0];
+            const filePath = `thumbnails/${currentUser.uid}_${Date.now()}_${file.name}`;
+            const storageRef = ref(storage, filePath);
             
-            const { uploadUrl, downloadUrl } = await generateUploadUrl({
-                fileName: file.name,
-                contentType: file.type,
-                userId: currentUser.uid,
-                uploadType: 'thumbnail'
-            });
-
-            // Upload the file to the signed URL
-            const uploadResponse = await fetch(uploadUrl, {
-                method: 'PUT',
-                body: file,
-                headers: { 'Content-Type': file.type },
-            });
-
-            if (!uploadResponse.ok) {
-                throw new Error('Thumbnail upload failed.');
-            }
-            
-            imageUrl = downloadUrl;
+            const uploadResult = await uploadBytes(storageRef, file);
+            imageUrl = await getDownloadURL(uploadResult.ref);
         }
 
-        // 2. Create the chat room with the image URL (or without)
         const isLive = values.scheduleOption === 'now';
-        const result = await createChatRoomFlow({
+        const result = await createChatRoom({
             title: values.title,
             description: values.description,
             host: currentUser.email || 'Anonymous',

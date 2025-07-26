@@ -61,7 +61,7 @@ export const createChatRoom = async (input: ChatRoomInput): Promise<{ chatRoomId
                 isLive: input.isLive,
                 createdAt: serverTimestamp(),
                 scheduledAt: input.scheduledAt || null,
-                imageUrl: input.imageUrl || `https://placehold.co/600x400.png?text=${encodeURIComponent(input.title)}`,
+                imageUrl: input.imageUrl || `https://placehold.co/600x400.png`,
                 imageHint: 'abstract art'
             });
 
@@ -176,7 +176,7 @@ export const sendMessage = async (chatRoomId: string, message: Partial<Message>)
 
         const messagesCol = collection(db, 'chatRooms', chatRoomId, 'messages');
         
-        const messageData: Partial<Message> & { timestamp: any } = {
+        const messageData: any = {
             user: message.user,
             userId: message.userId,
             upvotes: 0,

@@ -10,7 +10,8 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback } from './ui/avatar';
 import { useAuth } from '@/context/AuthContext';
 import { sendMessage, requestToJoinChat, voteOnMessage, featureMessage, updateTypingStatus, ChatRoom } from '@/services/chatRoomService';
-import { generateUploadUrl } from '@/ai/flows/generate-upload-url';
+import { storage } from '@/lib/firebase';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 import type { Message } from '@/services/chatRoomService';
@@ -120,47 +121,27 @@ export function LiveChat({ chatRoom, canChat, participantStatus, isHost, message
         let imageUrl: string | undefined = undefined;
 
         if (imageFile) {
-            const { uploadUrl, downloadUrl } = await generateUploadUrl({
-                fileName: imageFile.name,
-                contentType: imageFile.type,
-                userId: currentUser.uid,
-                uploadType: 'chat-media'
-            });
+            const filePath = `chat-media/${currentUser.uid}_${Date.now()}_${imageFile.name}`;
+            const storageRef = ref(storage, filePath);
 
-            const uploadResponse = await fetch(uploadUrl, {
-                method: 'PUT',
-                body: imageFile,
-                headers: { 'Content-Type': imageFile.type },
-            });
-
-            if (!uploadResponse.ok) {
-                throw new Error('Image upload failed.');
-            }
-            imageUrl = downloadUrl;
+            const uploadResult = await uploadBytes(storageRef, imageFile);
+            imageUrl = await getDownloadURL(uploadResult.ref);
         }
 
-        const messagePayload: Partial<Message> = {
+        await sendMessage(chatRoom.id, {
             user: currentUser.email || 'Anonymous',
             userId: currentUser.uid,
-        };
-        
-        if (imageUrl) {
-            messagePayload.imageUrl = imageUrl;
-        }
-        
-        if (newMessage.trim()) {
-            messagePayload.text = newMessage.trim();
-        }
-
-        await sendMessage(chatRoom.id, messagePayload);
+            text: newMessage.trim(),
+            imageUrl,
+        });
 
         setNewMessage('');
         setImageFile(null);
         setImagePreview(null);
         if(fileInputRef.current) fileInputRef.current.value = '';
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
-      toast({ variant: 'destructive', title: 'Error', description: 'Could not send message.' });
+      toast({ variant: 'destructive', title: 'Error', description: error.message || 'Could not send message.' });
     } finally {
         setIsSending(false);
     }
