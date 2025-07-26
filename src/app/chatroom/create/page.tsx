@@ -8,8 +8,6 @@ import * as z from 'zod';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { createChatRoom } from '@/services/chatRoomService';
-import { storage } from '@/lib/firebase';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { Header } from '@/components/Header';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -17,20 +15,18 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Mic, Calendar as CalendarIcon, Clock, Image as ImageIcon, Upload } from 'lucide-react';
+import { Loader2, Mic, Calendar as CalendarIcon, Clock } from 'lucide-react';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
-import Image from 'next/image';
 
 const formSchema = z.object({
   title: z.string().min(5, { message: 'Title must be at least 5 characters.' }),
   description: z.string().min(10, { message: 'Description must be at least 10 characters.' }),
   scheduleOption: z.enum(['now', 'later'], { required_error: 'You must select a schedule option.'}),
   scheduledAt: z.date().optional(),
-  thumbnail: z.custom<FileList>().optional(),
 }).refine((data) => {
     if (data.scheduleOption === 'later' && !data.scheduledAt) {
         return false;
@@ -46,7 +42,6 @@ export default function CreateChatRoomPage() {
   const router = useRouter();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
-  const [thumbnailPreview, setThumbnailPreview] = useState<string | null>(null);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -58,19 +53,6 @@ export default function CreateChatRoomPage() {
   });
 
   const scheduleOption = form.watch('scheduleOption');
-  const thumbnailFile = form.watch('thumbnail');
-
-  useEffect(() => {
-    if (thumbnailFile && thumbnailFile[0]) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setThumbnailPreview(reader.result as string);
-      };
-      reader.readAsDataURL(thumbnailFile[0]);
-    } else {
-      setThumbnailPreview(null);
-    }
-  }, [thumbnailFile]);
 
   useEffect(() => {
     if (!authLoading && !currentUser) {
@@ -92,17 +74,6 @@ export default function CreateChatRoomPage() {
     setIsLoading(true);
 
     try {
-        let imageUrl: string | undefined = undefined;
-
-        if (values.thumbnail && values.thumbnail.length > 0) {
-            const file = values.thumbnail[0];
-            const filePath = `thumbnails/${currentUser.uid}_${Date.now()}_${file.name}`;
-            const storageRef = ref(storage, filePath);
-            
-            const uploadResult = await uploadBytes(storageRef, file);
-            imageUrl = await getDownloadURL(uploadResult.ref);
-        }
-
         const isLive = values.scheduleOption === 'now';
         const result = await createChatRoom({
             title: values.title,
@@ -111,7 +82,6 @@ export default function CreateChatRoomPage() {
             hostId: currentUser.uid,
             isLive,
             scheduledAt: isLive ? undefined : values.scheduledAt,
-            imageUrl: imageUrl,
         });
         
         toast({
@@ -177,42 +147,6 @@ export default function CreateChatRoomPage() {
                           className="resize-none"
                           {...field}
                         />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="thumbnail"
-                  render={({ field: { onChange, value, ...rest } }) => (
-                    <FormItem>
-                      <FormLabel>Session Thumbnail (Optional)</FormLabel>
-                      <FormControl>
-                        <div className="flex items-center gap-4">
-                           {thumbnailPreview ? (
-                              <Image src={thumbnailPreview} alt="Thumbnail preview" width={100} height={100} className="rounded-md object-cover" />
-                           ) : (
-                              <div className="w-[100px] h-[100px] flex items-center justify-center bg-muted rounded-md">
-                                <ImageIcon className="h-10 w-10 text-muted-foreground" />
-                              </div>
-                           )}
-                           <Button type="button" variant="outline" asChild>
-                              <label htmlFor="thumbnail-upload" className="cursor-pointer">
-                                <Upload className="mr-2 h-4 w-4" />
-                                {thumbnailPreview ? 'Change Image' : 'Upload Image'}
-                                <Input 
-                                  id="thumbnail-upload"
-                                  type="file"
-                                  accept="image/*"
-                                  className="hidden"
-                                  onChange={(e) => onChange(e.target.files)}
-                                  {...rest}
-                                />
-                              </label>
-                           </Button>
-                        </div>
                       </FormControl>
                       <FormMessage />
                     </FormItem>

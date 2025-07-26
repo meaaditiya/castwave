@@ -2,16 +2,13 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import Image from 'next/image';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Send, Loader2, Hand, ThumbsUp, ThumbsDown, Star, Image as ImageIcon, X } from 'lucide-react';
+import { Send, Loader2, Hand, ThumbsUp, ThumbsDown, Star } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback } from './ui/avatar';
 import { useAuth } from '@/context/AuthContext';
 import { sendMessage, requestToJoinChat, voteOnMessage, featureMessage, updateTypingStatus, ChatRoom } from '@/services/chatRoomService';
-import { storage } from '@/lib/firebase';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 import type { Message } from '@/services/chatRoomService';
@@ -43,15 +40,12 @@ const getUserColor = (userName: string) => {
 
 export function LiveChat({ chatRoom, canChat, participantStatus, isHost, messages }: LiveChatProps) {
   const [newMessage, setNewMessage] = useState('');
-  const [imageFile, setImageFile] = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [isSending, setIsSending] = useState(false);
   const [isRequesting, setIsRequesting] = useState(false);
   const { currentUser } = useAuth();
   const { toast } = useToast();
   const scrollAreaRef = useRef<HTMLDivElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [messageToFeature, setMessageToFeature] = useState<Message | null>(null);
   const [hostReply, setHostReply] = useState('');
@@ -99,46 +93,20 @@ export function LiveChat({ chatRoom, canChat, participantStatus, isHost, message
     }
   }
 
-  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setImageFile(file);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImagePreview(reader.result as string);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!currentUser || (!newMessage.trim() && !imageFile)) return;
+    if (!currentUser || !newMessage.trim()) return;
 
     setIsSending(true);
 
     try {
-        let imageUrl: string | undefined = undefined;
-
-        if (imageFile) {
-            const filePath = `chat-media/${currentUser.uid}_${Date.now()}_${imageFile.name}`;
-            const storageRef = ref(storage, filePath);
-
-            const uploadResult = await uploadBytes(storageRef, imageFile);
-            imageUrl = await getDownloadURL(uploadResult.ref);
-        }
-
         await sendMessage(chatRoom.id, {
             user: currentUser.email || 'Anonymous',
             userId: currentUser.uid,
             text: newMessage.trim(),
-            imageUrl,
         });
 
         setNewMessage('');
-        setImageFile(null);
-        setImagePreview(null);
-        if(fileInputRef.current) fileInputRef.current.value = '';
     } catch (error: any) {
       console.error(error);
       toast({ variant: 'destructive', title: 'Error', description: error.message || 'Could not send message.' });
@@ -254,11 +222,6 @@ export function LiveChat({ chatRoom, canChat, participantStatus, isHost, message
                      )}
                 </div>
                 {msg.text && <p className="text-sm text-foreground/90 whitespace-pre-wrap">{msg.text}</p>}
-                {msg.imageUrl && (
-                    <div className="mt-2">
-                        <Image src={msg.imageUrl} alt="User upload" width={200} height={200} className="rounded-lg object-cover" />
-                    </div>
-                )}
                 <div className="flex items-center gap-4 mt-1 text-muted-foreground">
                     <div className="flex items-center gap-1">
                         <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => handleVote(msg.id!, 'upvotes')} disabled={!canChat || msg.voters?.[currentUser?.uid!]}>
@@ -290,23 +253,6 @@ export function LiveChat({ chatRoom, canChat, participantStatus, isHost, message
           }
       </div>
       <div className="border-t pt-2">
-        {imagePreview && (
-          <div className="relative w-24 h-24 mb-2">
-            <Image src={imagePreview} alt="Image preview" layout="fill" className="object-cover rounded-md" />
-            <Button
-              size="icon"
-              variant="destructive"
-              className="absolute -top-2 -right-2 h-6 w-6 rounded-full"
-              onClick={() => {
-                setImageFile(null);
-                setImagePreview(null);
-                if (fileInputRef.current) fileInputRef.current.value = '';
-              }}
-            >
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
-        )}
         <form onSubmit={handleSubmit} className="flex gap-2">
             <Input
             placeholder={canChat ? "Join the conversation..." : "You must be approved to chat."}
@@ -314,11 +260,7 @@ export function LiveChat({ chatRoom, canChat, participantStatus, isHost, message
             onChange={(e) => setNewMessage(e.target.value)}
             disabled={!canChat || isSending}
             />
-            <input type="file" ref={fileInputRef} onChange={handleImageSelect} accept="image/*" className="hidden" />
-            <Button type="button" size="icon" variant="outline" aria-label="Attach image" disabled={!canChat || isSending} onClick={() => fileInputRef.current?.click()}>
-                <ImageIcon />
-            </Button>
-            <Button type="submit" size="icon" aria-label="Send message" disabled={!canChat || isSending || (!newMessage.trim() && !imageFile)}>
+            <Button type="submit" size="icon" aria-label="Send message" disabled={!canChat || isSending || !newMessage.trim()}>
             {isSending ? <Loader2 className="animate-spin" /> : <Send />}
             </Button>
         </form>

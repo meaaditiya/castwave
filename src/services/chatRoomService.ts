@@ -7,7 +7,6 @@ export interface Message {
   user: string;
   userId: string;
   text?: string;
-  imageUrl?: string;
   timestamp?: any;
   upvotes: number;
   downvotes: number;
@@ -37,7 +36,6 @@ export interface ChatRoomInput {
     hostId: string;
     isLive: boolean;
     scheduledAt?: Date;
-    imageUrl?: string;
 }
 
 export interface Participant {
@@ -61,7 +59,7 @@ export const createChatRoom = async (input: ChatRoomInput): Promise<{ chatRoomId
                 isLive: input.isLive,
                 createdAt: serverTimestamp(),
                 scheduledAt: input.scheduledAt || null,
-                imageUrl: input.imageUrl || `https://placehold.co/600x400.png`,
+                imageUrl: `https://placehold.co/600x400.png`,
                 imageHint: 'abstract art'
             });
 
@@ -170,8 +168,8 @@ export const deleteChatRoom = async (chatRoomId: string) => {
 
 export const sendMessage = async (chatRoomId: string, message: Partial<Message>) => {
     try {
-        if (!message.text && !message.imageUrl) {
-            throw new Error("Message must have either text or an image.");
+        if (!message.text) {
+            throw new Error("Message must have text.");
         }
 
         const messagesCol = collection(db, 'chatRooms', chatRoomId, 'messages');
@@ -179,18 +177,12 @@ export const sendMessage = async (chatRoomId: string, message: Partial<Message>)
         const messageData: any = {
             user: message.user,
             userId: message.userId,
+            text: message.text,
             upvotes: 0,
             downvotes: 0,
             voters: {},
             timestamp: serverTimestamp(),
         };
-
-        if (message.text) {
-            messageData.text = message.text;
-        }
-        if (message.imageUrl) {
-            messageData.imageUrl = message.imageUrl;
-        }
 
         await addDoc(messagesCol, messageData);
     } catch (error) {

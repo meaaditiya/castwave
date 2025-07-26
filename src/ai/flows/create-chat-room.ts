@@ -2,7 +2,7 @@
 'use server';
 /**
  * @fileOverview A flow for creating a new chat room.
- * This flow handles the creation of a chat room using a provided thumbnail URL.
+ * This flow handles the creation of a chat room.
  */
 
 import { ai } from '@/ai/genkit';
@@ -18,7 +18,6 @@ const CreateChatRoomFlowInputSchema = z.object({
   hostId: z.string(),
   isLive: z.boolean(),
   scheduledAt: z.date().optional(),
-  imageUrl: z.string().optional().describe('The public URL of the chat room thumbnail.'),
 });
 export type CreateChatRoomFlowInput = z.infer<typeof CreateChatRoomFlowInputSchema>;
 
@@ -41,7 +40,7 @@ const createChatRoomFlowFn = ai.defineFlow(
         isLive: input.isLive,
         createdAt: serverTimestamp(),
         scheduledAt: input.scheduledAt || null,
-        imageUrl: input.imageUrl || 'https://placehold.co/400x400.png',
+        imageUrl: 'https://placehold.co/400x400.png',
         imageHint: 'community discussion'
     });
 

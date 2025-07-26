@@ -93,7 +93,6 @@ export function LiveScreen({ id, title, host, hostAvatar, isLive, imageHint, isH
                         <div className="bg-muted p-3 rounded-lg rounded-tl-none flex-1">
                             <p className="text-sm font-bold text-muted-foreground">{featuredMessage.user}</p>
                             {featuredMessage.text && <p className="text-base">{featuredMessage.text}</p>}
-                            {featuredMessage.imageUrl && <Image src={featuredMessage.imageUrl} alt="Featured image" width={200} height={200} className="mt-2 rounded-md" />}
                         </div>
                     </div>
                     {hostReply && (
