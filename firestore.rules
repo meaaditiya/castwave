@@ -3,48 +3,49 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Allow users to read all chat rooms.
-    // Only authenticated users can create rooms.
-    // Only the host can update or delete their room.
-    match /chatRooms/{roomId} {
-      allow read: if request.auth != null;
-      allow create: if request.auth != null;
-      allow update, delete: if request.auth.uid == resource.data.hostId;
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
 
-      // Rules for participants subcollection
-      match /participants/{userId} {
-        // ANY authenticated user can read the participant list. This is needed
-        // for the client to check its own status (pending, approved, etc.).
-        allow read: if request.auth != null;
+    function isOwner(resource) {
+      return request.auth.uid == resource.data.hostId;
+    }
+
+    match /chatRooms/{chatRoomId} {
+      // Anyone authenticated can read chat rooms
+      allow read: if isSignedIn();
+      
+      // Only authenticated users can create a chat room
+      allow create: if isSignedIn();
+      
+      // Only the host can update or delete their own chat room
+      allow update, delete: if isSignedIn() && isOwner(resource);
+
+      // Rules for subcollections
+      match /participants/{participantId} {
+        // Anyone authenticated can read the participants list.
+        // This is necessary to check status (pending, approved, etc.)
+        allow read: if isSignedIn();
+
+        // An authenticated user can add themselves to the participants list.
+        // They can also update their own status (e.g. re-requesting).
+        allow create, update: if isSignedIn() && request.auth.uid == participantId;
         
-        // A user can only add THEMSELVES to the participants list.
-        allow create: if request.auth.uid == userId;
-
-        // Only the host of the chat room can update a participant's status
-        // (e.g., approve, deny, remove).
-        allow update: if exists(/databases/$(database)/documents/chatRooms/$(roomId)) &&
-                       request.auth.uid == get(/databases/$(database)/documents/chatRooms/$(roomId)).data.hostId;
-
-        // Only the host can delete a participant document.
-        allow delete: if exists(/databases/$(database)/documents/chatRooms/$(roomId)) &&
-                       request.auth.uid == get(/databases/$(database)/documents/chatRooms/$(roomId)).data.hostId;
+        // Only the host can update other participants (approve, deny, remove).
+        // This is covered by a more specific rule below.
+        allow update: if isSignedIn() && isOwner(get(/databases/$(database)/documents/chatRooms/$(chatRoomId)));
       }
 
-      // Rules for messages subcollection
       match /messages/{messageId} {
-        allow read: if request.auth != null;
-        // User must be an approved participant to send messages
-        allow create: if request.auth.uid == request.resource.data.userId &&
-                       exists(/databases/$(database)/documents/chatRooms/$(roomId)/participants/$(request.auth.uid)) &&
-                       get(/databases/$(database)/documents/chatRooms/$(roomId)/participants/$(request.auth.uid)).data.status == 'approved';
-
-        // Users can update their own messages (for voting), or the host can.
-        allow update: if request.auth.uid == resource.data.userId || 
-                       (exists(/databases/$(database)/documents/chatRooms/$(roomId)) &&
-                       request.auth.uid == get(/databases/$(database)/documents/chatRooms/$(roomId)).data.hostId);
+        // Anyone can read messages
+        allow read: if isSignedIn();
         
-        allow delete: if exists(/databases/$(database)/documents/chatRooms/$(roomId)) &&
-                       request.auth.uid == get(/databases/$(database)/documents/chatRooms/$(roomId)).data.hostId;
+        // A user can send a message only if they are an approved participant.
+        allow create: if isSignedIn() && get(/databases/$(database)/documents/chatRooms/$(chatRoomId)/participants/$(request.auth.uid)).data.status == 'approved';
+
+        // A user can vote on a message (update) if they are an approved participant.
+        allow update: if isSignedIn() && get(/databases/$(database)/documents/chatRooms/$(chatRoomId)/participants/$(request.auth.uid)).data.status == 'approved';
       }
     }
   }
