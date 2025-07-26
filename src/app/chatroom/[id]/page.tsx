@@ -98,30 +98,29 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
 
   useEffect(() => {
     const chatRoomId = resolvedParams.id;
-    if (!chatRoomId || !currentUser) return;
+    // Wait for chatRoom and currentUser to be loaded
+    if (!chatRoomId || !currentUser || !chatRoom) return;
 
     const unsubscribeParticipants = getParticipants(chatRoomId, (newParticipants) => {
         setParticipants(newParticipants);
 
-        if (currentUser && chatRoom) {
-            const userInList = newParticipants.some(p => p.userId === currentUser.uid);
-            // If user is not in the list and not the host, add them.
-            if (!userInList && chatRoom.hostId !== currentUser.uid) {
-                // For private rooms, automatically approve them.
-                // For public rooms, set their status to pending.
-                const status = chatRoom.isPrivate ? 'approved' : 'pending';
-                addParticipant(chatRoomId, {
-                    userId: currentUser.uid,
-                    displayName: currentUser.email || 'Anonymous',
-                    status: status,
-                    requestCount: status === 'pending' ? 1 : 0, // only count request for public rooms
-                });
-            }
+        const userInList = newParticipants.some(p => p.userId === currentUser.uid);
+        // If user is not in the list and not the host, add them.
+        if (!userInList && chatRoom.hostId !== currentUser.uid) {
+            // For private rooms, automatically approve them.
+            // For public rooms, set their status to pending.
+            const status = chatRoom.isPrivate ? 'approved' : 'pending';
+            addParticipant(chatRoomId, {
+                userId: currentUser.uid,
+                displayName: currentUser.email || 'Anonymous',
+                status: status,
+                requestCount: status === 'pending' ? 1 : 0, // only count request for public rooms
+            });
         }
     });
 
     return () => unsubscribeParticipants();
-  }, [resolvedParams.id, currentUser, chatRoom, authLoading]);
+  }, [resolvedParams.id, currentUser, chatRoom]);
 
 
   useEffect(() => {
