@@ -5,8 +5,7 @@ import { useState, useEffect } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import * as z from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { createPoll, getActivePoll, voteOnPoll, endPoll, togglePollResultsVisibility, Poll, PollOption } from '@/services/pollService';
-import { useAuth } from '@/context/AuthContext';
+import { createPoll, getActivePoll, voteOnPoll, endPoll, togglePollResultsVisibility, Poll } from '@/services/pollService';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose, DialogTrigger } from '@/components/ui/dialog';
@@ -21,6 +20,7 @@ interface LivePollProps {
     chatRoomId: string;
     isHost: boolean;
     currentUserId: string;
+    renderNoPollContent: () => React.ReactNode;
 }
 
 const pollFormSchema = z.object({
@@ -29,7 +29,7 @@ const pollFormSchema = z.object({
     duration: z.coerce.number().min(1, 'Duration must be at least 1 minute.').max(120, 'Duration cannot exceed 120 minutes.'),
 });
 
-export function LivePoll({ chatRoomId, isHost, currentUserId }: LivePollProps) {
+export function LivePoll({ chatRoomId, isHost, currentUserId, renderNoPollContent }: LivePollProps) {
     const [activePoll, setActivePoll] = useState<Poll | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [isCreating, setIsCreating] = useState(false);
@@ -139,100 +139,101 @@ export function LivePoll({ chatRoomId, isHost, currentUserId }: LivePollProps) {
 
     if (isLoading) {
         return (
-            <Card>
-                <CardContent className="p-6 flex items-center justify-center h-48">
-                    <Loader2 className="animate-spin text-primary" />
-                </CardContent>
-            </Card>
+            <div className="flex items-center justify-center h-full">
+                <Loader2 className="animate-spin text-primary" />
+            </div>
         );
     }
 
     if (!activePoll) {
         if (isHost) {
             return (
-                <Dialog>
-                    <DialogTrigger asChild>
-                        <Button variant="outline" className="w-full">
-                            <Plus className="mr-2" /> Create a Poll
-                        </Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                        <DialogHeader>
-                            <DialogTitle>Create a New Poll</DialogTitle>
-                            <DialogDescription>
-                                Engage your audience with a live poll.
-                            </DialogDescription>
-                        </DialogHeader>
-                        <Form {...form}>
-                            <form onSubmit={form.handleSubmit(handleCreatePoll)} className="space-y-4">
-                                <FormField control={form.control} name="question" render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>Poll Question</FormLabel>
-                                        <FormControl><Input {...field} placeholder="e.g., What should we discuss next?" /></FormControl>
-                                        <FormMessage />
-                                    </FormItem>
-                                )} />
-                                <div>
-                                    <FormLabel>Options</FormLabel>
-                                    <div className="space-y-2 mt-2">
-                                    {fields.map((field, index) => (
-                                        <FormField key={field.id} control={form.control} name={`options.${index}.text`} render={({ field }) => (
-                                            <FormItem>
-                                                <div className="flex items-center gap-2">
-                                                    <FormControl><Input {...field} placeholder={`Option ${index + 1}`} /></FormControl>
-                                                    <Button type="button" variant="ghost" size="icon" onClick={() => remove(index)} disabled={fields.length <= 2}>
-                                                        <Trash2 className="text-destructive h-4 w-4" />
-                                                    </Button>
-                                                </div>
-                                                <FormMessage />
-                                            </FormItem>
-                                        )} />
-                                    ))}
+                 <div className="flex flex-col items-center justify-center h-full gap-4 text-center">
+                    {renderNoPollContent()}
+                    <Dialog>
+                        <DialogTrigger asChild>
+                            <Button variant="outline" className="mt-4">
+                                <Plus className="mr-2" /> Create a Poll
+                            </Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                            <DialogHeader>
+                                <DialogTitle>Create a New Poll</DialogTitle>
+                                <DialogDescription>
+                                    Engage your audience with a live poll.
+                                </DialogDescription>
+                            </DialogHeader>
+                            <Form {...form}>
+                                <form onSubmit={form.handleSubmit(handleCreatePoll)} className="space-y-4">
+                                    <FormField control={form.control} name="question" render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Poll Question</FormLabel>
+                                            <FormControl><Input {...field} placeholder="e.g., What should we discuss next?" /></FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )} />
+                                    <div>
+                                        <FormLabel>Options</FormLabel>
+                                        <div className="space-y-2 mt-2">
+                                        {fields.map((field, index) => (
+                                            <FormField key={field.id} control={form.control} name={`options.${index}.text`} render={({ field }) => (
+                                                <FormItem>
+                                                    <div className="flex items-center gap-2">
+                                                        <FormControl><Input {...field} placeholder={`Option ${index + 1}`} /></FormControl>
+                                                        <Button type="button" variant="ghost" size="icon" onClick={() => remove(index)} disabled={fields.length <= 2}>
+                                                            <Trash2 className="text-destructive h-4 w-4" />
+                                                        </Button>
+                                                    </div>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )} />
+                                        ))}
+                                        </div>
+                                        <Button type="button" variant="outline" size="sm" onClick={() => append({ text: '' })} className="mt-2">
+                                            <Plus className="mr-2 h-4 w-4" /> Add Option
+                                        </Button>
                                     </div>
-                                    <Button type="button" variant="outline" size="sm" onClick={() => append({ text: '' })} className="mt-2">
-                                        <Plus className="mr-2 h-4 w-4" /> Add Option
-                                    </Button>
-                                </div>
-                                <FormField control={form.control} name="duration" render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>Duration (in minutes)</FormLabel>
-                                        <FormControl><Input type="number" {...field} /></FormControl>
-                                        <FormMessage />
-                                    </FormItem>
-                                )} />
-                                <DialogFooter>
-                                    <DialogClose asChild><Button variant="ghost">Cancel</Button></DialogClose>
-                                    <Button type="submit" disabled={isCreating}>
-                                        {isCreating && <Loader2 className="animate-spin mr-2" />} Start Poll
-                                    </Button>
-                                </DialogFooter>
-                            </form>
-                        </Form>
-                    </DialogContent>
-                </Dialog>
+                                    <FormField control={form.control} name="duration" render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Duration (in minutes)</FormLabel>
+                                            <FormControl><Input type="number" {...field} /></FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )} />
+                                    <DialogFooter>
+                                        <DialogClose asChild><Button variant="ghost">Cancel</Button></DialogClose>
+                                        <Button type="submit" disabled={isCreating}>
+                                            {isCreating && <Loader2 className="animate-spin mr-2" />} Start Poll
+                                        </Button>
+                                    </DialogFooter>
+                                </form>
+                            </Form>
+                        </DialogContent>
+                    </Dialog>
+                </div>
             );
         }
-        return null;
+        return renderNoPollContent();
     }
 
     const totalVotes = activePoll.options.reduce((sum, option) => sum + option.votes, 0);
 
     return (
-        <Card className="shadow-lg">
-            <CardHeader>
+        <div className="w-full">
+            <CardHeader className="p-0 mb-4">
                 <div className="flex justify-between items-start">
                     <div>
-                        <CardTitle className="flex items-center gap-2">
-                            <Vote /> Live Poll
+                        <CardTitle className="flex items-center gap-2 text-xl">
+                            <Vote /> Poll
                         </CardTitle>
-                        <CardDescription className="mt-1">{activePoll.question}</CardDescription>
+                        <CardDescription className="mt-1 text-lg">{activePoll.question}</CardDescription>
                     </div>
                     <Badge variant={activePoll.isActive ? 'default' : 'secondary'}>
                         {activePoll.isActive ? timeLeft : 'Poll Ended'}
                     </Badge>
                 </div>
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-0">
                 <div className="space-y-3">
                     {activePoll.options.map((option) => {
                         const percentage = totalVotes > 0 ? (option.votes / totalVotes) * 100 : 0;
@@ -264,7 +265,7 @@ export function LivePoll({ chatRoomId, isHost, currentUserId }: LivePollProps) {
                 </div>
             </CardContent>
             {isHost && activePoll.isActive && (
-                <CardFooter className="flex justify-end gap-2 border-t pt-4">
+                <CardFooter className="flex justify-end gap-2 p-0 pt-4">
                      <Button variant="ghost" onClick={handleToggleVisibility}>
                         {activePoll.resultsVisible ? <EyeOff className="mr-2" /> : <Eye className="mr-2" />}
                         {activePoll.resultsVisible ? 'Hide Results' : 'Show Results'}
@@ -274,6 +275,6 @@ export function LivePoll({ chatRoomId, isHost, currentUserId }: LivePollProps) {
                     </Button>
                 </CardFooter>
             )}
-        </Card>
+        </div>
     );
 }

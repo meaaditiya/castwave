@@ -16,7 +16,6 @@ import { useRouter } from 'next/navigation';
 import { getChatRoomStream, ChatRoom, getMessages, Participant, getParticipants, addParticipant } from '@/services/chatRoomService';
 import { useToast } from '@/hooks/use-toast';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { LivePoll } from '@/components/LivePoll';
 
 function ChatRoomPageSkeleton() {
     return (
@@ -153,13 +152,6 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
       <main className="flex-1 container py-4 md:py-8 grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-8">
         <div className="lg:col-span-2 space-y-4">
           <LiveScreen {...chatRoomDetails} />
-          {chatRoom.isLive && (
-              <LivePoll 
-                  chatRoomId={chatRoom.id}
-                  isHost={isHost}
-                  currentUserId={currentUser.uid}
-              />
-          )}
         </div>
         <div className="lg:col-span-1 flex flex-col gap-4">
           <Card className="flex flex-col h-[80vh] max-h-[80vh]">
