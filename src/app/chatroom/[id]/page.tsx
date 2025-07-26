@@ -110,14 +110,13 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
         const userInList = newParticipants.some(p => p.userId === currentUser.uid);
         
         if (!userInList && chatRoom.hostId !== currentUser.uid) {
-            const status = chatRoom.isPrivate ? 'approved' : 'pending';
              if (chatRoom.isPrivate) {
                 addParticipant(chatRoomId, {
                     userId: currentUser.uid,
                     displayName: currentUser.email || 'Anonymous',
                     status: 'approved',
                 });
-            } else if (status === 'pending') {
+            } else {
                  addParticipant(chatRoomId, {
                     userId: currentUser.uid,
                     displayName: currentUser.email || 'Anonymous',
