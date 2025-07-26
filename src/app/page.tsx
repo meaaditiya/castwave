@@ -13,12 +13,17 @@ export default function Home() {
   const { loading: authLoading } = useAuth();
 
   useEffect(() => {
-    const unsubscribe = getPodcasts((newPodcasts) => {
-      setPodcasts(newPodcasts);
-      setLoading(false);
-    });
+    // Show skeleton loaders for a minimum time to avoid flickering
+    const timer = setTimeout(() => {
+        const unsubscribe = getPodcasts((newPodcasts) => {
+          setPodcasts(newPodcasts);
+          setLoading(false);
+        });
 
-    return () => unsubscribe();
+        return () => unsubscribe();
+    }, 500);
+
+    return () => clearTimeout(timer);
   }, []);
 
   return (

@@ -52,6 +52,10 @@ export default function CreatePodcastPage() {
     }
 
     setIsLoading(true);
+
+    // Immediately redirect to home page for a faster user experience
+    router.push('/');
+
     try {
       await createPodcast({
         title: values.title,
@@ -64,13 +68,14 @@ export default function CreatePodcastPage() {
         title: 'Podcast Created!',
         description: 'Your new podcast is now live.',
       });
-      router.push('/');
     } catch (error: any) {
       toast({
         variant: 'destructive',
         title: 'Failed to Create Podcast',
         description: error.message,
       });
+       // If creation fails, bring them back to the create page
+      router.push('/podcast/create');
     } finally {
       setIsLoading(false);
     }
