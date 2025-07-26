@@ -1,11 +1,15 @@
+
+"use client";
+
 import Link from 'next/link';
 import Image from 'next/image';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from './ui/button';
-import { Trash2, Calendar, Play } from 'lucide-react';
+import { Trash2, Calendar, Play, Loader2 } from 'lucide-react';
 import { ChatRoom } from '@/services/chatRoomService';
 import { format } from 'date-fns';
+import { useState } from 'react';
 
 interface ChatRoomCardProps extends ChatRoom {
     isOwner: boolean;
@@ -14,6 +18,7 @@ interface ChatRoomCardProps extends ChatRoom {
 }
 
 export function ChatRoomCard({ id, title, host, imageUrl, isLive, imageHint, isOwner, onDelete, onStartSession, scheduledAt }: ChatRoomCardProps) {
+  const [isJoining, setIsJoining] = useState(false);
   
   const handleDeleteClick = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -27,6 +32,10 @@ export function ChatRoomCard({ id, title, host, imageUrl, isLive, imageHint, isO
     onStartSession();
   }
   
+  const handleJoinClick = () => {
+    setIsJoining(true);
+  };
+
   const scheduledTime = scheduledAt?.toDate();
   const isScheduled = scheduledTime && new Date() < scheduledTime;
   const isReadyToStart = scheduledTime && new Date() >= scheduledTime && !isLive;
@@ -45,8 +54,8 @@ export function ChatRoomCard({ id, title, host, imageUrl, isLive, imageHint, isO
   };
 
   return (
-    <Card className="hover:border-blue-500/50 hover:shadow-lg transition-all duration-300 overflow-hidden h-full flex flex-col group shadow-md border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900">
-       <Link href={`/chatroom/${id}`} className="flex flex-col h-full">
+    <Card className="relative hover:border-blue-500/50 hover:shadow-lg transition-all duration-300 overflow-hidden h-full flex flex-col group shadow-md border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900">
+       <Link href={`/chatroom/${id}`} className="flex flex-col h-full" onClick={handleJoinClick}>
             <CardHeader className="p-0 relative">
                 <div className="w-full h-48 flex items-center justify-center bg-gradient-to-br from-violet-500 via-purple-500 to-blue-500 relative overflow-hidden group-hover:from-violet-600 group-hover:via-purple-600 group-hover:to-blue-600 transition-all duration-300">
                     <div className="absolute inset-0 bg-black/20"></div>
@@ -100,6 +109,12 @@ export function ChatRoomCard({ id, title, host, imageUrl, isLive, imageHint, isO
                 )}
             </div>
         </CardFooter>
+        {isJoining && (
+            <div className="absolute inset-0 bg-background/80 flex flex-col items-center justify-center z-20 rounded-lg">
+                <Loader2 className="w-8 h-8 animate-spin text-primary mb-4" />
+                <p className="font-semibold text-foreground">Taking you to the room...</p>
+            </div>
+        )}
     </Card>
   );
 }
