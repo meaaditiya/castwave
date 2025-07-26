@@ -61,7 +61,7 @@ export function LiveScreen({ id, title, host, hostAvatar, isLive, imageHint, isH
   }
 
   return (
-    <Card className="overflow-hidden shadow-2xl shadow-primary/10">
+    <Card className="overflow-hidden shadow-lg h-full flex flex-col">
       <CardHeader className="flex flex-row items-center gap-4 p-4 md:p-6">
         <Avatar className="h-16 w-16 border-2 border-primary">
           <AvatarImage src={hostAvatar} alt={host} data-ai-hint={imageHint} />
@@ -81,7 +81,7 @@ export function LiveScreen({ id, title, host, hostAvatar, isLive, imageHint, isH
           </div>
         )}
       </CardHeader>
-      <CardContent className="bg-card/50 p-4 md:p-6 flex flex-col justify-center space-y-4 border-t min-h-[300px] md:min-h-[400px]">
+      <CardContent className="bg-card/50 p-4 md:p-6 flex flex-col justify-center space-y-4 border-t flex-1">
        {isLive ? (
         <>
             {featuredMessage ? (
@@ -133,7 +133,7 @@ export function LiveScreen({ id, title, host, hostAvatar, isLive, imageHint, isH
             </div>
         </>
        ) : (
-        <div className="flex flex-col items-center justify-center text-center space-y-4">
+        <div className="flex flex-col items-center justify-center text-center space-y-4 flex-1">
             <MicOff size={80} className="text-muted-foreground mx-auto" />
             <p className="text-muted-foreground">This chat room has ended.</p>
         </div>

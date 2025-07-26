@@ -40,7 +40,6 @@ const getUserColor = (userName: string) => {
 
 export function LiveChat({ chatRoom, canChat, participantStatus, isHost, messages }: LiveChatProps) {
   const [newMessage, setNewMessage] = useState('');
-  const [loading, setLoading] = useState(true);
   const [isSending, setIsSending] = useState(false);
   const [isRequesting, setIsRequesting] = useState(false);
   const { currentUser } = useAuth();
@@ -50,10 +49,6 @@ export function LiveChat({ chatRoom, canChat, participantStatus, isHost, message
   const [messageToFeature, setMessageToFeature] = useState<Message | null>(null);
   const [hostReply, setHostReply] = useState('');
   const [isFeaturing, setIsFeaturing] = useState(false);
-
-  useEffect(() => {
-    if(messages.length > 0) setLoading(false)
-  }, [messages])
 
   const scrollToBottom = useCallback(() => {
     const viewport = scrollAreaRef.current?.querySelector('div[data-radix-scroll-area-viewport]');
@@ -112,6 +107,7 @@ export function LiveChat({ chatRoom, canChat, participantStatus, isHost, message
       toast({ variant: 'destructive', title: 'Error', description: error.message || 'Could not send message.' });
     } finally {
         setIsSending(false);
+        updateTypingStatus(chatRoom.id, currentUser.uid, currentUser.email || 'Anonymous', false);
     }
   };
 
@@ -126,7 +122,7 @@ export function LiveChat({ chatRoom, canChat, participantStatus, isHost, message
   }
 
   const handleFeatureMessage = async () => {
-    if (!messageToFeature || !hostReply.trim()) return;
+    if (!messageToFeature) return;
     setIsFeaturing(true);
     try {
         await featureMessage(chatRoom.id, messageToFeature, hostReply);
@@ -197,14 +193,14 @@ export function LiveChat({ chatRoom, canChat, participantStatus, isHost, message
   return (
     <div className="relative flex flex-col h-full p-1 sm:p-4">
        {renderChatOverlay()}
-       {loading ? (
+       {!messages && (
         <div className="flex-1 flex items-center justify-center">
           <Loader2 className="h-6 w-6 animate-spin text-primary" />
         </div>
-      ) : (
+      )}
       <ScrollArea className="flex-1 pr-4" ref={scrollAreaRef}>
         <div className="space-y-4">
-          {messages.map((msg) => (
+          {messages && messages.map((msg) => (
             <div key={msg.id} className="flex items-start space-x-3 group">
               <Avatar className="h-8 w-8">
                 <AvatarFallback className={`${getUserColor(msg.user)}/20 border ${getUserColor(msg.user)}/50`}>
@@ -239,20 +235,19 @@ export function LiveChat({ chatRoom, canChat, participantStatus, isHost, message
               </div>
             </div>
           ))}
-           {messages.length === 0 && (
+           {messages && messages.length === 0 && (
                 <div className="text-center text-muted-foreground pt-10">
                     <p>No messages yet. Be the first to start the conversation!</p>
                 </div>
             )}
         </div>
       </ScrollArea>
-      )}
       <div className="h-5 text-xs text-muted-foreground italic px-1 pt-1">
           {typingUsers.length > 0 && 
             `${typingUsers.slice(0, 2).join(', ')}${typingUsers.length > 2 ? ' and others' : ''} ${typingUsers.length > 1 ? 'are' : 'is'} typing...`
           }
       </div>
-      <div className="border-t pt-2">
+      <div className="border-t pt-2 mt-auto">
         <form onSubmit={handleSubmit} className="flex gap-2">
             <Input
             placeholder={canChat ? "Join the conversation..." : "You must be approved to chat."}
@@ -270,7 +265,7 @@ export function LiveChat({ chatRoom, canChat, participantStatus, isHost, message
           <DialogHeader>
             <DialogTitle>Feature a Message</DialogTitle>
             <DialogDescription>
-              Write a reply to this message. It will be shown on the main screen for everyone to see.
+              Write a reply to this message. It will be shown on the main screen for everyone to see. Leave the reply empty to just feature the message.
             </DialogDescription>
           </DialogHeader>
           <div className="py-4">
@@ -278,7 +273,7 @@ export function LiveChat({ chatRoom, canChat, participantStatus, isHost, message
                 "{messageToFeature?.text}"
             </blockquote>
             <Textarea
-                placeholder="Your reply..."
+                placeholder="Your reply... (optional)"
                 value={hostReply}
                 onChange={(e) => setHostReply(e.target.value)}
                 className="mt-4"

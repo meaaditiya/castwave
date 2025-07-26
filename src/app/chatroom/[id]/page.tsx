@@ -151,12 +151,12 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
-      <main className="flex-1 container py-4 md:py-8 grid lg:grid-cols-3 gap-4 md:gap-8">
+      <main className="flex-1 container py-4 md:py-8 grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-8">
         <div className="lg:col-span-2">
           <LiveScreen {...chatRoomDetails} />
         </div>
-        <div className="lg:col-span-1">
-          <Card className="h-full flex flex-col min-h-[500px] lg:min-h-0">
+        <div className="lg:col-span-1 flex flex-col">
+          <Card className="h-full flex flex-col flex-1">
             <Tabs defaultValue="chat" className="w-full h-full flex flex-col">
               <CardHeader className="p-2 sm:p-4">
                  <TabsList className={`grid w-full ${isHost ? 'grid-cols-3' : 'grid-cols-2'}`}>
@@ -165,7 +165,7 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
                   <TabsTrigger value="highlights"><Sparkles className="mr-2 h-4 w-4" />AI Highlights</TabsTrigger>
                 </TabsList>
               </CardHeader>
-              <TabsContent value="chat" className="flex-1 overflow-auto">
+              <TabsContent value="chat" className="flex-1 flex flex-col overflow-hidden">
                 <LiveChat 
                     chatRoom={chatRoom} 
                     canChat={canChat} 
