@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -8,27 +9,53 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { Input } from '@/components/ui/input';
+import { Search } from 'lucide-react';
+import { startChatRoom } from '@/services/chatRoomService';
+
+function HomePageSkeleton() {
+    return (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {Array.from({ length: 8 }).map((_, i) => (
+                <div key={i} className="flex flex-col space-y-3">
+                    <Skeleton className="h-[225px] w-full rounded-xl" />
+                    <div className="space-y-2">
+                        <Skeleton className="h-4 w-3/4" />
+                        <Skeleton className="h-4 w-1/2" />
+                    </div>
+                </div>
+            ))}
+        </div>
+    );
+}
 
 export default function Home() {
-  const [chatRooms, setChatRooms] = useState<ChatRoom[]>([]);
+  const [allChatRooms, setAllChatRooms] = useState<ChatRoom[]>([]);
+  const [filteredChatRooms, setFilteredChatRooms] = useState<ChatRoom[]>([]);
   const [loading, setLoading] = useState(true);
   const { currentUser, loading: authLoading } = useAuth();
   const [chatRoomToDelete, setChatRoomToDelete] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const { toast } = useToast();
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-        const unsubscribe = getChatRooms((newChatRooms) => {
-          setChatRooms(newChatRooms);
-          setLoading(false);
-        });
-        return () => unsubscribe();
-    }, 500);
-
-    return () => clearTimeout(timer);
+    setLoading(true);
+    const unsubscribe = getChatRooms((newChatRooms) => {
+      setAllChatRooms(newChatRooms);
+      setFilteredChatRooms(newChatRooms);
+      setLoading(false);
+    });
+    return () => unsubscribe();
   }, []);
-  
+
+  useEffect(() => {
+    const results = allChatRooms.filter(room =>
+      room.title.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+    setFilteredChatRooms(results);
+  }, [searchQuery, allChatRooms]);
+
   const handleDelete = async () => {
     if (!chatRoomToDelete) return;
 
@@ -52,33 +79,61 @@ export default function Home() {
     }
   };
 
+  const handleStartSession = async (chatRoomId: string) => {
+    try {
+      await startChatRoom(chatRoomId);
+      toast({
+        title: 'Session Started!',
+        description: 'The chat room is now live.',
+      });
+    } catch (error) {
+      console.error('Failed to start chat room', error);
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Failed to start the chat room session.',
+      });
+    }
+  };
 
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
       <main className="flex-1 container py-8">
-        <h1 className="text-4xl font-headline font-bold mb-2">Active Chat Rooms</h1>
-        <p className="text-muted-foreground mb-8">Join a live session or review a past broadcast.</p>
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {loading || authLoading ? (
-            Array.from({ length: 8 }).map((_, i) => (
-              <div key={i} className="space-y-2">
-                <Skeleton className="h-48 w-full" />
-                <Skeleton className="h-6 w-3/4" />
-                <Skeleton className="h-4 w-1/2" />
-              </div>
-            ))
-          ) : (
-            chatRooms.map(chatRoom => (
-              <ChatRoomCard 
-                key={chatRoom.id} 
-                {...chatRoom} 
-                isOwner={currentUser?.uid === chatRoom.hostId}
-                onDelete={() => setChatRoomToDelete(chatRoom.id)}
-                />
-            ))
-          )}
+        <div className="mb-8">
+            <h1 className="text-4xl font-bold tracking-tighter mb-2">Active & Upcoming Sessions</h1>
+            <p className="text-muted-foreground text-lg">Join a live session, review a past broadcast, or see what's scheduled.</p>
         </div>
+        
+        <div className="relative mb-8">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+          <Input 
+            placeholder="Search for a podcast by name..."
+            className="pl-10 text-base"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+        </div>
+
+        {loading || authLoading ? (
+            <HomePageSkeleton />
+        ) : filteredChatRooms.length > 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                {filteredChatRooms.map(chatRoom => (
+                <ChatRoomCard 
+                    key={chatRoom.id} 
+                    {...chatRoom} 
+                    isOwner={currentUser?.uid === chatRoom.hostId}
+                    onDelete={() => setChatRoomToDelete(chatRoom.id)}
+                    onStartSession={() => handleStartSession(chatRoom.id)}
+                    />
+                ))}
+            </div>
+        ) : (
+            <div className="text-center py-16">
+                <p className="text-muted-foreground">No chat rooms found. Why not create one?</p>
+            </div>
+        )}
       </main>
 
        <AlertDialog open={!!chatRoomToDelete} onOpenChange={(open) => !open && setChatRoomToDelete(null)}>

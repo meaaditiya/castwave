@@ -1,8 +1,6 @@
 
-import { db, storage } from '@/lib/firebase';
-import { collection, addDoc, onSnapshot, query, where, orderBy, serverTimestamp, doc, getDoc, updateDoc, setDoc, deleteDoc, getDocs, writeBatch, runTransaction } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-
+import { db } from '@/lib/firebase';
+import { collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, doc, getDoc, updateDoc, setDoc, deleteDoc, getDocs, writeBatch, runTransaction } from 'firebase/firestore';
 
 export interface Message {
   id?: string;
@@ -23,8 +21,8 @@ export interface ChatRoom {
     isLive: boolean;
     createdAt: any;
     scheduledAt?: any;
-    imageUrl: string;
-    imageHint: string;
+    imageUrl?: string;
+    imageHint?: string;
     featuredMessage?: Message;
     hostReply?: string;
 }
@@ -61,8 +59,8 @@ export const createChatRoom = async (input: ChatRoomInput): Promise<{ chatRoomId
                 isLive: input.isLive,
                 createdAt: serverTimestamp(),
                 scheduledAt: input.scheduledAt || null,
-                imageUrl: 'https://placehold.co/400x400.png',
-                imageHint: 'community discussion'
+                imageUrl: `https://placehold.co/600x400.png?text=${encodeURIComponent(input.title)}`,
+                imageHint: 'abstract art'
             });
 
             // Automatically add the host as an approved participant in a subcollection
@@ -130,6 +128,17 @@ export const getChatRoomById = async (id: string): Promise<ChatRoom | null> => {
         throw new Error("Could not retrieve chat room.");
     }
 };
+
+export const startChatRoom = async (chatRoomId: string) => {
+    try {
+        const docRef = doc(db, 'chatRooms', chatRoomId);
+        await updateDoc(docRef, { isLive: true, scheduledAt: null });
+    } catch(e) {
+        console.error("Error starting chat room: ", e);
+        throw new Error("Could not start chat room.");
+    }
+};
+
 
 // End a chatRoom
 export const endChatRoom = async (chatRoomId: string) => {
@@ -257,6 +266,8 @@ export const voteOnMessage = async (chatRoomId: string, messageId: string, userI
 
             // User has already voted
             if (voters[userId]) {
+                // Allow changing vote? For now, no.
+                // To prevent spamming, we just ignore it.
                 return;
             }
 

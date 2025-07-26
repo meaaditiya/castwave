@@ -15,7 +15,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Mic, Calendar as CalendarIcon } from 'lucide-react';
+import { Loader2, Mic, Calendar as CalendarIcon, Clock } from 'lucide-react';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
@@ -103,7 +103,7 @@ export default function CreateChatRoomPage() {
 
   if (authLoading || !currentUser) {
     return (
-        <div className="flex items-center justify-center h-screen">
+        <div className="flex items-center justify-center h-screen bg-muted/40">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
     );
@@ -112,11 +112,11 @@ export default function CreateChatRoomPage() {
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
-      <main className="flex-1 container py-8 flex items-center justify-center">
-        <Card className="w-full max-w-2xl">
+      <main className="flex-1 container py-8 flex items-center justify-center bg-muted/40">
+        <Card className="w-full max-w-2xl shadow-xl">
           <CardHeader>
-            <CardTitle>Create a New Chat Room</CardTitle>
-            <CardDescription>Fill out the details below to start your session.</CardDescription>
+            <CardTitle className="text-2xl font-bold tracking-tight">Create a New Session</CardTitle>
+            <CardDescription>Fill out the details below to start your new podcast session.</CardDescription>
           </CardHeader>
           <CardContent>
             <Form {...form}>
@@ -126,9 +126,9 @@ export default function CreateChatRoomPage() {
                   name="title"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Chat Room Title</FormLabel>
+                      <FormLabel>Session Title</FormLabel>
                       <FormControl>
-                        <Input placeholder="e.g., The Future of Web Development" {...field} />
+                        <Input placeholder="e.g., The Future of Artificial Intelligence" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -139,10 +139,10 @@ export default function CreateChatRoomPage() {
                   name="description"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Chat Room Description</FormLabel>
+                      <FormLabel>Session Description</FormLabel>
                       <FormControl>
                         <Textarea
-                          placeholder="Describe what your chat room will be about..."
+                          placeholder="Describe what your session will be about in a few sentences..."
                           className="resize-none"
                           {...field}
                         />
@@ -159,26 +159,26 @@ export default function CreateChatRoomPage() {
                         <FormLabel>When to start?</FormLabel>
                         <FormControl>
                             <RadioGroup
-                            onValueChange={field.onChange}
-                            defaultValue={field.value}
-                            className="flex flex-col space-y-1"
+                                onValueChange={field.onChange}
+                                defaultValue={field.value}
+                                className="flex flex-col sm:flex-row sm:space-x-4 sm:space-y-0"
                             >
-                            <FormItem className="flex items-center space-x-3 space-y-0">
-                                <FormControl>
-                                <RadioGroupItem value="now" />
-                                </FormControl>
-                                <FormLabel className="font-normal">
-                                Go Live Now
-                                </FormLabel>
-                            </FormItem>
-                            <FormItem className="flex items-center space-x-3 space-y-0">
-                                <FormControl>
-                                <RadioGroupItem value="later" />
-                                </FormControl>
-                                <FormLabel className="font-normal">
-                                Schedule for Later
-                                </FormLabel>
-                            </FormItem>
+                                <FormItem className="flex items-center space-x-3 space-y-0 rounded-md border p-4 flex-1 has-[:checked]:border-primary">
+                                    <FormControl>
+                                        <RadioGroupItem value="now" />
+                                    </FormControl>
+                                    <FormLabel className="font-normal flex items-center gap-2">
+                                        <Mic /> Go Live Now
+                                    </FormLabel>
+                                </FormItem>
+                                <FormItem className="flex items-center space-x-3 space-y-0 rounded-md border p-4 flex-1 has-[:checked]:border-primary">
+                                    <FormControl>
+                                        <RadioGroupItem value="later" />
+                                    </FormControl>
+                                    <FormLabel className="font-normal flex items-center gap-2">
+                                        <Clock /> Schedule for Later
+                                    </FormLabel>
+                                </FormItem>
                             </RadioGroup>
                         </FormControl>
                         <FormMessage />
@@ -191,7 +191,7 @@ export default function CreateChatRoomPage() {
                     name="scheduledAt"
                     render={({ field }) => (
                       <FormItem className="flex flex-col">
-                        <FormLabel>Scheduled Date & Time</FormLabel>
+                        <FormLabel>Scheduled Date & Time (IST)</FormLabel>
                         <Popover>
                           <PopoverTrigger asChild>
                             <FormControl>
@@ -216,7 +216,7 @@ export default function CreateChatRoomPage() {
                               mode="single"
                               selected={field.value}
                               onSelect={field.onChange}
-                              disabled={(date) => date < new Date() || date < new Date("1900-01-01")}
+                              disabled={(date) => date < new Date(new Date().setHours(0,0,0,0))}
                               initialFocus
                             />
                              <div className="p-2 border-t border-border">
@@ -236,10 +236,9 @@ export default function CreateChatRoomPage() {
                   />
                 )}
 
-
-                <Button type="submit" className="w-full" disabled={isLoading}>
-                  {isLoading ? <Loader2 className="animate-spin" /> : <Mic />}
-                  {scheduleOption === 'now' ? 'Start Live Chat Room' : 'Schedule Chat Room'}
+                <Button type="submit" size="lg" className="w-full font-bold" disabled={isLoading}>
+                  {isLoading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Mic className="mr-2 h-5 w-5" />}
+                  {scheduleOption === 'now' ? 'Start Live Session' : 'Schedule Session'}
                 </Button>
               </form>
             </Form>
