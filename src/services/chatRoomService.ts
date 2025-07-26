@@ -1,7 +1,6 @@
 
-import { db, storage } from '@/lib/firebase';
+import { db } from '@/lib/firebase';
 import { collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, doc, getDoc, updateDoc, setDoc, deleteDoc, getDocs, writeBatch, runTransaction } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 export interface Message {
   id?: string;
@@ -38,6 +37,7 @@ export interface ChatRoomInput {
     hostId: string;
     isLive: boolean;
     scheduledAt?: Date;
+    imageUrl?: string;
 }
 
 export interface Participant {
@@ -46,18 +46,6 @@ export interface Participant {
     displayName: string;
     status: 'pending' | 'approved' | 'removed' | 'denied';
 }
-
-export const uploadImage = async (chatRoomId: string, file: File): Promise<string> => {
-    try {
-        const storageRef = ref(storage, `chat-media/${chatRoomId}/${Date.now()}_${file.name}`);
-        const snapshot = await uploadBytes(storageRef, file);
-        const downloadURL = await getDownloadURL(snapshot.ref);
-        return downloadURL;
-    } catch (error) {
-        console.error("Error uploading image: ", error);
-        throw new Error("Could not upload image.");
-    }
-};
 
 export const createChatRoom = async (input: ChatRoomInput): Promise<{ chatRoomId: string }> => {
     const chatRoomsCol = collection(db, 'chatRooms');
@@ -73,7 +61,7 @@ export const createChatRoom = async (input: ChatRoomInput): Promise<{ chatRoomId
                 isLive: input.isLive,
                 createdAt: serverTimestamp(),
                 scheduledAt: input.scheduledAt || null,
-                imageUrl: `https://placehold.co/600x400.png?text=${encodeURIComponent(input.title)}`,
+                imageUrl: input.imageUrl || `https://placehold.co/600x400.png?text=${encodeURIComponent(input.title)}`,
                 imageHint: 'abstract art'
             });
 
@@ -187,13 +175,24 @@ export const sendMessage = async (chatRoomId: string, message: Partial<Message>)
         }
 
         const messagesCol = collection(db, 'chatRooms', chatRoomId, 'messages');
-        await addDoc(messagesCol, {
-            ...message,
+        
+        const messageData: Partial<Message> & { timestamp: any } = {
+            user: message.user,
+            userId: message.userId,
             upvotes: 0,
             downvotes: 0,
             voters: {},
             timestamp: serverTimestamp(),
-        });
+        };
+
+        if (message.text) {
+            messageData.text = message.text;
+        }
+        if (message.imageUrl) {
+            messageData.imageUrl = message.imageUrl;
+        }
+
+        await addDoc(messagesCol, messageData);
     } catch (error) {
         console.error("Error sending message: ", error);
         throw new Error("Could not send message.");

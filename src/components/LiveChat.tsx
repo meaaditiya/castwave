@@ -9,7 +9,8 @@ import { Send, Loader2, Hand, ThumbsUp, ThumbsDown, Star, Image as ImageIcon, X 
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback } from './ui/avatar';
 import { useAuth } from '@/context/AuthContext';
-import { sendMessage, requestToJoinChat, voteOnMessage, featureMessage, updateTypingStatus, uploadImage, ChatRoom } from '@/services/chatRoomService';
+import { sendMessage, requestToJoinChat, voteOnMessage, featureMessage, updateTypingStatus, ChatRoom } from '@/services/chatRoomService';
+import { generateUploadUrl } from '@/ai/flows/generate-upload-url';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 import type { Message } from '@/services/chatRoomService';
@@ -116,13 +117,35 @@ export function LiveChat({ chatRoom, canChat, participantStatus, isHost, message
     setIsSending(true);
 
     try {
+        let imageUrl: string | undefined = undefined;
+
+        if (imageFile) {
+            const { uploadUrl, downloadUrl } = await generateUploadUrl({
+                fileName: imageFile.name,
+                contentType: imageFile.type,
+                userId: currentUser.uid,
+                uploadType: 'chat-media'
+            });
+
+            const uploadResponse = await fetch(uploadUrl, {
+                method: 'PUT',
+                body: imageFile,
+                headers: { 'Content-Type': imageFile.type },
+            });
+
+            if (!uploadResponse.ok) {
+                throw new Error('Image upload failed.');
+            }
+            imageUrl = downloadUrl;
+        }
+
         const messagePayload: Partial<Message> = {
             user: currentUser.email || 'Anonymous',
             userId: currentUser.uid,
         };
-
-        if (imageFile) {
-            messagePayload.imageUrl = await uploadImage(chatRoom.id, imageFile);
+        
+        if (imageUrl) {
+            messagePayload.imageUrl = imageUrl;
         }
         
         if (newMessage.trim()) {

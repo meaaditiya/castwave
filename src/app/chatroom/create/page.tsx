@@ -7,7 +7,8 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
-import { createChatRoom } from '@/services/chatRoomService';
+import { createChatRoomFlow } from '@/ai/flows/create-chat-room';
+import { generateUploadUrl } from '@/ai/flows/generate-upload-url';
 import { Header } from '@/components/Header';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -15,18 +16,20 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Mic, Calendar as CalendarIcon, Clock } from 'lucide-react';
+import { Loader2, Mic, Calendar as CalendarIcon, Clock, Image as ImageIcon, Upload } from 'lucide-react';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
+import Image from 'next/image';
 
 const formSchema = z.object({
   title: z.string().min(5, { message: 'Title must be at least 5 characters.' }),
   description: z.string().min(10, { message: 'Description must be at least 10 characters.' }),
   scheduleOption: z.enum(['now', 'later'], { required_error: 'You must select a schedule option.'}),
   scheduledAt: z.date().optional(),
+  thumbnail: z.custom<FileList>().optional(),
 }).refine((data) => {
     if (data.scheduleOption === 'later' && !data.scheduledAt) {
         return false;
@@ -42,12 +45,7 @@ export default function CreateChatRoomPage() {
   const router = useRouter();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
-
-  useEffect(() => {
-    if (!authLoading && !currentUser) {
-      router.push('/login');
-    }
-  }, [currentUser, authLoading, router]);
+  const [thumbnailPreview, setThumbnailPreview] = useState<string | null>(null);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -59,6 +57,26 @@ export default function CreateChatRoomPage() {
   });
 
   const scheduleOption = form.watch('scheduleOption');
+  const thumbnailFile = form.watch('thumbnail');
+
+  useEffect(() => {
+    if (thumbnailFile && thumbnailFile[0]) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setThumbnailPreview(reader.result as string);
+      };
+      reader.readAsDataURL(thumbnailFile[0]);
+    } else {
+      setThumbnailPreview(null);
+    }
+  }, [thumbnailFile]);
+
+  useEffect(() => {
+    if (!authLoading && !currentUser) {
+      router.push('/login');
+    }
+  }, [currentUser, authLoading, router]);
+
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     if (!currentUser) {
@@ -73,31 +91,60 @@ export default function CreateChatRoomPage() {
     setIsLoading(true);
 
     try {
-      const isLive = values.scheduleOption === 'now';
-      
-      const result = await createChatRoom({
-        title: values.title,
-        description: values.description,
-        host: currentUser.email || 'Anonymous',
-        hostId: currentUser.uid,
-        isLive,
-        scheduledAt: isLive ? undefined : values.scheduledAt,
-      });
-      
-      toast({
-        title: 'Chat Room Created!',
-        description: isLive ? 'Your new chat room is now live.' : 'Your chat room has been scheduled.',
-      });
-      router.push(`/chatroom/${result.chatRoomId}`);
+        let imageUrl: string | undefined = undefined;
+
+        // 1. If a thumbnail is selected, get a signed URL and upload it
+        if (values.thumbnail && values.thumbnail.length > 0) {
+            const file = values.thumbnail[0];
+            
+            const { uploadUrl, downloadUrl } = await generateUploadUrl({
+                fileName: file.name,
+                contentType: file.type,
+                userId: currentUser.uid,
+                uploadType: 'thumbnail'
+            });
+
+            // Upload the file to the signed URL
+            const uploadResponse = await fetch(uploadUrl, {
+                method: 'PUT',
+                body: file,
+                headers: { 'Content-Type': file.type },
+            });
+
+            if (!uploadResponse.ok) {
+                throw new Error('Thumbnail upload failed.');
+            }
+            
+            imageUrl = downloadUrl;
+        }
+
+        // 2. Create the chat room with the image URL (or without)
+        const isLive = values.scheduleOption === 'now';
+        const result = await createChatRoomFlow({
+            title: values.title,
+            description: values.description,
+            host: currentUser.email || 'Anonymous',
+            hostId: currentUser.uid,
+            isLive,
+            scheduledAt: isLive ? undefined : values.scheduledAt,
+            imageUrl: imageUrl,
+        });
+        
+        toast({
+            title: 'Chat Room Created!',
+            description: isLive ? 'Your new chat room is now live.' : 'Your chat room has been scheduled.',
+        });
+        router.push(`/chatroom/${result.chatRoomId}`);
+
     } catch (error: any) {
-      console.error(error);
-      toast({
-        variant: 'destructive',
-        title: 'Failed to Create Chat Room',
-        description: error.message || 'An unexpected error occurred.',
-      });
+        console.error(error);
+        toast({
+            variant: 'destructive',
+            title: 'Failed to Create Chat Room',
+            description: error.message || 'An unexpected error occurred.',
+        });
     } finally {
-      setIsLoading(false);
+        setIsLoading(false);
     }
   }
 
@@ -151,6 +198,43 @@ export default function CreateChatRoomPage() {
                     </FormItem>
                   )}
                 />
+
+                <FormField
+                  control={form.control}
+                  name="thumbnail"
+                  render={({ field: { onChange, value, ...rest } }) => (
+                    <FormItem>
+                      <FormLabel>Session Thumbnail (Optional)</FormLabel>
+                      <FormControl>
+                        <div className="flex items-center gap-4">
+                           {thumbnailPreview ? (
+                              <Image src={thumbnailPreview} alt="Thumbnail preview" width={100} height={100} className="rounded-md object-cover" />
+                           ) : (
+                              <div className="w-[100px] h-[100px] flex items-center justify-center bg-muted rounded-md">
+                                <ImageIcon className="h-10 w-10 text-muted-foreground" />
+                              </div>
+                           )}
+                           <Button type="button" variant="outline" asChild>
+                              <label htmlFor="thumbnail-upload" className="cursor-pointer">
+                                <Upload className="mr-2 h-4 w-4" />
+                                {thumbnailPreview ? 'Change Image' : 'Upload Image'}
+                                <Input 
+                                  id="thumbnail-upload"
+                                  type="file"
+                                  accept="image/*"
+                                  className="hidden"
+                                  onChange={(e) => onChange(e.target.files)}
+                                  {...rest}
+                                />
+                              </label>
+                           </Button>
+                        </div>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
                 <FormField
                   control={form.control}
                   name="scheduleOption"

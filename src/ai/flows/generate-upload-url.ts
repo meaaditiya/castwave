@@ -12,6 +12,7 @@ const GenerateUploadUrlInputSchema = z.object({
   fileName: z.string().describe('The name of the file to upload.'),
   contentType: z.string().describe('The MIME type of the file.'),
   userId: z.string().describe('The ID of the user uploading the file.'),
+  uploadType: z.enum(['thumbnail', 'chat-media']).describe('The type of upload.'),
 });
 
 const GenerateUploadUrlOutputSchema = z.object({
@@ -31,9 +32,7 @@ const generateUploadUrlFlow = ai.defineFlow(
     inputSchema: GenerateUploadUrlInputSchema,
     outputSchema: GenerateUploadUrlOutputSchema,
   },
-  async ({ fileName, contentType, userId }) => {
-    // This requires the GOOGLE_APPLICATION_CREDENTIALS environment variable to be set.
-    // In Firebase/Google Cloud environments, this is often handled automatically.
+  async ({ fileName, contentType, userId, uploadType }) => {
     const storage = new Storage({
       projectId: process.env.GCLOUD_PROJECT || 'castwave-axlgb',
     });
@@ -41,7 +40,8 @@ const generateUploadUrlFlow = ai.defineFlow(
     const bucketName = process.env.GCLOUD_STORAGE_BUCKET || 'castwave-axlgb.appspot.com';
     const bucket = storage.bucket(bucketName);
 
-    const filePath = `thumbnails/${userId}_${Date.now()}_${fileName}`;
+    const folder = uploadType === 'thumbnail' ? 'thumbnails' : 'chat-media';
+    const filePath = `${folder}/${userId}_${Date.now()}_${fileName}`;
     const file = bucket.file(filePath);
 
     const options = {
@@ -53,6 +53,7 @@ const generateUploadUrlFlow = ai.defineFlow(
 
     const [uploadUrl] = await file.getSignedUrl(options);
 
+    // This creates a publicly accessible URL for the file after it's uploaded.
     const downloadUrl = `https://firebasestorage.googleapis.com/v0/b/${bucketName}/o/${encodeURIComponent(filePath)}?alt=media`;
     
     return {
