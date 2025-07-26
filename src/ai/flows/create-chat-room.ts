@@ -10,6 +10,7 @@ import { z } from 'zod';
 import { db } from '@/lib/firebase';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { addParticipant } from '@/services/chatRoomService';
+import { generateThumbnailSvg } from '@/lib/thumbnail';
 
 const CreateChatRoomFlowInputSchema = z.object({
   title: z.string().min(5),
@@ -32,6 +33,8 @@ const createChatRoomFlowFn = ai.defineFlow(
     outputSchema: z.object({ chatRoomId: z.string() }),
   },
   async (input) => {
+    const thumbnailUrl = `data:image/svg+xml;base64,${btoa(generateThumbnailSvg(input.title))}`;
+    
     const docRef = await addDoc(collection(db, 'chatRooms'), {
         title: input.title,
         description: input.description,
@@ -40,8 +43,8 @@ const createChatRoomFlowFn = ai.defineFlow(
         isLive: input.isLive,
         createdAt: serverTimestamp(),
         scheduledAt: input.scheduledAt || null,
-        imageUrl: 'https://placehold.co/400x400.png',
-        imageHint: 'community discussion'
+        imageUrl: thumbnailUrl,
+        imageHint: 'abstract art'
     });
 
     // Automatically add the host as an approved participant
