@@ -87,11 +87,10 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
   
     setPageLoading(true);
   
-    // Set up real-time listener for the chat room itself
     const unsubscribeChatRoom = getChatRoomStream(chatRoomId, (chatRoomData) => {
       if (chatRoomData) {
         setChatRoom(chatRoomData);
-        setPageLoading(false); // Consider page loaded once we have room data
+        setPageLoading(false); 
       } else {
         toast({ variant: 'destructive', title: 'Error', description: 'Chat Room not found.' });
         router.push('/');
@@ -105,15 +104,13 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
     const chatRoomId = resolvedParams.id;
     if (!chatRoomId || !currentUser) return;
 
-    // Set up participants listener
     const unsubscribeParticipants = getParticipants(chatRoomId, (newParticipants) => {
         setParticipants(newParticipants);
 
         const userInList = newParticipants.some(p => p.userId === currentUser.uid);
 
-        if (!userInList && chatRoom?.hostId && currentUser.uid) {
+        if (!userInList && chatRoom?.hostId && currentUser.uid && !authLoading) {
             const status = chatRoom.hostId === currentUser.uid ? 'approved' : 'pending';
-             // If they are not, add them. Host is auto-approved.
             addParticipant(chatRoomId, {
                 userId: currentUser.uid,
                 displayName: currentUser.email || 'Anonymous',
@@ -123,7 +120,7 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
     });
 
     return () => unsubscribeParticipants();
-  }, [resolvedParams.id, currentUser, chatRoom]);
+  }, [resolvedParams.id, currentUser, chatRoom, authLoading]);
 
 
   useEffect(() => {
@@ -170,7 +167,7 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
               </CardHeader>
               <TabsContent value="chat" className="flex-1 overflow-auto">
                 <LiveChat 
-                    chatRoomId={chatRoom.id} 
+                    chatRoom={chatRoom} 
                     canChat={canChat} 
                     participantStatus={currentParticipant?.status}
                     isHost={isHost}

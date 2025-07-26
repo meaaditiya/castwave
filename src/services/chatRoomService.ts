@@ -1,11 +1,14 @@
 
-import { db } from '@/lib/firebase';
+import { db, storage } from '@/lib/firebase';
 import { collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, doc, getDoc, updateDoc, setDoc, deleteDoc, getDocs, writeBatch, runTransaction } from 'firebase/firestore';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 export interface Message {
   id?: string;
   user: string;
-  text: string;
+  userId: string;
+  text?: string;
+  imageUrl?: string;
   timestamp?: any;
   upvotes: number;
   downvotes: number;
@@ -25,6 +28,7 @@ export interface ChatRoom {
     imageHint?: string;
     featuredMessage?: Message;
     hostReply?: string;
+    typingUsers?: { [userId: string]: string };
 }
 
 export interface ChatRoomInput {
@@ -36,7 +40,6 @@ export interface ChatRoomInput {
     scheduledAt?: Date;
 }
 
-
 export interface Participant {
     id?: string;
     userId: string;
@@ -44,13 +47,24 @@ export interface Participant {
     status: 'pending' | 'approved' | 'removed' | 'denied';
 }
 
+export const uploadImage = async (chatRoomId: string, file: File): Promise<string> => {
+    try {
+        const storageRef = ref(storage, `chat-media/${chatRoomId}/${Date.now()}_${file.name}`);
+        const snapshot = await uploadBytes(storageRef, file);
+        const downloadURL = await getDownloadURL(snapshot.ref);
+        return downloadURL;
+    } catch (error) {
+        console.error("Error uploading image: ", error);
+        throw new Error("Could not upload image.");
+    }
+};
+
 export const createChatRoom = async (input: ChatRoomInput): Promise<{ chatRoomId: string }> => {
     const chatRoomsCol = collection(db, 'chatRooms');
     const newChatRoomRef = doc(chatRoomsCol);
 
     try {
         await runTransaction(db, async (transaction) => {
-            // Create the main chat room document
             transaction.set(newChatRoomRef, {
                 title: input.title,
                 description: input.description,
@@ -63,7 +77,6 @@ export const createChatRoom = async (input: ChatRoomInput): Promise<{ chatRoomId
                 imageHint: 'abstract art'
             });
 
-            // Automatically add the host as an approved participant in a subcollection
             const participantRef = doc(db, 'chatRooms', newChatRoomRef.id, 'participants', input.hostId);
             transaction.set(participantRef, {
                 userId: input.hostId,
@@ -80,8 +93,6 @@ export const createChatRoom = async (input: ChatRoomInput): Promise<{ chatRoomId
     }
 };
 
-
-// Get a real-time stream of all chatRooms
 export const getChatRooms = (callback: (chatRooms: ChatRoom[]) => void) => {
     const q = query(collection(db, 'chatRooms'), orderBy('createdAt', 'desc'));
     
@@ -96,7 +107,6 @@ export const getChatRooms = (callback: (chatRooms: ChatRoom[]) => void) => {
     return unsubscribe;
 };
 
-// Get a real-time stream for a single chat room
 export const getChatRoomStream = (id: string, callback: (chatRoom: ChatRoom | null) => void) => {
     const docRef = doc(db, 'chatRooms', id);
     const unsubscribe = onSnapshot(docRef, (docSnap) => {
@@ -110,8 +120,6 @@ export const getChatRoomStream = (id: string, callback: (chatRoom: ChatRoom | nu
     return unsubscribe;
 };
 
-
-// Get a single chatRoom by ID
 export const getChatRoomById = async (id: string): Promise<ChatRoom | null> => {
     try {
         const docRef = doc(db, 'chatRooms', id);
@@ -139,8 +147,6 @@ export const startChatRoom = async (chatRoomId: string) => {
     }
 };
 
-
-// End a chatRoom
 export const endChatRoom = async (chatRoomId: string) => {
     try {
         const docRef = doc(db, 'chatRooms', chatRoomId);
@@ -151,7 +157,6 @@ export const endChatRoom = async (chatRoomId: string) => {
     }
 }
 
-// Delete a chatRoom and its subcollections
 export const deleteChatRoom = async (chatRoomId: string) => {
     try {
         const batch = writeBatch(db);
@@ -175,13 +180,14 @@ export const deleteChatRoom = async (chatRoomId: string) => {
     }
 };
 
-
-// Send a chat message
-export const sendMessage = async (chatRoomId: string, message: Message) => {
+export const sendMessage = async (chatRoomId: string, message: Omit<Message, 'upvotes' | 'downvotes' | 'voters'>) => {
     try {
         const messagesCol = collection(db, 'chatRooms', chatRoomId, 'messages');
         await addDoc(messagesCol, {
             ...message,
+            upvotes: 0,
+            downvotes: 0,
+            voters: {},
             timestamp: serverTimestamp(),
         });
     } catch (error) {
@@ -190,7 +196,6 @@ export const sendMessage = async (chatRoomId: string, message: Message) => {
     }
 };
 
-// Get a real-time stream of messages for a chatRoom
 export const getMessages = (chatRoomId: string, callback: (messages: Message[]) => void) => {
     const messagesCol = collection(db, 'chatRooms', chatRoomId, 'messages');
     const q = query(messagesCol, orderBy('timestamp', 'asc'));
@@ -206,7 +211,6 @@ export const getMessages = (chatRoomId: string, callback: (messages: Message[]) 
     return unsubscribe;
 };
 
-// Add a participant to the chatRoom
 export const addParticipant = async (chatRoomId: string, participant: Participant) => {
     try {
         const participantRef = doc(db, `chatRooms/${chatRoomId}/participants`, participant.userId);
@@ -217,7 +221,6 @@ export const addParticipant = async (chatRoomId: string, participant: Participan
     }
 };
 
-// Get a real-time stream of participants for a chatRoom
 export const getParticipants = (chatRoomId: string, callback: (participants: Participant[]) => void) => {
     const participantsCol = collection(db, `chatRooms/${chatRoomId}/participants`);
     const q = query(participantsCol);
@@ -229,7 +232,6 @@ export const getParticipants = (chatRoomId: string, callback: (participants: Par
     return unsubscribe;
 }
 
-// Request to join the chat
 export const requestToJoinChat = async (chatRoomId: string, userId: string, displayName: string) => {
     try {
         const participantRef = doc(db, `chatRooms/${chatRoomId}/participants`, userId);
@@ -240,7 +242,6 @@ export const requestToJoinChat = async (chatRoomId: string, userId: string, disp
     }
 }
 
-// Update participant status
 export const updateParticipantStatus = async (chatRoomId: string, userId: string, status: Participant['status']) => {
     try {
         const participantRef = doc(db, `chatRooms/${chatRoomId}/participants`, userId);
@@ -251,7 +252,6 @@ export const updateParticipantStatus = async (chatRoomId: string, userId: string
     }
 }
 
-// Vote on a message
 export const voteOnMessage = async (chatRoomId: string, messageId: string, userId: string, voteType: 'upvotes' | 'downvotes') => {
     const messageRef = doc(db, 'chatRooms', chatRoomId, 'messages', messageId);
     try {
@@ -264,10 +264,7 @@ export const voteOnMessage = async (chatRoomId: string, messageId: string, userI
             const data = messageDoc.data() as Message;
             const voters = data.voters || {};
 
-            // User has already voted
             if (voters[userId]) {
-                // Allow changing vote? For now, no.
-                // To prevent spamming, we just ignore it.
                 return;
             }
 
@@ -284,7 +281,6 @@ export const voteOnMessage = async (chatRoomId: string, messageId: string, userI
     }
 };
 
-// Feature a message on the main screen
 export const featureMessage = async (chatRoomId: string, message: Message, hostReply: string) => {
     const chatRoomRef = doc(db, 'chatRooms', chatRoomId);
     try {
@@ -297,3 +293,25 @@ export const featureMessage = async (chatRoomId: string, message: Message, hostR
         throw new Error("Could not feature message.");
     }
 }
+
+export const updateTypingStatus = async (chatRoomId: string, userId: string, displayName: string, isTyping: boolean) => {
+    const chatRoomRef = doc(db, 'chatRooms', chatRoomId);
+    try {
+        if (isTyping) {
+            await updateDoc(chatRoomRef, {
+                [`typingUsers.${userId}`]: displayName
+            });
+        } else {
+            const roomSnap = await getDoc(chatRoomRef);
+            if (roomSnap.exists()) {
+                const roomData = roomSnap.data() as ChatRoom;
+                const typingUsers = roomData.typingUsers || {};
+                delete typingUsers[userId];
+                await updateDoc(chatRoomRef, { typingUsers });
+            }
+        }
+    } catch (e) {
+        console.error("Error updating typing status: ", e);
+        // Don't throw, as this is not a critical operation
+    }
+};

@@ -1,6 +1,7 @@
 
 "use client";
 
+import Image from 'next/image';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -85,17 +86,16 @@ export function LiveScreen({ id, title, host, hostAvatar, isLive, imageHint, isH
         <>
             {featuredMessage ? (
                  <div className="w-full space-y-4 animate-in fade-in-50 duration-500">
-                    {/* User's Message */}
                     <div className="flex items-start space-x-3">
                         <Avatar className="h-8 w-8 border">
                             <AvatarFallback>{featuredMessage.user?.substring(0,1) || 'A'}</AvatarFallback>
                         </Avatar>
                         <div className="bg-muted p-3 rounded-lg rounded-tl-none flex-1">
                             <p className="text-sm font-bold text-muted-foreground">{featuredMessage.user}</p>
-                            <p className="text-base">{featuredMessage.text}</p>
+                            {featuredMessage.text && <p className="text-base">{featuredMessage.text}</p>}
+                            {featuredMessage.imageUrl && <Image src={featuredMessage.imageUrl} alt="Featured image" width={200} height={200} className="mt-2 rounded-md" />}
                         </div>
                     </div>
-                    {/* Host's Reply */}
                     {hostReply && (
                         <div className="flex items-start space-x-3">
                              <Avatar className="h-8 w-8 border-2 border-primary">

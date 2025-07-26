@@ -1,24 +1,25 @@
 
 "use client";
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
+import Image from 'next/image';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Send, Loader2, Hand, ThumbsUp, ThumbsDown, Star } from 'lucide-react';
+import { Send, Loader2, Hand, ThumbsUp, ThumbsDown, Star, Image as ImageIcon, X } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback } from './ui/avatar';
 import { useAuth } from '@/context/AuthContext';
-import { sendMessage, requestToJoinChat, voteOnMessage, featureMessage } from '@/services/chatRoomService';
+import { sendMessage, requestToJoinChat, voteOnMessage, featureMessage, updateTypingStatus, uploadImage, ChatRoom } from '@/services/chatRoomService';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 import type { Message } from '@/services/chatRoomService';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from './ui/dialog';
 import { Textarea } from './ui/textarea';
 import { format } from 'date-fns';
-
+import { useDebouncedCallback } from 'use-debounce';
 
 interface LiveChatProps {
-  chatRoomId: string;
+  chatRoom: ChatRoom;
   canChat: boolean;
   isHost: boolean;
   messages: Message[];
@@ -26,7 +27,7 @@ interface LiveChatProps {
 }
 
 const userColors = [
-    'text-primary', 'text-accent', 'text-green-400', 'text-yellow-400', 'text-red-400', 'text-blue-400'
+    'text-primary', 'text-accent-foreground', 'text-green-500', 'text-yellow-500', 'text-red-500', 'text-blue-500'
 ]
 
 const getUserColor = (userName: string) => {
@@ -38,13 +39,17 @@ const getUserColor = (userName: string) => {
     return userColors[Math.abs(hash % userColors.length)];
 }
 
-export function LiveChat({ chatRoomId, canChat, participantStatus, isHost, messages }: LiveChatProps) {
+export function LiveChat({ chatRoom, canChat, participantStatus, isHost, messages }: LiveChatProps) {
   const [newMessage, setNewMessage] = useState('');
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isSending, setIsSending] = useState(false);
   const [isRequesting, setIsRequesting] = useState(false);
   const { currentUser } = useAuth();
   const { toast } = useToast();
   const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [messageToFeature, setMessageToFeature] = useState<Message | null>(null);
   const [hostReply, setHostReply] = useState('');
@@ -54,19 +59,35 @@ export function LiveChat({ chatRoomId, canChat, participantStatus, isHost, messa
     if(messages.length > 0) setLoading(false)
   }, [messages])
 
-
-  useEffect(() => {
+  const scrollToBottom = useCallback(() => {
     const viewport = scrollAreaRef.current?.querySelector('div[data-radix-scroll-area-viewport]');
     if (viewport) {
       viewport.scrollTo({ top: viewport.scrollHeight, behavior: 'smooth' });
     }
-  }, [messages]);
+  }, []);
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages, scrollToBottom]);
+
+  const debouncedTypingUpdate = useDebouncedCallback((isTyping: boolean) => {
+      if (!currentUser) return;
+      updateTypingStatus(chatRoom.id, currentUser.uid, currentUser.email || 'Anonymous', isTyping);
+  }, 3000);
+
+  useEffect(() => {
+    if (newMessage && canChat) {
+        if (!currentUser) return;
+        updateTypingStatus(chatRoom.id, currentUser.uid, currentUser.email || 'Anonymous', true);
+        debouncedTypingUpdate(false);
+    }
+  }, [newMessage, canChat, chatRoom.id, currentUser, debouncedTypingUpdate]);
 
   const handleRequestJoin = async () => {
     if (!currentUser) return;
     setIsRequesting(true);
     try {
-        await requestToJoinChat(chatRoomId, currentUser.uid, currentUser.email || 'Anonymous');
+        await requestToJoinChat(chatRoom.id, currentUser.uid, currentUser.email || 'Anonymous');
         toast({ title: "Request Sent", description: "The host has been notified." });
     } catch(e) {
         console.error(e);
@@ -76,34 +97,52 @@ export function LiveChat({ chatRoomId, canChat, participantStatus, isHost, messa
     }
   }
 
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setImageFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newMessage.trim() || !currentUser || !currentUser.email) {
-      if(!currentUser) {
-        toast({ variant: 'destructive', title: 'Error', description: 'You must be logged in to chat.' });
-      }
-      return
-    };
+    if (!currentUser || (!newMessage.trim() && !imageFile)) return;
+
+    setIsSending(true);
 
     try {
-      await sendMessage(chatRoomId, { 
-          user: currentUser.email, 
-          text: newMessage,
-          upvotes: 0,
-          downvotes: 0,
-          voters: {}
-      });
-      setNewMessage('');
+        let imageUrl: string | undefined = undefined;
+        if (imageFile) {
+            imageUrl = await uploadImage(chatRoom.id, imageFile);
+        }
+
+        await sendMessage(chatRoom.id, { 
+            user: currentUser.email || 'Anonymous',
+            userId: currentUser.uid,
+            text: newMessage.trim() || undefined,
+            imageUrl: imageUrl
+        });
+        setNewMessage('');
+        setImageFile(null);
+        setImagePreview(null);
+        if(fileInputRef.current) fileInputRef.current.value = '';
     } catch (error) {
       console.error(error);
       toast({ variant: 'destructive', title: 'Error', description: 'Could not send message.' });
+    } finally {
+        setIsSending(false);
     }
   };
 
   const handleVote = async (messageId: string, voteType: 'upvotes' | 'downvotes') => {
     if (!currentUser) return;
     try {
-        await voteOnMessage(chatRoomId, messageId, currentUser.uid, voteType);
+        await voteOnMessage(chatRoom.id, messageId, currentUser.uid, voteType);
     } catch(e) {
         console.error(e);
         toast({ variant: 'destructive', title: 'Error', description: 'Failed to cast vote.'})
@@ -114,7 +153,7 @@ export function LiveChat({ chatRoomId, canChat, participantStatus, isHost, messa
     if (!messageToFeature || !hostReply.trim()) return;
     setIsFeaturing(true);
     try {
-        await featureMessage(chatRoomId, messageToFeature, hostReply);
+        await featureMessage(chatRoom.id, messageToFeature, hostReply);
         toast({ title: "Message Featured", description: "The message is now on the live screen."});
         setMessageToFeature(null);
         setHostReply('');
@@ -136,6 +175,10 @@ export function LiveChat({ chatRoomId, canChat, participantStatus, isHost, messa
     }
   };
 
+  const typingUsers = Object.entries(chatRoom.typingUsers || {})
+    .filter(([id]) => id !== currentUser?.uid)
+    .map(([, name]) => name);
+    
   const renderChatOverlay = () => {
     if (canChat || isHost || !currentUser) return null;
 
@@ -202,7 +245,12 @@ export function LiveChat({ chatRoomId, canChat, participantStatus, isHost, messa
                         </Button>
                      )}
                 </div>
-                <p className="text-sm text-foreground/90">{msg.text}</p>
+                {msg.text && <p className="text-sm text-foreground/90 whitespace-pre-wrap">{msg.text}</p>}
+                {msg.imageUrl && (
+                    <div className="mt-2">
+                        <Image src={msg.imageUrl} alt="User upload" width={200} height={200} className="rounded-lg object-cover" />
+                    </div>
+                )}
                 <div className="flex items-center gap-4 mt-1 text-muted-foreground">
                     <div className="flex items-center gap-1">
                         <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => handleVote(msg.id!, 'upvotes')} disabled={!canChat || msg.voters?.[currentUser?.uid!]}>
@@ -228,17 +276,45 @@ export function LiveChat({ chatRoomId, canChat, participantStatus, isHost, messa
         </div>
       </ScrollArea>
       )}
-      <form onSubmit={handleSubmit} className="mt-4 flex gap-2 border-t pt-4">
-        <Input
-          placeholder={canChat ? "Join the conversation..." : "You must be approved to chat."}
-          value={newMessage}
-          onChange={(e) => setNewMessage(e.target.value)}
-          disabled={!canChat}
-        />
-        <Button type="submit" size="icon" aria-label="Send message" disabled={!canChat || !newMessage.trim()}>
-          <Send />
-        </Button>
-      </form>
+      <div className="h-5 text-xs text-muted-foreground italic px-1 pt-1">
+          {typingUsers.length > 0 && 
+            `${typingUsers.slice(0, 2).join(', ')}${typingUsers.length > 2 ? ' and others' : ''} ${typingUsers.length > 1 ? 'are' : 'is'} typing...`
+          }
+      </div>
+      <div className="border-t pt-2">
+        {imagePreview && (
+          <div className="relative w-24 h-24 mb-2">
+            <Image src={imagePreview} alt="Image preview" layout="fill" className="object-cover rounded-md" />
+            <Button
+              size="icon"
+              variant="destructive"
+              className="absolute -top-2 -right-2 h-6 w-6 rounded-full"
+              onClick={() => {
+                setImageFile(null);
+                setImagePreview(null);
+                if (fileInputRef.current) fileInputRef.current.value = '';
+              }}
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+        )}
+        <form onSubmit={handleSubmit} className="flex gap-2">
+            <Input
+            placeholder={canChat ? "Join the conversation..." : "You must be approved to chat."}
+            value={newMessage}
+            onChange={(e) => setNewMessage(e.target.value)}
+            disabled={!canChat || isSending}
+            />
+            <input type="file" ref={fileInputRef} onChange={handleImageSelect} accept="image/*" className="hidden" />
+            <Button type="button" size="icon" variant="outline" aria-label="Attach image" disabled={!canChat || isSending} onClick={() => fileInputRef.current?.click()}>
+                <ImageIcon />
+            </Button>
+            <Button type="submit" size="icon" aria-label="Send message" disabled={!canChat || isSending || (!newMessage.trim() && !imageFile)}>
+            {isSending ? <Loader2 className="animate-spin" /> : <Send />}
+            </Button>
+        </form>
+      </div>
        <Dialog open={!!messageToFeature} onOpenChange={(open) => !open && setMessageToFeature(null)}>
         <DialogContent>
           <DialogHeader>
