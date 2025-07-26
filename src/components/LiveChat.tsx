@@ -16,6 +16,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Textarea } from './ui/textarea';
 import { format } from 'date-fns';
 import { useDebouncedCallback } from 'use-debounce';
+import { TypingIndicator } from './TypingIndicator';
 
 interface LiveChatProps {
   chatRoom: ChatRoom;
@@ -85,7 +86,9 @@ export function LiveChat({ chatRoom, canChat, participantStatus, isHost, message
       scrollToBottom('smooth');
     } else {
       // If we are not at the bottom, show the "new message" button.
-      setShowNewMessageButton(true);
+      if(messages.length > 0) {
+        setShowNewMessageButton(true);
+      }
     }
   }, [messages, scrollToBottom]);
 
@@ -294,7 +297,7 @@ export function LiveChat({ chatRoom, canChat, participantStatus, isHost, message
 
       <div className="h-5 text-xs text-muted-foreground italic px-1 pt-1">
           {typingUsers.length > 0 && 
-            `${typingUsers.slice(0, 2).join(', ')}${typingUsers.length > 2 ? ' and others' : ''} ${typingUsers.length > 1 ? 'are' : 'is'} typing...`
+            <TypingIndicator users={typingUsers} />
           }
       </div>
       <div className="border-t pt-2 mt-auto">

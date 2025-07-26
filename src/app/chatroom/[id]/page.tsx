@@ -44,7 +44,7 @@ function ChatRoomPageSkeleton() {
                         <CardHeader>
                            <TabsList className="grid w-full grid-cols-2">
                                 <TabsTrigger value="chat" disabled><MessageSquare className="mr-2 h-4 w-4" />Live Chat</TabsTrigger>
-                                <TabsTrigger value="highlights" disabled><Sparkles className="mr-2 h-4 w-4" />AI Highlights</TabsTrigger>
+                                <TabsTrigger value="highlights" disabled><Sparkles className="mr-2 h-4 w-4" />AI Summary</TabsTrigger>
                             </TabsList>
                         </CardHeader>
                         <TabsContent value="chat" className="flex-1 flex items-center justify-center">
@@ -162,7 +162,7 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
                  <TabsList className={`grid w-full ${isHost ? 'grid-cols-3' : 'grid-cols-2'}`}>
                   <TabsTrigger value="chat"><MessageSquare className="mr-2 h-4 w-4" />Live Chat</TabsTrigger>
                   {isHost && <TabsTrigger value="participants"><Users className="mr-2 h-4 w-4" />Participants</TabsTrigger>}
-                  <TabsTrigger value="highlights"><Sparkles className="mr-2 h-4 w-4" />AI Highlights</TabsTrigger>
+                  <TabsTrigger value="summary"><Sparkles className="mr-2 h-4 w-4" />AI Summary</TabsTrigger>
                 </TabsList>
               </CardHeader>
               <TabsContent value="chat" className="flex-1 flex flex-col overflow-hidden">
@@ -179,7 +179,7 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
                     <ParticipantsList chatRoomId={chatRoom.id} participants={participants} />
                 </TabsContent>
                )}
-              <TabsContent value="highlights" className="flex-1 overflow-auto">
+              <TabsContent value="summary" className="flex-1 overflow-auto">
                 <HighlightTool chatLog={fullChatLog} />
               </TabsContent>
             </Tabs>
