@@ -172,7 +172,7 @@ export function LiveChat({ podcastId, canChat, participantStatus, isHost }: Live
           placeholder={canChat ? "Join the conversation..." : "You must be approved to chat."}
           value={newMessage}
           onChange={(e) => setNewMessage(e.target.value)}
-          disabled={!canChat || !newMessage.trim()}
+          disabled={!canChat}
         />
         <Button type="submit" size="icon" aria-label="Send message" disabled={!canChat || !newMessage.trim()}>
           <Send />
