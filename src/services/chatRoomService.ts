@@ -29,12 +29,59 @@ export interface ChatRoom {
     hostReply?: string;
 }
 
+export interface ChatRoomInput {
+    title: string;
+    description: string;
+    host: string;
+    hostId: string;
+    isLive: boolean;
+    scheduledAt?: Date;
+}
+
+
 export interface Participant {
     id?: string;
     userId: string;
     displayName: string;
     status: 'pending' | 'approved' | 'removed' | 'denied';
 }
+
+export const createChatRoom = async (input: ChatRoomInput): Promise<{ chatRoomId: string }> => {
+    const chatRoomsCol = collection(db, 'chatRooms');
+    const newChatRoomRef = doc(chatRoomsCol);
+
+    try {
+        await runTransaction(db, async (transaction) => {
+            // Create the main chat room document
+            transaction.set(newChatRoomRef, {
+                title: input.title,
+                description: input.description,
+                host: input.host,
+                hostId: input.hostId,
+                isLive: input.isLive,
+                createdAt: serverTimestamp(),
+                scheduledAt: input.scheduledAt || null,
+                imageUrl: 'https://placehold.co/400x400.png',
+                imageHint: 'community discussion'
+            });
+
+            // Automatically add the host as an approved participant in a subcollection
+            const participantRef = doc(db, 'chatRooms', newChatRoomRef.id, 'participants', input.hostId);
+            transaction.set(participantRef, {
+                userId: input.hostId,
+                displayName: input.host,
+                status: 'approved'
+            });
+        });
+        
+        return { chatRoomId: newChatRoomRef.id };
+
+    } catch (error) {
+        console.error("Transaction failed: ", error);
+        throw new Error("Could not create chat room. Please try again.");
+    }
+};
+
 
 // Get a real-time stream of all chatRooms
 export const getChatRooms = (callback: (chatRooms: ChatRoom[]) => void) => {

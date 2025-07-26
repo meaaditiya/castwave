@@ -7,7 +7,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
-import { createChatRoomFlow, CreateChatRoomFlowInput } from '@/ai/flows/create-chat-room';
+import { createChatRoom } from '@/services/chatRoomService';
 import { Header } from '@/components/Header';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -74,16 +74,15 @@ export default function CreateChatRoomPage() {
 
     try {
       const isLive = values.scheduleOption === 'now';
-      const input: CreateChatRoomFlowInput = {
+      
+      const result = await createChatRoom({
         title: values.title,
         description: values.description,
         host: currentUser.email || 'Anonymous',
         hostId: currentUser.uid,
         isLive,
         scheduledAt: isLive ? undefined : values.scheduledAt,
-      }
-      
-      const result = await createChatRoomFlow(input);
+      });
       
       toast({
         title: 'Chat Room Created!',
