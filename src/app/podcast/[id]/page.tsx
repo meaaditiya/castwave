@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, use } from 'react';
 import { Header } from '@/components/Header';
 import { PodcastPlayer } from '@/components/PodcastPlayer';
 import { LiveChat } from '@/components/LiveChat';
@@ -44,15 +44,19 @@ function PodcastPageSkeleton() {
                 </div>
                 <div className="lg:col-span-1">
                     <Card className="h-full flex flex-col min-h-[500px] lg:min-h-0">
+                      <Tabs defaultValue="chat" className="w-full h-full flex flex-col">
                         <CardHeader>
                            <TabsList className="grid w-full grid-cols-2">
                                 <TabsTrigger value="chat" disabled><MessageSquare className="mr-2 h-4 w-4" />Live Chat</TabsTrigger>
                                 <TabsTrigger value="highlights" disabled><Sparkles className="mr-2 h-4 w-4" />AI Highlights</TabsTrigger>
                             </TabsList>
                         </CardHeader>
-                        <div className="flex-1 flex items-center justify-center">
-                            <Skeleton className="h-48 w-full m-4" />
-                        </div>
+                        <TabsContent value="chat" className="flex-1 flex items-center justify-center">
+                            <div className="w-full h-full p-4">
+                              <Skeleton className="h-full w-full" />
+                            </div>
+                        </TabsContent>
+                       </Tabs>
                     </Card>
                 </div>
             </main>
