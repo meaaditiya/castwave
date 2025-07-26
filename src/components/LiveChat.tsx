@@ -4,11 +4,11 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Send, Loader2, Hand, ThumbsUp, ThumbsDown, Star, ArrowDown, Image as ImageIcon } from 'lucide-react';
+import { Send, Loader2, Hand, ThumbsUp, ThumbsDown, Star, ArrowDown } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback } from './ui/avatar';
 import { useAuth } from '@/context/AuthContext';
-import { sendMessage, requestToJoinChat, voteOnMessage, featureMessage, updateTypingStatus, ChatRoom, uploadImage } from '@/services/chatRoomService';
+import { sendMessage, requestToJoinChat, voteOnMessage, featureMessage, updateTypingStatus, ChatRoom } from '@/services/chatRoomService';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 import type { Message } from '@/services/chatRoomService';
@@ -16,7 +16,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Textarea } from './ui/textarea';
 import { format } from 'date-fns';
 import { useDebouncedCallback } from 'use-debounce';
-import Image from 'next/image';
 
 interface LiveChatProps {
   chatRoom: ChatRoom;
@@ -50,9 +49,6 @@ export function LiveChat({ chatRoom, canChat, participantStatus, isHost, message
   const [messageToFeature, setMessageToFeature] = useState<Message | null>(null);
   const [hostReply, setHostReply] = useState('');
   const [isFeaturing, setIsFeaturing] = useState(false);
-  const [imageFile, setImageFile] = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const scrollToBottom = useCallback((behavior: 'smooth' | 'auto' = 'smooth') => {
     const viewport = scrollViewportRef.current;
@@ -66,11 +62,9 @@ export function LiveChat({ chatRoom, canChat, participantStatus, isHost, message
     if (!viewport) return;
 
     const handleScroll = () => {
-        if (showNewMessageButton) {
-            const isAtBottom = viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight < 1;
-            if (isAtBottom) {
-                setShowNewMessageButton(false);
-            }
+        const isAtBottom = viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight < 1;
+        if (showNewMessageButton && isAtBottom) {
+            setShowNewMessageButton(false);
         }
     };
 
@@ -83,11 +77,10 @@ export function LiveChat({ chatRoom, canChat, participantStatus, isHost, message
     const viewport = scrollViewportRef.current;
     if (!viewport) return;
 
-    // A buffer to consider the user "at the bottom" even if not perfectly scrolled down.
     const isAtBottom = viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight < 150;
 
     if (!isAtBottom) {
-        if (messages.length > 0) {
+        if (messages.length > 0 && messages.length > (messages?.length || 0)) {
             setShowNewMessageButton(true);
         }
     } else {
@@ -103,33 +96,12 @@ export function LiveChat({ chatRoom, canChat, participantStatus, isHost, message
   }, 3000);
 
   useEffect(() => {
-    if ((newMessage || imageFile) && canChat) {
+    if (newMessage && canChat) {
         if (!currentUser) return;
         updateTypingStatus(chatRoom.id, currentUser.uid, currentUser.email || 'Anonymous', true);
         debouncedTypingUpdate(false);
     }
-  }, [newMessage, imageFile, canChat, chatRoom.id, currentUser, debouncedTypingUpdate]);
-
-
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setImageFile(file);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImagePreview(reader.result as string);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  const removeImage = () => {
-    setImageFile(null);
-    setImagePreview(null);
-    if(fileInputRef.current) {
-      fileInputRef.current.value = "";
-    }
-  };
+  }, [newMessage, canChat, chatRoom.id, currentUser, debouncedTypingUpdate]);
 
   const handleRequestJoin = async () => {
     if (!currentUser) return;
@@ -147,33 +119,17 @@ export function LiveChat({ chatRoom, canChat, participantStatus, isHost, message
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!currentUser || (!newMessage.trim() && !imageFile)) return;
+    if (!currentUser || !newMessage.trim()) return;
 
     setIsSending(true);
 
     try {
-        let imageUrl: string | undefined = undefined;
-        if (imageFile) {
-            imageUrl = await uploadImage(chatRoom.id, imageFile);
-        }
-
-        const messagePayload: Partial<Message> = {
+        await sendMessage(chatRoom.id, {
             user: currentUser.email || 'Anonymous',
             userId: currentUser.uid,
-        };
-
-        if (newMessage.trim()) {
-            messagePayload.text = newMessage.trim();
-        }
-        if (imageUrl) {
-            messagePayload.imageUrl = imageUrl;
-        }
-
-        await sendMessage(chatRoom.id, messagePayload);
-
+            text: newMessage.trim(),
+        });
         setNewMessage('');
-        removeImage();
-
     } catch (error: any) {
       console.error(error);
       toast({ variant: 'destructive', title: 'Error', description: error.message || 'Could not send message.' });
@@ -293,17 +249,6 @@ export function LiveChat({ chatRoom, canChat, participantStatus, isHost, message
                         )}
                     </div>
                     {msg.text && <p className="text-sm text-foreground/90 whitespace-pre-wrap">{msg.text}</p>}
-                    {msg.imageUrl && (
-                        <div className="mt-2">
-                           <Image 
-                             src={msg.imageUrl} 
-                             alt="User uploaded media"
-                             width={200}
-                             height={200}
-                             className="rounded-lg object-cover"
-                           />
-                        </div>
-                    )}
                     <div className="flex items-center gap-4 mt-1 text-muted-foreground">
                         <div className="flex items-center gap-1">
                             <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => handleVote(msg.id!, 'upvotes')} disabled={!canChat || msg.voters?.[currentUser?.uid!]}>
@@ -351,26 +296,14 @@ export function LiveChat({ chatRoom, canChat, participantStatus, isHost, message
           }
       </div>
       <div className="border-t pt-2 mt-auto">
-        {imagePreview && (
-          <div className="relative mb-2 w-24 h-24">
-            <Image src={imagePreview} alt="Image preview" layout="fill" className="object-cover rounded-md" />
-            <Button size="icon" variant="destructive" className="absolute -top-2 -right-2 h-6 w-6 rounded-full" onClick={removeImage}>
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
-        )}
         <form onSubmit={handleSubmit} className="flex gap-2">
-            <input type="file" accept="image/*" ref={fileInputRef} onChange={handleImageChange} className="hidden" />
-            <Button type="button" size="icon" variant="outline" onClick={() => fileInputRef.current?.click()} disabled={!canChat || isSending}>
-                <ImageIcon />
-            </Button>
             <Input
               placeholder={canChat ? "Join the conversation..." : "You must be approved to chat."}
               value={newMessage}
               onChange={(e) => setNewMessage(e.target.value)}
               disabled={!canChat || isSending}
             />
-            <Button type="submit" size="icon" aria-label="Send message" disabled={!canChat || isSending || (!newMessage.trim() && !imageFile)}>
+            <Button type="submit" size="icon" aria-label="Send message" disabled={!canChat || isSending || !newMessage.trim()}>
               {isSending ? <Loader2 className="animate-spin" /> : <Send />}
             </Button>
         </form>
