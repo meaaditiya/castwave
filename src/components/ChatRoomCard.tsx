@@ -58,15 +58,16 @@ export function ChatRoomCard({ id, title, host, imageUrl, isLive, imageHint, isO
                 <CardTitle className="text-lg font-headline truncate">{title}</CardTitle>
                 <p className="text-muted-foreground text-sm mt-1 flex-1">{host}</p>
             </div>
+            
         </Link>
-         {!isLive && isOwner && (
-            <CardFooter className="p-2 justify-end">
+        <CardFooter className="p-2 justify-end mt-auto">
+            {!isLive && isOwner && (
                 <Button variant="ghost" size="icon" onClick={handleDeleteClick} className="text-muted-foreground hover:text-destructive hover:bg-destructive/10">
                     <Trash2 className="h-4 w-4"/>
                     <span className="sr-only">Delete Chat Room</span>
                 </Button>
-            </CardFooter>
-        )}
+            )}
+        </CardFooter>
     </Card>
   );
 }

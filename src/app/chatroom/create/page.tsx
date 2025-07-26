@@ -7,7 +7,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
-import { createChatRoom } from '@/services/chatRoomService';
+import { createChatRoom, uploadThumbnail } from '@/services/chatRoomService';
 import { Header } from '@/components/Header';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -22,7 +22,6 @@ import { Calendar } from '@/components/ui/calendar';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import Image from 'next/image';
-import { uploadFile } from '@/ai/flows/upload-file';
 
 const formSchema = z.object({
   title: z.string().min(5, { message: 'Title must be at least 5 characters.' }),
@@ -82,21 +81,8 @@ export default function CreateChatRoomPage() {
       let imageUrl: string | undefined = undefined;
 
       if (thumbnailFile) {
-        // Convert file to data URI
-        const fileAsDataURL = await new Promise<string>((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = () => resolve(reader.result as string);
-            reader.onerror = reject;
-            reader.readAsDataURL(thumbnailFile);
-        });
-        
-        // Call the Genkit flow to upload the file
-        const uploadResult = await uploadFile({
-            fileDataUri: fileAsDataURL,
-            fileName: thumbnailFile.name,
-            userId: currentUser.uid,
-        });
-        imageUrl = uploadResult.url;
+        // Upload the thumbnail and get the URL
+        imageUrl = await uploadThumbnail(thumbnailFile, currentUser.uid);
       }
 
 

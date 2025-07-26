@@ -1,6 +1,7 @@
 
-import { db } from '@/lib/firebase';
+import { db, storage } from '@/lib/firebase';
 import { collection, addDoc, onSnapshot, query, where, orderBy, serverTimestamp, doc, getDoc, updateDoc, setDoc, deleteDoc, getDocs, writeBatch, runTransaction } from 'firebase/firestore';
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 
 
 export interface Message {
@@ -44,6 +45,22 @@ export interface Participant {
     displayName: string;
     status: 'pending' | 'approved' | 'removed' | 'denied';
 }
+
+
+// Upload a thumbnail image to Firebase Storage
+export const uploadThumbnail = async (file: File, userId: string): Promise<string> => {
+    if (!file) throw new Error("No file provided for upload.");
+    try {
+        const storageRef = ref(storage, `thumbnails/${userId}_${Date.now()}_${file.name}`);
+        const snapshot = await uploadBytes(storageRef, file);
+        const downloadURL = await getDownloadURL(snapshot.ref);
+        return downloadURL;
+    } catch (error) {
+        console.error("Error uploading thumbnail: ", error);
+        throw new Error("Could not upload thumbnail image.");
+    }
+};
+
 
 // Create a new chatRoom
 export const createChatRoom = async (chatRoomData: ChatRoomInput) => {
