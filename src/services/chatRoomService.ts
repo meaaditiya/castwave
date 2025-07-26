@@ -1,6 +1,7 @@
 
 import { db, storage } from '@/lib/firebase';
 import { collection, addDoc, onSnapshot, query, where, orderBy, serverTimestamp, doc, getDoc, updateDoc, setDoc, deleteDoc, getDocs, writeBatch, runTransaction } from 'firebase/firestore';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 
 export interface Message {
@@ -34,6 +35,21 @@ export interface Participant {
     displayName: string;
     status: 'pending' | 'approved' | 'removed' | 'denied';
 }
+
+
+// Upload a thumbnail image to Firebase Storage
+export const uploadThumbnail = async (file: File, userId: string): Promise<string> => {
+    try {
+        const storageRef = ref(storage, `thumbnails/${userId}_${Date.now()}_${file.name}`);
+        const snapshot = await uploadBytes(storageRef, file);
+        const downloadURL = await getDownloadURL(snapshot.ref);
+        return downloadURL;
+    } catch (error) {
+        console.error("Error uploading thumbnail: ", error);
+        throw new Error("Could not upload thumbnail image.");
+    }
+}
+
 
 // Get a real-time stream of all chatRooms
 export const getChatRooms = (callback: (chatRooms: ChatRoom[]) => void) => {
@@ -238,5 +254,3 @@ export const featureMessage = async (chatRoomId: string, message: Message, hostR
         throw new Error("Could not feature message.");
     }
 }
-
-    

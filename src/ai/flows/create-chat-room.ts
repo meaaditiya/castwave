@@ -2,14 +2,13 @@
 'use server';
 /**
  * @fileOverview A flow for creating a new chat room.
- * This flow handles the creation of a chat room, including uploading a thumbnail image.
+ * This flow handles the creation of a chat room using a provided thumbnail URL.
  */
 
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
-import { db, storage } from '@/lib/firebase';
+import { db } from '@/lib/firebase';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
-import { ref, uploadString, getDownloadURL } from "firebase/storage";
 import { addParticipant } from '@/services/chatRoomService';
 
 const CreateChatRoomFlowInputSchema = z.object({
@@ -19,9 +18,7 @@ const CreateChatRoomFlowInputSchema = z.object({
   hostId: z.string(),
   isLive: z.boolean(),
   scheduledAt: z.date().optional(),
-  thumbnailDataUri: z.string().optional().describe(
-    "A thumbnail for the chatroom, as a data URI that must include a MIME type and use Base64 encoding. Expected format: 'data:<mimetype>;base64,<encoded_data>'."
-  ),
+  imageUrl: z.string().optional().describe('The public URL of the chat room thumbnail.'),
 });
 export type CreateChatRoomFlowInput = z.infer<typeof CreateChatRoomFlowInputSchema>;
 
@@ -36,14 +33,6 @@ const createChatRoomFlowFn = ai.defineFlow(
     outputSchema: z.object({ chatRoomId: z.string() }),
   },
   async (input) => {
-    let imageUrl: string | undefined = undefined;
-
-    if (input.thumbnailDataUri) {
-      const storageRef = ref(storage, `thumbnails/${input.hostId}_${Date.now()}`);
-      const snapshot = await uploadString(storageRef, input.thumbnailDataUri, 'data_url');
-      imageUrl = await getDownloadURL(snapshot.ref);
-    }
-
     const docRef = await addDoc(collection(db, 'chatRooms'), {
         title: input.title,
         description: input.description,
@@ -52,7 +41,7 @@ const createChatRoomFlowFn = ai.defineFlow(
         isLive: input.isLive,
         createdAt: serverTimestamp(),
         scheduledAt: input.scheduledAt || null,
-        imageUrl: imageUrl || 'https://placehold.co/400x400.png',
+        imageUrl: input.imageUrl || 'https://placehold.co/400x400.png',
         imageHint: 'community discussion'
     });
 
@@ -66,5 +55,3 @@ const createChatRoomFlowFn = ai.defineFlow(
     return { chatRoomId: docRef.id };
   }
 );
-
-    
