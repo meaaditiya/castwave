@@ -100,27 +100,25 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
     const chatRoomId = resolvedParams.id;
     // Wait for chatRoom and currentUser to be loaded
     if (!chatRoomId || !currentUser || !chatRoom) return;
-
+    
     const unsubscribeParticipants = getParticipants(chatRoomId, (newParticipants) => {
         setParticipants(newParticipants);
 
         const userInList = newParticipants.some(p => p.userId === currentUser.uid);
-        // If user is not in the list and not the host, add them.
+        
         if (!userInList && chatRoom.hostId !== currentUser.uid) {
-            // For private rooms, automatically approve them.
-            // For public rooms, set their status to pending.
             const status = chatRoom.isPrivate ? 'approved' : 'pending';
             addParticipant(chatRoomId, {
                 userId: currentUser.uid,
                 displayName: currentUser.email || 'Anonymous',
                 status: status,
-                requestCount: status === 'pending' ? 1 : 0, // only count request for public rooms
+                requestCount: status === 'pending' ? 1 : 0,
             });
         }
     });
 
     return () => unsubscribeParticipants();
-  }, [resolvedParams.id, currentUser, chatRoom]);
+}, [resolvedParams.id, currentUser, chatRoom]);
 
 
   useEffect(() => {
