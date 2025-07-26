@@ -76,8 +76,8 @@ export default function PodcastPage({ params }: { params: { id: string } }) {
   }, [currentUser, authLoading, router]);
 
   useEffect(() => {
-    const podcastId = params.id;
     const fetchPodcast = async () => {
+      const podcastId = params.id;
       if (!podcastId) return;
       setPageLoading(true);
       try {
@@ -96,14 +96,14 @@ export default function PodcastPage({ params }: { params: { id: string } }) {
       }
     };
     fetchPodcast();
-  }, [params.id, router, toast]);
+  }, [params, router, toast]);
 
   useEffect(() => {
     const podcastId = params.id;
     if (!podcastId) return;
     const unsubscribe = getMessages(podcastId, setChatLog);
     return () => unsubscribe();
-  }, [params.id]);
+  }, [params]);
 
   if (authLoading || pageLoading || !currentUser || !podcast) {
     return <PodcastPageSkeleton />;
