@@ -3,51 +3,62 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // Helper functions to make rules more readable.
     function isAuth() {
       return request.auth != null;
     }
 
+    // Checks if the requesting user is the host of the chat room.
     function isHost(chatRoomId) {
       let room = get(/databases/$(database)/documents/chatRooms/$(chatRoomId));
       return isAuth() && room.data.hostId == request.auth.uid;
     }
-    
-    function isHostByResourceId() {
-      return isAuth() && resource.data.hostId == request.auth.uid;
-    }
 
+    // Checks if the requesting user is an approved participant in the chat.
     function isApprovedParticipant(chatRoomId) {
       let participant = get(/databases/$(database)/documents/chatRooms/$(chatRoomId)/participants/$(request.auth.uid));
       return isAuth() && participant.data.status == 'approved';
     }
 
     match /chatRooms/{chatRoomId} {
-      allow read: if resource.data.isPrivate == false || isHostByResourceId();
-      allow create: if isAuth() && request.resource.data.hostId == request.auth.uid;
-      allow update: if isHost(chatRoomId) || (isAuth() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['typingUsers']));
+      // READ: Anyone can read public rooms. Hosts can read their own rooms.
+      allow read: if resource.data.isPrivate == false || isHost(chatRoomId);
       
-      // Allow delete if the request comes from the host.
-      allow delete: if isHost(chatRoomId);
+      // CREATE: Authenticated users can create rooms, but must set themselves as host.
+      allow create: if isAuth() && request.resource.data.hostId == request.auth.uid;
+      
+      // UPDATE: Only the host can update room details like `isLive` or `featuredMessage`.
+      // The `typingUsers` field can be updated by any authenticated user to avoid complex rules.
+      allow update: if isHost(chatRoomId)
+                    || (isAuth() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['typingUsers']));
 
+      // DELETE: The host can delete their own room. This rule, combined with the one below,
+      // allows the cascading delete flow to work.
+      allow delete: if isHost(chatRoomId);
+      
+      // --- SUBCOLLECTION RULES ---
+      
       match /participants/{userId} {
         allow read: if isHost(chatRoomId) || request.auth.uid == userId;
-        allow create: if isAuth() && request.auth.uid == userId;
-        allow update: if isHost(chatRoomId) || (isAuth() && request.auth.uid == userId);
-        allow delete: if isHost(chatRoomId);
+        allow create: if isAuth() && request.auth.uid == userId; // Users create their own participant doc to join.
+        allow update: if isHost(chatRoomId) || (isAuth() && request.auth.uid == userId); // Host manages status, user can re-request.
+        allow delete: if isHost(chatRoomId); // Host can remove participants.
       }
-
+      
       match /messages/{messageId} {
-        allow read: if isHost(chatRoomId) || isApprovedParticipant(chatRoomId);
-        allow create: if (isHost(chatRoomId) || isApprovedParticipant(chatRoomId)) && request.resource.data.userId == request.auth.uid;
-        allow update: if (isHost(chatRoomId) || isApprovedParticipant(chatRoomId)) && resource.data.voters[request.auth.uid] == null;
-        allow delete: if isHost(chatRoomId);
+        allow read: if isApprovedParticipant(chatRoomId) || isHost(chatRoomId);
+        allow create: if (isApprovedParticipant(chatRoomId) || isHost(chatRoomId))
+                      && request.resource.data.userId == request.auth.uid; // Must be the author.
+        allow update: if (isApprovedParticipant(chatRoomId) || isHost(chatRoomId))
+                      && resource.data.voters[request.auth.uid] == null; // For voting once.
+        allow delete: if isHost(chatRoomId); // Host can delete any message.
       }
-
+      
       match /polls/{pollId} {
-        allow read: if isHost(chatRoomId) || isApprovedParticipant(chatRoomId);
-        allow create: if isHost(chatRoomId);
-        allow update: if isHost(chatRoomId) || (isApprovedParticipant(chatRoomId) && resource.data.voters[request.auth.uid] == null);
-        allow delete: if isHost(chatRoomId);
+        allow read: if isApprovedParticipant(chatRoomId) || isHost(chatRoomId);
+        allow create, delete: if isHost(chatRoomId);
+        allow update: if isHost(chatRoomId)
+                      || (isApprovedParticipant(chatRoomId) && resource.data.voters[request.auth.uid] == null); // Host can manage, users can vote once.
       }
     }
   }
