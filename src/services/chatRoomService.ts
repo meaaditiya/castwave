@@ -69,6 +69,7 @@ export const createChatRoom = async (input: ChatRoomInput): Promise<{ chatRoomId
             });
 
             const participantRef = doc(db, 'chatRooms', newChatRoomRef.id, 'participants', input.hostId);
+            // The host is always approved by default.
             transaction.set(participantRef, {
                 userId: input.hostId,
                 displayName: input.host,

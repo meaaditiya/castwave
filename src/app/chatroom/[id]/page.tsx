@@ -121,24 +121,26 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
             if (current?.status === 'approved') {
                 setPermissionsReady(true);
             } else {
+                // User is in the list but not approved (pending, denied, etc.)
                 setPermissionsReady(false);
             }
         } else {
+             // If user is not in the list, add them with a 'pending' status
              await addParticipant(chatRoomId, {
                 userId: currentUser.uid,
                 displayName: currentUser.email || 'Anonymous',
-                status: chatRoom.isPrivate ? 'pending' : 'approved',
+                status: 'pending', // Always default to pending for host approval
                 requestCount: 1,
             });
-            // After adding, the listener will re-fire and set permissionsReady if needed
+            // After adding, the listener will re-fire and set permissions correctly
         }
     }, (error) => {
         console.error("Error fetching participants:", error);
-        setPermissionsReady(false);
+        setPermissionsReady(false); // Can't get participants, so can't proceed
     });
 
     return () => unsubscribeParticipants();
-  }, [resolvedParams.id, currentUser, chatRoom]);
+  }, [resolvedParams.id, currentUser, chatRoom, toast]);
 
   // Step 3: Once permissions are ready, fetch chat messages
   useEffect(() => {
