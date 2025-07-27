@@ -83,11 +83,6 @@ export default function Home() {
         });
     } catch (error) {
         console.error('Failed to delete chat room', error);
-        toast({
-            variant: 'destructive',
-            title: 'Error',
-            description: 'Failed to delete the chat room. You must be the host.',
-        });
     } finally {
         setIsDeleting(false);
         setChatRoomToDelete(null);
