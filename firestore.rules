@@ -1,69 +1,81 @@
+
 rules_version = '2';
+
 service cloud.firestore {
   match /databases/{database}/documents {
-    
-    // Helper function to check if a user is the host of a room.
+
+    function isUserAuthenticated() {
+      return request.auth != null;
+    }
+
     function isHost(chatRoomId) {
       return request.auth.uid == get(/databases/$(database)/documents/chatRooms/$(chatRoomId)).data.hostId;
     }
 
-    // Helper function to check if a user is an approved participant.
+    function isParticipant(chatRoomId, userId) {
+      return exists(/databases/$(database)/documents/chatRooms/$(chatRoomId)/participants/$(userId));
+    }
+
     function isApprovedParticipant(chatRoomId, userId) {
-      return exists(/databases/$(database)/documents/chatRooms/$(chatRoomId)/participants/$(userId)) &&
-             get(/databases/$(database)/documents/chatRooms/$(chatRoomId)/participants/$(userId)).data.status == 'approved';
+        return isParticipant(chatRoomId, userId) &&
+               get(/databases/$(database)/documents/chatRooms/$(chatRoomId)/participants/$(userId)).data.status == 'approved';
     }
 
     match /chatRooms/{chatRoomId} {
-      // **Read Rules**
-      // - Anyone authenticated can list public rooms.
-      // - The host can read their own room.
-      // - Anyone authenticated can read a specific room's main document (needed for joining).
-      allow read: if request.auth != null;
+      // Allow read access to the main chat room document for the host or any approved participant.
+      // Any authenticated user can read if the room is not private.
+      allow read: if isUserAuthenticated() &&
+                      (!resource.data.isPrivate || isHost(chatRoomId) || isApprovedParticipant(chatRoomId, request.auth.uid));
 
-      // **Write Rules**
-      // - Any authenticated user can create a new chat room.
-      allow create: if request.auth != null;
-      // - Only the host can update or delete their chat room.
-      allow update, delete: if isHost(chatRoomId);
+      // Allow creating a room if the user is authenticated.
+      allow create: if isUserAuthenticated();
 
-      // Subcollections
-      match /participants/{participantId} {
-        // **Read Rules**
-        // - The host can read the participants list.
-        // - Any authenticated user can read their own participant status.
-        allow get: if request.auth != null;
-        allow list: if isHost(chatRoomId) || isApprovedParticipant(chatRoomId, request.auth.uid);
+      // Allow updates only by the host.
+      allow update: if isUserAuthenticated() && isHost(chatRoomId);
 
-        // **Write Rules**
-        // - A user can create their own participant document (to request access).
-        allow create: if request.auth.uid == participantId;
-        // - Only the host can update a participant's status (approve/deny/remove).
-        allow update: if isHost(chatRoomId);
-        allow delete: if isHost(chatRoomId);
+      // Allow deletion only by the host.
+      allow delete: if isUserAuthenticated() && isHost(chatRoomId);
+
+      // --- Subcollections ---
+      
+      match /participants/{userId} {
+        // A user can read their own participant status. The host can read any participant's status.
+        allow get: if isUserAuthenticated() && (request.auth.uid == userId || isHost(chatRoomId));
+
+        // Any authenticated user can list participants to check if they need to join. This is required for the join-request flow.
+        allow list: if isUserAuthenticated();
+        
+        // A user can add themselves to the participants list.
+        allow create: if isUserAuthenticated() && request.auth.uid == userId;
+
+        // Only the host can update a participant's status (approve, deny, remove).
+        // A user can also update their own to request to join again.
+        allow update: if isUserAuthenticated() && (isHost(chatRoomId) || request.auth.uid == userId);
+        
+        // Only the host can delete participants.
+        allow delete: if isUserAuthenticated() && isHost(chatRoomId);
       }
 
       match /messages/{messageId} {
-        // **Read Rules**
-        // - The host or an approved participant can read messages.
-        allow read: if isHost(chatRoomId) || isApprovedParticipant(chatRoomId, request.auth.uid);
+        // Read messages if the user is the host or an approved participant.
+        allow read: if isUserAuthenticated() && (isHost(chatRoomId) || isApprovedParticipant(chatRoomId, request.auth.uid));
+
+        // Create/update messages if the user is the host or an approved participant.
+        allow write: if isUserAuthenticated() && (isHost(chatRoomId) || isApprovedParticipant(chatRoomId, request.auth.uid));
         
-        // **Write Rules**
-        // - The host or an approved participant can create/update messages (update is for voting).
-        allow write: if isHost(chatRoomId) || isApprovedParticipant(chatRoomId, request.auth.uid);
+        // Only host can delete messages.
+        allow delete: if isUserAuthenticated() && isHost(chatRoomId);
       }
 
       match /polls/{pollId} {
-        // **Read Rules**
-        // - The host or an approved participant can read polls.
-        allow read: if isHost(chatRoomId) || isApprovedParticipant(chatRoomId, request.auth.uid);
+        // Read polls if the user is the host or an approved participant.
+        allow read: if isUserAuthenticated() && (isHost(chatRoomId) || isApprovedParticipant(chatRoomId, request.auth.uid));
+        
+        // Write (create, update) polls if the user is the host or an approved participant (for voting).
+        allow write: if isUserAuthenticated() && (isHost(chatRoomId) || isApprovedParticipant(chatRoomId, request.auth.uid));
 
-        // **Write Rules**
-        // - Only the host can create polls.
-        allow create: if isHost(chatRoomId);
-        // - The host (to end/manage) or an approved user (to vote) can update.
-        allow update: if isHost(chatRoomId) || isApprovedParticipant(chatRoomId, request.auth.uid);
-        // - Only the host can delete polls.
-        allow delete: if isHost(chatRoomId);
+        // Only host can delete polls.
+        allow delete: if isUserAuthenticated() && isHost(chatRoomId);
       }
     }
   }
