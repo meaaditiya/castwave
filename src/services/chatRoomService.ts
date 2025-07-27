@@ -1,6 +1,6 @@
 
 import { db } from '@/lib/firebase';
-import { collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, doc, getDoc, updateDoc, setDoc, deleteDoc, getDocs, writeBatch, runTransaction, increment, where } from 'firebase/firestore';
+import { collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, doc, getDoc, updateDoc, setDoc, getDocs, writeBatch, runTransaction, increment, where } from 'firebase/firestore';
 
 export interface Message {
   id?: string;
@@ -101,10 +101,10 @@ export const getChatRooms = (
 
     if (options.hostId) {
         // 'My Sessions' tab - get all rooms hosted by the user
-        q = query(chatRoomsRef, where('hostId', '==', options.hostId));
+        q = query(chatRoomsRef, where('hostId', '==', options.hostId), orderBy('createdAt', 'desc'));
     } else {
-        // Public tab - get all rooms, ordered by creation date. We will filter for public rooms on the client.
-        q = query(chatRoomsRef, orderBy('createdAt', 'desc'));
+        // Public tab - get all public rooms, ordered by creation date.
+        q = query(chatRoomsRef, where('isPrivate', '==', false), orderBy('createdAt', 'desc'));
     }
     
     const unsubscribe = onSnapshot(q, (querySnapshot) => {
@@ -112,22 +112,6 @@ export const getChatRooms = (
         querySnapshot.forEach((doc) => {
             chatRooms.push({ id: doc.id, ...doc.data() } as ChatRoom);
         });
-        
-        if (options.isPublic) {
-            chatRooms = chatRooms.filter(room => !room.isPrivate);
-        }
-        
-        // For 'My Sessions', we also need to sort them as the query doesn't do it.
-        if (options.hostId) {
-            chatRooms.sort((a, b) => {
-                const dateA = a.createdAt?.toDate() || 0;
-                const dateB = b.createdAt?.toDate() || 0;
-                if(dateA > dateB) return -1;
-                if(dateA < dateB) return 1;
-                return 0;
-            });
-        }
-
         callback(chatRooms);
     }, onError);
 
@@ -183,34 +167,6 @@ export const endChatRoom = async (chatRoomId: string) => {
         throw new Error("Could not end chat room.");
     }
 }
-
-export const deleteChatRoom = async (chatRoomId: string) => {
-    try {
-        const batch = writeBatch(db);
-
-        // Delete polls
-        const pollsRef = collection(db, 'chatRooms', chatRoomId, 'polls');
-        const pollsSnap = await getDocs(pollsRef);
-        pollsSnap.forEach(doc => batch.delete(doc.ref));
-
-        const messagesRef = collection(db, 'chatRooms', chatRoomId, 'messages');
-        const messagesSnap = await getDocs(messagesRef);
-        messagesSnap.forEach(doc => batch.delete(doc.ref));
-
-        const participantsRef = collection(db, 'chatRooms', chatRoomId, 'participants');
-        const participantsSnap = await getDocs(participantsRef);
-        participantsSnap.forEach(doc => batch.delete(doc.ref));
-
-        const chatRoomRef = doc(db, 'chatRooms', chatRoomId);
-        batch.delete(chatRoomRef);
-
-        await batch.commit();
-
-    } catch (error) {
-        console.error('Error deleting chat room:', error);
-        throw new Error('Could not delete chat room and its data.');
-    }
-};
 
 export const sendMessage = async (chatRoomId: string, message: Partial<Message>) => {
     try {

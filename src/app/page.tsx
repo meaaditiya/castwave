@@ -4,7 +4,8 @@
 import { useState, useEffect } from 'react';
 import { Header } from '@/components/Header';
 import { ChatRoomCard } from '@/components/ChatRoomCard';
-import { getChatRooms, ChatRoom, deleteChatRoom as deleteChatRoomService } from '@/services/chatRoomService';
+import { getChatRooms, ChatRoom } from '@/services/chatRoomService';
+import { deleteChatRoom } from '@/ai/flows/delete-chat-room';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -76,7 +77,7 @@ export default function Home() {
 
     setIsDeleting(true);
     try {
-        await deleteChatRoomService(chatRoomToDelete);
+        await deleteChatRoom({ chatRoomId: chatRoomToDelete });
         toast({
             title: 'Chat Room Deleted',
             description: 'The chat room has been successfully deleted.',
