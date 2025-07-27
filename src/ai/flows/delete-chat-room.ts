@@ -20,9 +20,13 @@ export async function deleteChatRoom(input: DeleteChatRoomInput): Promise<{ succ
   return deleteChatRoomFlow(input);
 }
 
-const deleteSubcollection = async (chatRoomId: string, subcollectionName: string, batch: any) => {
+const deleteSubcollection = async (chatRoomId: string, subcollectionName: string, batch: FirebaseFirestore.WriteBatch) => {
     const subcollectionRef = collection(db, 'chatRooms', chatRoomId, subcollectionName);
     const snapshot = await getDocs(subcollectionRef);
+    if (snapshot.empty) {
+        console.log(`No documents to delete in '${subcollectionName}'.`);
+        return;
+    }
     snapshot.forEach(doc => {
         batch.delete(doc.ref);
     });
@@ -56,13 +60,9 @@ const deleteChatRoomFlow = ai.defineFlow(
         // Create a batch to delete all sub-collection documents.
         const batch = writeBatch(db);
 
-        // Delete all participants
+        // Delete all sub-collections
         await deleteSubcollection(chatRoomId, 'participants', batch);
-        
-        // Delete all messages
         await deleteSubcollection(chatRoomId, 'messages', batch);
-
-        // Delete all polls
         await deleteSubcollection(chatRoomId, 'polls', batch);
         
         // Commit the batch deletion of sub-collections
