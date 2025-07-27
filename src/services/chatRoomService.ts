@@ -104,7 +104,6 @@ export const getChatRooms = (
         q = query(chatRoomsRef, where('hostId', '==', options.hostId));
     } else {
         // Query for public sessions only using a simple equality check.
-        // This is a more robust query that doesn't require special indexes.
         q = query(chatRoomsRef, where('isPrivate', '==', false));
     }
     
