@@ -121,15 +121,14 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
             if (current?.status === 'approved') {
                 setPermissionsReady(true);
             } else {
-                // User is in the list but not approved (pending, denied, etc.)
                 setPermissionsReady(false);
             }
         } else {
-             // If user is not in the list, add them. Public rooms get auto-approved.
+             // If user is not in the list, add them with pending status for host approval.
              await addParticipant(chatRoomId, {
                 userId: currentUser.uid,
                 displayName: currentUser.email || 'Anonymous',
-                status: chatRoom.isPrivate ? 'pending' : 'approved',
+                status: 'pending',
                 requestCount: 1,
             });
             // After adding, the listener will re-fire and set permissions correctly
