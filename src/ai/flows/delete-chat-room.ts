@@ -20,6 +20,16 @@ export async function deleteChatRoom(input: DeleteChatRoomInput): Promise<{ succ
   return deleteChatRoomFlow(input);
 }
 
+const deleteSubcollection = async (chatRoomId: string, subcollectionName: string, batch: any) => {
+    const subcollectionRef = collection(db, 'chatRooms', chatRoomId, subcollectionName);
+    const snapshot = await getDocs(subcollectionRef);
+    snapshot.forEach(doc => {
+        batch.delete(doc.ref);
+    });
+    console.log(`Added ${snapshot.size} documents from '${subcollectionName}' to the delete batch.`);
+};
+
+
 const deleteChatRoomFlow = ai.defineFlow(
   {
     name: 'deleteChatRoomFlow',
@@ -32,33 +42,38 @@ const deleteChatRoomFlow = ai.defineFlow(
         const chatRoomSnap = await getDoc(chatRoomRef);
 
         if (!chatRoomSnap.exists()) {
-            // If the room doesn't exist, we can consider the deletion successful.
+            console.log(`Chat room ${chatRoomId} does not exist. Considering deletion successful.`);
             return { success: true };
         }
 
-        if (chatRoomSnap.data().hostId !== hostId) {
-            throw new Error('User is not authorized to delete this chat room.');
+        const chatRoomData = chatRoomSnap.data();
+        if (chatRoomData.hostId !== hostId) {
+            throw new Error(`User ${hostId} is not authorized to delete chat room ${chatRoomId}.`);
         }
+        
+        console.log(`User ${hostId} is authorized. Starting deletion process for chat room ${chatRoomId}.`);
 
-        // Delete subcollections in batches
+        // Create a batch to delete all sub-collection documents.
         const batch = writeBatch(db);
 
-        const participantsRef = collection(db, 'chatRooms', chatRoomId, 'participants');
-        const participantsSnap = await getDocs(participantsRef);
-        participantsSnap.forEach(doc => batch.delete(doc.ref));
-
-        const messagesRef = collection(db, 'chatRooms', chatRoomId, 'messages');
-        const messagesSnap = await getDocs(messagesRef);
-        messagesSnap.forEach(doc => batch.delete(doc.ref));
-
-        const pollsRef = collection(db, 'chatRooms', chatRoomId, 'polls');
-        const pollsSnap = await getDocs(pollsRef);
-        pollsSnap.forEach(doc => batch.delete(doc.ref));
+        // Delete all participants
+        await deleteSubcollection(chatRoomId, 'participants', batch);
         
+        // Delete all messages
+        await deleteSubcollection(chatRoomId, 'messages', batch);
+
+        // Delete all polls
+        await deleteSubcollection(chatRoomId, 'polls', batch);
+        
+        // Commit the batch deletion of sub-collections
+        console.log('Committing batch deletion of sub-collections...');
         await batch.commit();
+        console.log('Sub-collections deleted successfully.');
         
         // Finally, delete the chat room document itself
+        console.log(`Deleting main chat room document: ${chatRoomId}`);
         await deleteDoc(chatRoomRef);
+        console.log(`Chat room ${chatRoomId} deleted successfully.`);
 
         return { success: true };
     } catch (error: any) {
