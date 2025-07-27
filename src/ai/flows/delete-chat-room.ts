@@ -2,18 +2,7 @@
 'use server';
 /**
  * @fileOverview A flow for deleting a chat room and all its sub-collections.
- * IMPORTANT: For this flow to work correctly, you must enable "Cascading Deletes"
- * for the `chatRooms` collection in your Firebase console. This will ensure that
- * when a chat room document is deleted, all of its sub-collections (messages,
- * participants, polls) are automatically deleted by Firestore.
- *
- * How to enable:
- * 1. Go to your Firebase Console.
- * 2. Navigate to Firestore Database > Rules.
- * 3. Add the following line to the top of your rules file:
- *    `match /chatRooms/{chatRoomId}/{wildcard=**} { allow delete: if isHost(chatRoomId); }`
- *    (This is already included in the new firestore.rules file).
- * 4. This extension handles the cascading delete.
+ * This flow manually deletes documents in subcollections before deleting the main chat room document.
  */
 
 import { ai } from '@/ai/genkit';
