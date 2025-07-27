@@ -103,8 +103,8 @@ export const getChatRooms = (
         // 'My Sessions' tab - get all rooms hosted by the user
         q = query(chatRoomsRef, where('hostId', '==', options.hostId));
     } else {
-        // Public tab - get all public rooms, ordered by creation date, then filter client-side
-        q = query(chatRoomsRef, orderBy('createdAt', 'desc'));
+        // Public tab - get all public rooms
+        q = query(chatRoomsRef, where("isPrivate", "==", false));
     }
     
     const unsubscribe = onSnapshot(q, (querySnapshot) => {
@@ -113,16 +113,12 @@ export const getChatRooms = (
             chatRooms.push({ id: doc.id, ...doc.data() } as ChatRoom);
         });
         
-        if (options.hostId) {
-            // Sort client-side for "My Sessions" to avoid needing a composite index
-            chatRooms.sort((a, b) => {
-                const dateA = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(0);
-                const dateB = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(0);
-                return dateB.getTime() - dateA.getTime();
-            });
-        } else {
-            chatRooms = chatRooms.filter(room => !room.isPrivate);
-        }
+        // Sort client-side to avoid needing a composite index
+        chatRooms.sort((a, b) => {
+            const dateA = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(0);
+            const dateB = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(0);
+            return dateB.getTime() - dateA.getTime();
+        });
 
         callback(chatRooms);
     }, (err) => {
@@ -144,7 +140,12 @@ export const getChatRoomStream = (id: string, callback: (chatRoom: ChatRoom | nu
             console.log("No such document!");
             callback(null);
         }
-    }, onError);
+    }, (error) => {
+        console.error("Error fetching chat room:", error);
+        if (onError) {
+            onError(error);
+        }
+    });
     return unsubscribe;
 };
 
@@ -354,36 +355,6 @@ export const updateTypingStatus = async (chatRoomId: string, userId: string, dis
     } catch (e) {
         console.error("Error updating typing status: ", e);
         // Don't throw, as this is not a critical operation
-    }
-};
-
-export const deleteChatRoom = async (chatRoomId: string) => {
-    try {
-        const batch = writeBatch(db);
-
-        // Delete polls
-        const pollsRef = collection(db, 'chatRooms', chatRoomId, 'polls');
-        const pollsSnap = await getDocs(pollsRef);
-        pollsSnap.forEach(doc => batch.delete(doc.ref));
-
-        // Delete messages
-        const messagesRef = collection(db, 'chatRooms', chatRoomId, 'messages');
-        const messagesSnap = await getDocs(messagesRef);
-        messagesSnap.forEach(doc => batch.delete(doc.ref));
-
-        // Delete participants
-        const participantsRef = collection(db, 'chatRooms', chatRoomId, 'participants');
-        const participantsSnap = await getDocs(participantsRef);
-        participantsSnap.forEach(doc => batch.delete(doc.ref));
-
-        // Delete the main chat room document
-        const chatRoomRef = doc(db, 'chatRooms', chatRoomId);
-        batch.delete(chatRoomRef);
-
-        await batch.commit();
-    } catch (error) {
-        console.error('Error deleting chat room:', error);
-        throw new Error('Could not delete chat room and its data.');
     }
 };
 
