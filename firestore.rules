@@ -1,87 +1,68 @@
+
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper function to check if a user is authenticated.
+    // --- Helper Functions ---
     function isAuth() {
       return request.auth != null;
     }
 
-    // Helper function to check if the requesting user is the host of a given chat room.
-    // It reads the `hostId` from the chat room document.
+    function isUser(userId) {
+      return isAuth() && request.auth.uid == userId;
+    }
+
     function isHost(chatRoomId) {
-      return isAuth() && get(/databases/$(database)/documents/chatRooms/$(chatRoomId)).data.hostId == request.auth.uid;
+      return isUser(get(/databases/$(database)/documents/chatRooms/$(chatRoomId)).data.hostId);
+    }
+
+    function isApproved(chatRoomId) {
+      let status = get(/databases/$(database)/documents/chatRooms/$(chatRoomId)/participants/$(request.auth.uid)).data.status;
+      return status == 'approved';
+    }
+
+    function isHostOrApproved(chatRoomId) {
+      return isHost(chatRoomId) || isApproved(chatRoomId);
     }
     
-    // Helper function to check if the requesting user is an approved participant.
-    // It reads the user's status from the participants subcollection.
-    function isApprovedParticipant(chatRoomId) {
-      return isAuth() && exists(/databases/$(database)/documents/chatRooms/$(chatRoomId)/participants/$(request.auth.uid))
-             && get(/databases/$(database)/documents/chatRooms/$(chatRoomId)/participants/$(request.auth.uid)).data.status == 'approved';
-    }
-
+    // --- Main Rules ---
     match /chatRooms/{chatRoomId} {
-
-      // LIST (Queries):
-      // Allows listing rooms if querying for public rooms OR querying for rooms the user hosts.
-      // This is the key rule that fixes the "Could not load sessions" error.
-      allow list: if (request.query.where.isPrivate == false) ||
-                     (isAuth() && request.query.where.hostId == request.auth.uid);
-
-      // GET (Single Document):
-      // Allows reading a single room if it's public, or if the user is the host.
+    
+      // READ: 
+      // - Get: Anyone can get a public room. Host can get their own room.
+      // - List: Anyone can query public rooms. Hosts can query their own rooms.
       allow get: if resource.data.isPrivate == false || isHost(chatRoomId);
+      allow list: if request.query.where.isPrivate == false || (isAuth() && request.query.where.hostId == request.auth.uid);
 
-      // CREATE:
-      // Any authenticated user can create a chat room, but they must set themselves as the host.
+      // CREATE: Any authenticated user can create a room, but they must be the host.
       allow create: if isAuth() && request.resource.data.hostId == request.auth.uid;
-
-      // UPDATE:
-      // The host can update any field.
-      // Any authenticated user can update the 'typingUsers' field, but nothing else.
-      allow update: if isHost(chatRoomId) || 
-                       (isAuth() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['typingUsers']));
       
-      // DELETE:
-      // Only the host can delete their own chat room.
+      // UPDATE: Only the host can update room details. Any user can update the 'typingUsers' field.
+      allow update: if isHost(chatRoomId) || (isAuth() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['typingUsers']));
+
+      // DELETE: Only the host can delete their room.
       allow delete: if isHost(chatRoomId);
 
-      // --- SUBCOLLECTIONS ---
-
+      // --- Subcollections ---
       match /participants/{userId} {
-        // READ/WRITE: The host can read and write to any participant document.
-        // A user can read/write to their OWN participant document (e.g., to create it or see their status).
-        allow read, write: if isHost(chatRoomId) || (isAuth() && userId == request.auth.uid);
+        allow read: if isHost(chatRoomId) || isUser(userId);
+        allow create: if isUser(userId);
+        allow update: if isHost(chatRoomId) || isUser(userId);
+        allow delete: if isHost(chatRoomId) || isUser(userId);
       }
-      
+
       match /messages/{messageId} {
-        // READ: Approved participants and the host can read messages.
-        allow read: if isHost(chatRoomId) || isApprovedParticipant(chatRoomId);
-
-        // CREATE: Approved participants and the host can create messages, as long as they own the message.
-        allow create: if (isHost(chatRoomId) || isApprovedParticipant(chatRoomId))
-                      && request.resource.data.userId == request.auth.uid;
-
-        // UPDATE (Voting): An approved participant or host can update a message, but only if they haven't voted yet.
-        allow update: if (isHost(chatRoomId) || isApprovedParticipant(chatRoomId))
-                      && resource.data.voters[request.auth.uid] == null; // Can only vote once
-
-        // DELETE: Only the host can delete messages.
+        allow read: if isHostOrApproved(chatRoomId);
+        allow create: if isHostOrApproved(chatRoomId) && isUser(request.resource.data.userId);
+        allow update: if isHostOrApproved(chatRoomId) && resource.data.voters[request.auth.uid] == null; // Vote once
         allow delete: if isHost(chatRoomId);
       }
-      
+
       match /polls/{pollId} {
-        // READ: Approved participants and the host can read polls.
-        allow read: if isHost(chatRoomId) || isApprovedParticipant(chatRoomId);
-
-        // CREATE/DELETE: Only the host can create or delete polls.
+        allow read, list: if isHostOrApproved(chatRoomId);
         allow create, delete: if isHost(chatRoomId);
-
-        // UPDATE: The host can update a poll (e.g., end it).
-        // Approved participants can update a poll to vote, but only once.
-        allow update: if isHost(chatRoomId) 
-                      || (isApprovedParticipant(chatRoomId) && resource.data.voters[request.auth.uid] == null);
+        allow update: if isHost(chatRoomId) || (isApproved(chatRoomId) && resource.data.voters[request.auth.uid] == null);
       }
     }
   }

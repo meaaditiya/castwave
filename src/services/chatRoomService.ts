@@ -103,7 +103,7 @@ export const getChatRooms = (
         // Query for user's own sessions (public and private)
         q = query(chatRoomsRef, where('hostId', '==', options.hostId));
     } else {
-        // Query for public sessions only - sorting is done client-side
+        // Query for public sessions only
         q = query(chatRoomsRef, where('isPrivate', '==', false));
     }
     
@@ -113,7 +113,7 @@ export const getChatRooms = (
             chatRooms.push({ id: doc.id, ...doc.data() } as ChatRoom);
         });
         
-        // Client-side sort
+        // Client-side sort to avoid complex Firestore queries and permission issues
         chatRooms.sort((a, b) => {
             const aTime = a.createdAt?.toMillis() || 0;
             const bTime = b.createdAt?.toMillis() || 0;
