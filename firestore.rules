@@ -1,8 +1,28 @@
-rules_version = '2';
-service cloud.firestore {
-  match /databases/{database}/documents {
-    match /{document=**} {
-      allow read, write: if false;
+{
+  "rules": {
+    "chatRooms": {
+      "$chatRoomId": {
+        ".read": "resource.data.isPrivate == false || resource.data.hostId == request.auth.uid",
+        ".write": "!exists(resource.data) && request.auth != null && request.resource.data.hostId == request.auth.uid",
+        "participants": {
+          "$participantId": {
+            ".read": "get(/databases/$(database)/documents/chatRooms/$(chatRoomId)).data.hostId == request.auth.uid || request.auth.uid == $participantId",
+            ".write": "get(/databases/$(database)/documents/chatRooms/$(chatRoomId)).data.hostId == request.auth.uid || request.auth.uid == $participantId"
+          }
+        },
+        "messages": {
+          "$messageId": {
+            ".read": "get(/databases/$(database)/documents/chatRooms/$(chatRoomId)/participants/$(request.auth.uid)).data.status == 'approved'",
+            ".write": "get(/databases/$(database)/documents/chatRooms/$(chatRoomId)/participants/$(request.auth.uid)).data.status == 'approved'"
+          }
+        },
+        "polls": {
+          "$pollId": {
+            ".read": true,
+            ".write": "get(/databases/$(database)/documents/chatRooms/$(chatRoomId)).data.hostId == request.auth.uid"
+          }
+        }
+      }
     }
   }
 }
