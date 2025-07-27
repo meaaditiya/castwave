@@ -71,14 +71,14 @@ service cloud.firestore {
         
         // CREATE: Only the host can create polls.
         allow create: if isHost(chatRoomId);
-
-        // DELETE: Only the host can delete polls.
-        allow delete: if isHost(chatRoomId);
         
         // UPDATE: The host can update polls (e.g., to end them).
         // Approved participants can update to vote, but only if they haven't voted yet.
         allow update: if isHost(chatRoomId) 
                       || (isApprovedParticipant(chatRoomId) && resource.data.voters[request.auth.uid] == null);
+        
+        // DELETE: Only the host can delete polls.
+        allow delete: if isHost(chatRoomId);
       }
     }
   }
