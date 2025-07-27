@@ -103,8 +103,8 @@ export const getChatRooms = (
         // 'My Sessions' tab - get all rooms hosted by the user
         q = query(chatRoomsRef, where('hostId', '==', options.hostId), orderBy('createdAt', 'desc'));
     } else {
-        // Public tab - get all public rooms, ordered by creation date.
-        q = query(chatRoomsRef, where('isPrivate', '==', false), orderBy('createdAt', 'desc'));
+        // Public tab - get all public rooms, ordered by creation date, then filter client-side
+        q = query(chatRoomsRef, orderBy('createdAt', 'desc'));
     }
     
     const unsubscribe = onSnapshot(q, (querySnapshot) => {
@@ -112,8 +112,18 @@ export const getChatRooms = (
         querySnapshot.forEach((doc) => {
             chatRooms.push({ id: doc.id, ...doc.data() } as ChatRoom);
         });
+        
+        if (!options.hostId) {
+            chatRooms = chatRooms.filter(room => !room.isPrivate);
+        }
+
         callback(chatRooms);
-    }, onError);
+    }, (err) => {
+        console.error("Error in getChatRooms snapshot listener:", err);
+        if (onError) {
+            onError(new Error("Could not load sessions. Check permissions or network."));
+        }
+    });
 
     return unsubscribe;
 };
