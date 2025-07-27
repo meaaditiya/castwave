@@ -159,7 +159,26 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
     return () => unsubscribeMessages();
   }, [resolvedParams.id, isHost, participants, currentUser, chatLog.length]);
 
-  if (authLoading || pageLoading || !currentUser || !chatRoom) {
+  if (authLoading || pageLoading || !currentUser || !chatRoom || !permissionsReady) {
+    if (!authLoading && !pageLoading && currentUser && chatRoom && !permissionsReady && currentParticipant?.status === 'pending') {
+         // Show a waiting screen for users pending approval
+         return (
+            <div className="min-h-screen flex flex-col">
+                <Header />
+                 <main className="flex-1 container py-8 flex items-center justify-center">
+                    <Card className="w-full max-w-md text-center p-8">
+                        <CardHeader>
+                            <CardTitle>Awaiting Approval</CardTitle>
+                            <CardDescription>The host has been notified of your request to join. Please wait a moment.</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto" />
+                        </CardContent>
+                    </Card>
+                </main>
+            </div>
+        )
+    }
     return <ChatRoomPageSkeleton />;
   }
 
