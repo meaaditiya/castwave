@@ -1,46 +1,8 @@
-
 rules_version = '2';
-
 service cloud.firestore {
   match /databases/{database}/documents {
-  
-    // Helper functions
-    function isHost(chatRoomId, userId) {
-      return get(/databases/$(database)/documents/chatRooms/$(chatRoomId)).data.hostId == userId;
-    }
-    
-    function isApproved(chatRoomId, userId) {
-      let participant = get(/databases/$(database)/documents/chatRooms/$(chatRoomId)/participants/$(userId)).data;
-      return participant.status == 'approved';
-    }
-
-    match /chatRooms/{chatRoomId} {
-      allow read: if resource.data.isPrivate == false || (request.auth != null && isHost(chatRoomId, request.auth.uid));
-      allow list: if request.query.where.isPrivate == false || (request.auth != null && request.query.where.hostId == request.auth.uid);
-      
-      allow create: if request.auth != null && request.resource.data.hostId == request.auth.uid;
-      allow update: if request.auth != null && isHost(chatRoomId, request.auth.uid);
-      allow delete: if request.auth != null && isHost(chatRoomId, request.auth.uid);
-
-      match /messages/{messageId} {
-        allow read, write: if request.auth != null && isApproved(chatRoomId, request.auth.uid);
-        allow create: if request.auth != null && isApproved(chatRoomId, request.auth.uid) && request.resource.data.userId == request.auth.uid;
-        allow update: if request.auth != null && isApproved(chatRoomId, request.auth.uid);
-        allow delete: if request.auth != null && isHost(chatRoomId, request.auth.uid);
-      }
-      
-      match /participants/{participantId} {
-        allow read: if request.auth != null && isApproved(chatRoomId, request.auth.uid);
-        allow list: if request.auth != null && isHost(chatRoomId, request.auth.uid);
-        allow create: if request.auth != null; // Allow any authenticated user to attempt to join
-        allow update, delete: if request.auth != null && isHost(chatRoomId, request.auth.uid);
-      }
-
-      match /polls/{pollId} {
-        allow read: if request.auth != null && isApproved(chatRoomId, request.auth.uid);
-        allow list: if request.auth != null && isApproved(chatRoomId, request.auth.uid);
-        allow create, update, delete: if request.auth != null && isHost(chatRoomId, request.auth.uid);
-      }
+    match /{document=**} {
+      allow read, write: if false;
     }
   }
 }
