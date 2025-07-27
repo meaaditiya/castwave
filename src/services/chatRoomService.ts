@@ -85,11 +85,26 @@ export const createChatRoom = async (input: ChatRoomInput): Promise<{ chatRoomId
     }
 };
 
-export const getChatRooms = (callback: (chatRooms: ChatRoom[]) => void) => {
-    const q = query(
-        collection(db, 'chatRooms'), 
-        orderBy('createdAt', 'desc')
-    );
+interface GetChatRoomsOptions {
+    isPublic?: boolean;
+    hostId?: string;
+}
+
+export const getChatRooms = (
+    callback: (chatRooms: ChatRoom[]) => void, 
+    options: GetChatRoomsOptions,
+    onError?: (error: Error) => void
+) => {
+    const chatRoomsRef = collection(db, 'chatRooms');
+    let q;
+
+    if (options.hostId) {
+        // 'My Sessions' tab - get all rooms hosted by the user
+        q = query(chatRoomsRef, where('hostId', '==', options.hostId), orderBy('createdAt', 'desc'));
+    } else {
+        // Public tab - get only public rooms
+        q = query(chatRoomsRef, where('isPrivate', '==', false), orderBy('createdAt', 'desc'));
+    }
     
     const unsubscribe = onSnapshot(q, (querySnapshot) => {
         const chatRooms: ChatRoom[] = [];
@@ -97,7 +112,7 @@ export const getChatRooms = (callback: (chatRooms: ChatRoom[]) => void) => {
             chatRooms.push({ id: doc.id, ...doc.data() } as ChatRoom);
         });
         callback(chatRooms);
-    });
+    }, onError);
 
     return unsubscribe;
 };

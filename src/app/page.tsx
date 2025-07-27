@@ -42,27 +42,34 @@ export default function Home() {
   const [currentTab, setCurrentTab] = useState('public');
 
   useEffect(() => {
+    if (authLoading) return;
     setLoading(true);
-    const unsubscribe = getChatRooms((newChatRooms) => {
-      setAllChatRooms(newChatRooms);
-      setLoading(false);
-    });
+
+    const isPublic = currentTab === 'public';
+    const hostId = currentTab === 'my-sessions' ? currentUser?.uid : undefined;
+
+    const unsubscribe = getChatRooms(
+      (newChatRooms) => {
+        setAllChatRooms(newChatRooms);
+        setLoading(false);
+      },
+      { isPublic, hostId },
+      (error) => {
+        console.error("Failed to get chat rooms:", error);
+        toast({ variant: 'destructive', title: 'Error', description: 'Could not load sessions. You may not have permission.' });
+        setAllChatRooms([]);
+        setLoading(false);
+      }
+    );
     return () => unsubscribe();
-  }, []);
+  }, [currentTab, currentUser, authLoading, toast]);
 
   useEffect(() => {
-    let rooms = allChatRooms;
-    if (currentTab === 'public') {
-      rooms = rooms.filter(room => !room.isPrivate);
-    } else if (currentTab === 'my-sessions' && currentUser) {
-      rooms = rooms.filter(room => room.hostId === currentUser.uid);
-    }
-
-    const results = rooms.filter(room =>
+    const results = allChatRooms.filter(room =>
       room.title.toLowerCase().includes(searchQuery.toLowerCase())
     );
     setFilteredChatRooms(results);
-  }, [searchQuery, allChatRooms, currentTab, currentUser]);
+  }, [searchQuery, allChatRooms]);
 
   const handleDelete = async () => {
     if (!chatRoomToDelete) return;
@@ -150,7 +157,7 @@ export default function Home() {
           <Tabs value={currentTab} onValueChange={setCurrentTab} className="w-full md:w-auto">
               <TabsList className="grid w-full grid-cols-2 md:w-auto">
                   <TabsTrigger value="public"><Globe className="mr-2 h-4 w-4"/>Public</TabsTrigger>
-                  <TabsTrigger value="my-sessions"><Lock className="mr-2 h-4 w-4"/>My Sessions</TabsTrigger>
+                  {currentUser && <TabsTrigger value="my-sessions"><Lock className="mr-2 h-4 w-4"/>My Sessions</TabsTrigger>}
               </TabsList>
           </Tabs>
         </div>
