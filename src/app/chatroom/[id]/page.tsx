@@ -125,17 +125,18 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
                 setPermissionsReady(false);
             }
         } else {
-             // If user is not in the list, add them with a 'pending' status
+             // If user is not in the list, add them. Public rooms get auto-approved.
              await addParticipant(chatRoomId, {
                 userId: currentUser.uid,
                 displayName: currentUser.email || 'Anonymous',
-                status: 'pending', // Always default to pending for host approval
+                status: chatRoom.isPrivate ? 'pending' : 'approved',
                 requestCount: 1,
             });
             // After adding, the listener will re-fire and set permissions correctly
         }
     }, (error) => {
         console.error("Error fetching participants:", error);
+        toast({ variant: 'destructive', title: 'Error', description: 'Could not get participant list.'});
         setPermissionsReady(false); // Can't get participants, so can't proceed
     });
 
