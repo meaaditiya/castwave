@@ -65,6 +65,7 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
   const { currentUser, loading: authLoading } = useAuth();
   const router = useRouter();
   const [pageLoading, setPageLoading] = useState(true);
+  const [permissionsReady, setPermissionsReady] = useState(false);
   const { toast } = useToast();
 
   const isHost = currentUser && chatRoom && currentUser.uid === chatRoom.hostId;
@@ -77,6 +78,7 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
     }
   }, [currentUser, authLoading, router]);
 
+  // Step 1: Fetch the main chat room data
   useEffect(() => {
     const chatRoomId = resolvedParams.id;
     if (!chatRoomId || !currentUser) return;
@@ -86,7 +88,7 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
     const unsubscribeChatRoom = getChatRoomStream(chatRoomId, (chatRoomData) => {
       if (chatRoomData) {
         setChatRoom(chatRoomData);
-        setPageLoading(false); 
+        setPageLoading(false);
       } else {
         toast({ variant: 'destructive', title: 'Error', description: 'Chat Room not found.' });
         router.push('/');
@@ -100,51 +102,66 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
     return () => unsubscribeChatRoom();
   }, [resolvedParams.id, currentUser, router, toast]);
 
+  // Step 2: Once chat room data is loaded, manage participants and permissions
   useEffect(() => {
     const chatRoomId = resolvedParams.id;
     if (!chatRoomId || !currentUser || !chatRoom) return;
-    
-    const unsubscribeParticipants = getParticipants(chatRoomId, (newParticipants) => {
-        setParticipants(newParticipants);
 
+    const unsubscribeParticipants = getParticipants(chatRoomId, async (newParticipants) => {
+        setParticipants(newParticipants);
         const userInList = newParticipants.some(p => p.userId === currentUser.uid);
-        
-        if (!userInList && chatRoom.hostId !== currentUser.uid) {
-             if (chatRoom.isPrivate) {
-                addParticipant(chatRoomId, {
+
+        if (chatRoom.hostId === currentUser.uid) {
+            setPermissionsReady(true);
+            return;
+        }
+
+        if (userInList) {
+            const current = newParticipants.find(p => p.userId === currentUser.uid);
+            if (current?.status === 'approved') {
+                setPermissionsReady(true);
+            } else {
+                setPermissionsReady(false);
+            }
+        } else {
+            if (chatRoom.isPrivate) {
+                await addParticipant(chatRoomId, {
                     userId: currentUser.uid,
                     displayName: currentUser.email || 'Anonymous',
                     status: 'approved',
                 });
+                // After adding, the listener will re-fire and set permissionsReady
             } else {
-                 addParticipant(chatRoomId, {
+                await addParticipant(chatRoomId, {
                     userId: currentUser.uid,
                     displayName: currentUser.email || 'Anonymous',
                     status: 'pending',
                     requestCount: 1,
                 });
+                setPermissionsReady(false);
             }
         }
     }, (error) => {
         console.error("Error fetching participants:", error);
+        setPermissionsReady(false);
     });
 
     return () => unsubscribeParticipants();
-}, [resolvedParams.id, currentUser, chatRoom]);
+  }, [resolvedParams.id, currentUser, chatRoom]);
 
-
+  // Step 3: Once permissions are ready, fetch chat messages
   useEffect(() => {
     const chatRoomId = resolvedParams.id;
-    if (!chatRoomId || !canChat) {
-        // Clear chat log if user loses chat permission
+    if (!chatRoomId || !permissionsReady) {
         if(chatLog.length > 0) setChatLog([]);
         return;
     };
+
     const unsubscribeMessages = getMessages(chatRoomId, setChatLog, (error) => {
         console.error("Error fetching messages:", error);
     });
     return () => unsubscribeMessages();
-  }, [resolvedParams.id, canChat, chatLog.length]);
+  }, [resolvedParams.id, permissionsReady]);
 
   if (authLoading || pageLoading || !currentUser || !chatRoom) {
     return <ChatRoomPageSkeleton />;
