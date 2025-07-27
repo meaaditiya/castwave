@@ -8,7 +8,7 @@ import { ScrollArea } from "./ui/scroll-area";
 import { Badge } from "./ui/badge";
 import { Check, Loader2, MinusCircle, User, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 
 interface ParticipantsListProps {
     chatRoomId: string;
@@ -26,13 +26,17 @@ export function ParticipantsList({ chatRoomId, participants }: ParticipantsListP
     const { toast } = useToast();
     const [loadingStates, setLoadingStates] = useState<Record<string, boolean>>({});
 
-    const sortedParticipants = [...participants].sort((a, b) => {
-        if (a.status === 'pending' && b.status !== 'pending') return -1;
-        if (b.status === 'pending' && a.status !== 'pending') return 1;
-        if (a.displayName < b.displayName) return -1;
-        if (a.displayName > b.displayName) return 1;
-        return 0;
-    });
+    const activeParticipants = useMemo(() => {
+        return participants
+            .filter(p => p.status === 'approved' || p.status === 'pending')
+            .sort((a, b) => {
+                if (a.status === 'pending' && b.status !== 'pending') return -1;
+                if (b.status === 'pending' && a.status !== 'pending') return 1;
+                if (a.displayName < b.displayName) return -1;
+                if (a.displayName > b.displayName) return 1;
+                return 0;
+            });
+    }, [participants]);
 
     const handleUpdateStatus = async (userId: string, status: Participant['status']) => {
         setLoadingStates(prev => ({ ...prev, [userId]: true }));
@@ -46,7 +50,7 @@ export function ParticipantsList({ chatRoomId, participants }: ParticipantsListP
         }
     }
 
-    if (participants.length === 0) {
+    if (activeParticipants.length === 0) {
         return (
              <div className="text-center text-muted-foreground p-4 flex flex-col items-center justify-center h-full">
                 <User className="h-12 w-12 text-muted-foreground/50 mb-4" />
@@ -59,7 +63,7 @@ export function ParticipantsList({ chatRoomId, participants }: ParticipantsListP
     return (
         <ScrollArea className="h-48">
             <div className="space-y-0">
-                {sortedParticipants.map(participant => (
+                {activeParticipants.map(participant => (
                     <div key={participant.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 transition-colors">
                         <Avatar className="h-8 w-8">
                             <AvatarFallback>{participant.displayName.substring(0,1).toUpperCase()}</AvatarFallback>
