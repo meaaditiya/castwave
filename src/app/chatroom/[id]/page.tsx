@@ -135,12 +135,16 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
 
   useEffect(() => {
     const chatRoomId = resolvedParams.id;
-    if (!chatRoomId || !canChat) return;
+    if (!chatRoomId || !canChat) {
+        // Clear chat log if user loses chat permission
+        if(chatLog.length > 0) setChatLog([]);
+        return;
+    };
     const unsubscribeMessages = getMessages(chatRoomId, setChatLog, (error) => {
         console.error("Error fetching messages:", error);
     });
     return () => unsubscribeMessages();
-  }, [resolvedParams.id, canChat]);
+  }, [resolvedParams.id, canChat, chatLog.length]);
 
   if (authLoading || pageLoading || !currentUser || !chatRoom) {
     return <ChatRoomPageSkeleton />;
