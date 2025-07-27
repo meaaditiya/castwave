@@ -103,18 +103,14 @@ export const getChatRooms = (
         // Query for user's own sessions (public and private)
         q = query(chatRoomsRef, where('hostId', '==', options.hostId));
     } else {
-        // Query for public sessions only, ensuring isPrivate field exists and is false.
-        // using '!=' ensures we only get docs with the field explicitly set to false
-        q = query(chatRoomsRef, where('isPrivate', '!=', true));
+        // Query for public sessions only using a simple equality check.
+        // This is a more robust query that doesn't require special indexes.
+        q = query(chatRoomsRef, where('isPrivate', '==', false));
     }
     
     const unsubscribe = onSnapshot(q, (querySnapshot) => {
         const chatRooms: ChatRoom[] = [];
         querySnapshot.forEach((doc) => {
-            // Additional client-side check if Firestore rules are somehow bypassed or for older data
-            if(options.isPublic && doc.data().isPrivate === true) {
-                return;
-            }
             chatRooms.push({ id: doc.id, ...doc.data() } as ChatRoom);
         });
         
