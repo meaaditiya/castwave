@@ -101,10 +101,10 @@ export const getChatRooms = (
 
     if (options.hostId) {
         // 'My Sessions' tab - get all rooms hosted by the user
-        q = query(chatRoomsRef, where('hostId', '==', options.hostId));
+        q = query(chatRoomsRef, where('hostId', '==', options.hostId), orderBy('createdAt', 'desc'));
     } else {
         // Public tab - get all public rooms
-        q = query(chatRoomsRef, where("isPrivate", "==", false));
+        q = query(chatRoomsRef, where("isPrivate", "==", false), orderBy('createdAt', 'desc'));
     }
     
     const unsubscribe = onSnapshot(q, (querySnapshot) => {
@@ -112,14 +112,6 @@ export const getChatRooms = (
         querySnapshot.forEach((doc) => {
             chatRooms.push({ id: doc.id, ...doc.data() } as ChatRoom);
         });
-        
-        // Sort client-side to avoid needing a composite index
-        chatRooms.sort((a, b) => {
-            const dateA = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(0);
-            const dateB = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(0);
-            return dateB.getTime() - dateA.getTime();
-        });
-
         callback(chatRooms);
     }, (err) => {
         console.error("Error in getChatRooms snapshot listener:", err);
@@ -357,5 +349,3 @@ export const updateTypingStatus = async (chatRoomId: string, userId: string, dis
         // Don't throw, as this is not a critical operation
     }
 };
-
-    
