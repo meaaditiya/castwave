@@ -73,11 +73,11 @@ export default function Home() {
   }, [searchQuery, allChatRooms]);
 
   const handleDelete = async () => {
-    if (!chatRoomToDelete) return;
+    if (!chatRoomToDelete || !currentUser) return;
 
     setIsDeleting(true);
     try {
-        await deleteChatRoom({ chatRoomId: chatRoomToDelete });
+        await deleteChatRoom({ chatRoomId: chatRoomToDelete, hostId: currentUser.uid });
         toast({
             title: 'Chat Room Deleted',
             description: 'The chat room has been successfully deleted.',

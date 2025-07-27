@@ -7,10 +7,11 @@
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
 import { db } from '@/lib/firebase';
-import { collection, doc, getDocs, writeBatch } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, writeBatch } from 'firebase/firestore';
 
 const DeleteChatRoomInputSchema = z.object({
   chatRoomId: z.string().describe('The ID of the chat room to delete.'),
+  hostId: z.string().describe('The UID of the user attempting to delete the room, for verification.'),
 });
 export type DeleteChatRoomInput = z.infer<typeof DeleteChatRoomInputSchema>;
 
@@ -24,8 +25,19 @@ const deleteChatRoomFlow = ai.defineFlow(
     inputSchema: DeleteChatRoomInputSchema,
     outputSchema: z.object({ success: z.boolean() }),
   },
-  async ({ chatRoomId }) => {
+  async ({ chatRoomId, hostId }) => {
     try {
+        const chatRoomRef = doc(db, 'chatRooms', chatRoomId);
+        const chatRoomSnap = await getDoc(chatRoomRef);
+
+        if (!chatRoomSnap.exists()) {
+            throw new Error('Chat room not found.');
+        }
+
+        if (chatRoomSnap.data().hostId !== hostId) {
+            throw new Error('User is not authorized to delete this chat room.');
+        }
+        
         const batch = writeBatch(db);
 
         // Delete polls
@@ -44,7 +56,6 @@ const deleteChatRoomFlow = ai.defineFlow(
         participantsSnap.forEach(doc => batch.delete(doc.ref));
 
         // Delete the main chat room document
-        const chatRoomRef = doc(db, 'chatRooms', chatRoomId);
         batch.delete(chatRoomRef);
 
         await batch.commit();
