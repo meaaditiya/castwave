@@ -100,10 +100,8 @@ export const getChatRooms = (
     let q;
 
     if (options.hostId) {
-        // 'My Sessions' tab - get all rooms hosted by the user
         q = query(chatRoomsRef, where('hostId', '==', options.hostId));
     } else {
-        // Public tab - get all public rooms
         q = query(chatRoomsRef, where('isPrivate', '==', false));
     }
     
@@ -112,8 +110,11 @@ export const getChatRooms = (
         querySnapshot.forEach((doc) => {
             chatRooms.push({ id: doc.id, ...doc.data() } as ChatRoom);
         });
-        // Sort client-side to avoid complex queries requiring indexes
-        chatRooms.sort((a, b) => b.createdAt?.toMillis() - a.createdAt?.toMillis());
+        chatRooms.sort((a, b) => {
+          const aTime = a.createdAt?.toMillis() || 0;
+          const bTime = b.createdAt?.toMillis() || 0;
+          return bTime - aTime;
+        });
         callback(chatRooms);
     }, (err) => {
         console.error("Error in getChatRooms snapshot listener:", err);
