@@ -1,6 +1,6 @@
 
 import { db } from '@/lib/firebase';
-import { collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, doc, getDoc, updateDoc, setDoc, getDocs, writeBatch, runTransaction, increment, where } from 'firebase/firestore';
+import { collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, doc, getDoc, updateDoc, setDoc, getDocs, writeBatch, runTransaction, increment, where, deleteDoc } from 'firebase/firestore';
 
 export interface Message {
   id?: string;
@@ -359,4 +359,47 @@ export const updateTypingStatus = async (chatRoomId: string, userId: string, dis
     }
 };
 
-    
+
+// Helper to delete a subcollection
+const deleteSubcollection = async (chatRoomId: string, subcollectionName: string) => {
+    const subcollectionRef = collection(db, 'chatRooms', chatRoomId, subcollectionName);
+    const snapshot = await getDocs(subcollectionRef);
+    const batch = writeBatch(db);
+    snapshot.forEach(doc => {
+        batch.delete(doc.ref);
+    });
+    await batch.commit();
+};
+
+
+export const deleteChatRoomForHost = async (chatRoomId: string, hostId: string) => {
+    const chatRoomRef = doc(db, 'chatRooms', chatRoomId);
+    try {
+        // Use a transaction to verify the host and delete the main document atomically
+        await runTransaction(db, async (transaction) => {
+            const chatRoomSnap = await transaction.get(chatRoomRef);
+            if (!chatRoomSnap.exists()) {
+                throw new Error("Chat room not found.");
+            }
+            const chatRoomData = chatRoomSnap.data();
+            if (chatRoomData.hostId !== hostId) {
+                throw new Error("Only the host can delete this chat room.");
+            }
+            // All checks passed, delete the main document within the transaction
+            transaction.delete(chatRoomRef);
+        });
+
+        // After the main document is successfully deleted, clean up sub-collections.
+        // This is done outside the transaction for performance reasons.
+        await Promise.all([
+            deleteSubcollection(chatRoomId, 'participants'),
+            deleteSubcollection(chatRoomId, 'messages'),
+            deleteSubcollection(chatRoomId, 'polls')
+        ]);
+
+    } catch (error) {
+        console.error("Error deleting chat room:", error);
+        // Re-throw the error to be handled by the calling component
+        throw error;
+    }
+};

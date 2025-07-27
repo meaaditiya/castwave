@@ -4,8 +4,7 @@
 import { useState, useEffect } from 'react';
 import { Header } from '@/components/Header';
 import { ChatRoomCard } from '@/components/ChatRoomCard';
-import { getChatRooms, ChatRoom } from '@/services/chatRoomService';
-import { deleteChatRoom } from '@/ai/flows/delete-chat-room';
+import { getChatRooms, ChatRoom, deleteChatRoomForHost } from '@/services/chatRoomService';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -57,7 +56,7 @@ export default function Home() {
       { isPublic, hostId },
       (error) => {
         console.error("Failed to get chat rooms:", error);
-        toast({ variant: 'destructive', title: 'Error', description: 'Could not load sessions. You may not have permission.' });
+        toast({ variant: 'destructive', title: 'Error', description: 'Could not load sessions. Check permissions or network.' });
         setAllChatRooms([]);
         setLoading(false);
       }
@@ -77,7 +76,7 @@ export default function Home() {
 
     setIsDeleting(true);
     try {
-        await deleteChatRoom({ chatRoomId: chatRoomToDelete, hostId: currentUser.uid });
+        await deleteChatRoomForHost(chatRoomToDelete, currentUser.uid);
         toast({
             title: 'Chat Room Deleted',
             description: 'The chat room has been successfully deleted.',
@@ -87,7 +86,7 @@ export default function Home() {
         toast({
             variant: 'destructive',
             title: 'Error',
-            description: 'Failed to delete the chat room.',
+            description: 'Failed to delete the chat room. You must be the host.',
         });
     } finally {
         setIsDeleting(false);
