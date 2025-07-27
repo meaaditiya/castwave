@@ -124,22 +124,13 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
                 setPermissionsReady(false);
             }
         } else {
-            if (chatRoom.isPrivate) {
-                await addParticipant(chatRoomId, {
-                    userId: currentUser.uid,
-                    displayName: currentUser.email || 'Anonymous',
-                    status: 'approved',
-                });
-                // After adding, the listener will re-fire and set permissionsReady
-            } else {
-                await addParticipant(chatRoomId, {
-                    userId: currentUser.uid,
-                    displayName: currentUser.email || 'Anonymous',
-                    status: 'pending',
-                    requestCount: 1,
-                });
-                setPermissionsReady(false);
-            }
+             await addParticipant(chatRoomId, {
+                userId: currentUser.uid,
+                displayName: currentUser.email || 'Anonymous',
+                status: chatRoom.isPrivate ? 'pending' : 'approved',
+                requestCount: 1,
+            });
+            // After adding, the listener will re-fire and set permissionsReady if needed
         }
     }, (error) => {
         console.error("Error fetching participants:", error);
