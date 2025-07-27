@@ -102,15 +102,20 @@ export const getChatRooms = (
         // 'My Sessions' tab - get all rooms hosted by the user
         q = query(chatRoomsRef, where('hostId', '==', options.hostId), orderBy('createdAt', 'desc'));
     } else {
-        // Public tab - get only public rooms
-        q = query(chatRoomsRef, where('isPrivate', '==', false), orderBy('createdAt', 'desc'));
+        // Public tab - get all rooms, will filter for public on the client
+        q = query(chatRoomsRef, orderBy('createdAt', 'desc'));
     }
     
     const unsubscribe = onSnapshot(q, (querySnapshot) => {
-        const chatRooms: ChatRoom[] = [];
+        let chatRooms: ChatRoom[] = [];
         querySnapshot.forEach((doc) => {
             chatRooms.push({ id: doc.id, ...doc.data() } as ChatRoom);
         });
+
+        if(options.isPublic) {
+            chatRooms = chatRooms.filter(room => !room.isPrivate);
+        }
+
         callback(chatRooms);
     }, onError);
 
