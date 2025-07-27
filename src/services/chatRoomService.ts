@@ -103,8 +103,8 @@ export const getChatRooms = (
         // 'My Sessions' tab - get all rooms hosted by the user
         q = query(chatRoomsRef, where('hostId', '==', options.hostId));
     } else {
-        // Public tab - get all public rooms, ordered by creation date
-        q = query(chatRoomsRef, where('isPrivate', '==', false), orderBy('createdAt', 'desc'));
+        // Public tab - get all rooms, ordered by creation date. We will filter for public rooms on the client.
+        q = query(chatRoomsRef, orderBy('createdAt', 'desc'));
     }
     
     const unsubscribe = onSnapshot(q, (querySnapshot) => {
@@ -112,6 +112,10 @@ export const getChatRooms = (
         querySnapshot.forEach((doc) => {
             chatRooms.push({ id: doc.id, ...doc.data() } as ChatRoom);
         });
+        
+        if (options.isPublic) {
+            chatRooms = chatRooms.filter(room => !room.isPrivate);
+        }
         
         // For 'My Sessions', we also need to sort them as the query doesn't do it.
         if (options.hostId) {
