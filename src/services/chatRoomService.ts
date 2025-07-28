@@ -44,9 +44,8 @@ export interface Participant {
     id?: string;
     userId: string;
     displayName: string;
-    status: 'pending' | 'approved' | 'removed' | 'denied' | 'speaker';
+    status: 'pending' | 'approved' | 'removed' | 'denied';
     requestCount?: number;
-    isBroadcasting?: boolean;
 }
 
 export const createChatRoom = async (input: ChatRoomInput): Promise<{ chatRoomId: string }> => {
@@ -70,11 +69,11 @@ export const createChatRoom = async (input: ChatRoomInput): Promise<{ chatRoomId
             });
 
             const participantRef = doc(db, 'chatRooms', newChatRoomRef.id, 'participants', input.hostId);
-            // The host is always a speaker by default.
+            // The host is always approved by default.
             transaction.set(participantRef, {
                 userId: input.hostId,
                 displayName: input.host,
-                status: 'speaker',
+                status: 'approved',
                 requestCount: 0
             });
         });
@@ -110,7 +109,6 @@ export const getChatRooms = (
         (querySnapshot) => {
             const chatRooms = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ChatRoom));
             
-            // Sort on the client side to avoid needing a composite index
             chatRooms.sort((a, b) => {
                 const dateA = a.createdAt?.toDate() || 0;
                 const dateB = b.createdAt?.toDate() || 0;
@@ -285,11 +283,7 @@ export const requestToJoinChat = async (chatRoomId: string, userId: string, disp
 export const updateParticipantStatus = async (chatRoomId: string, userId: string, status: Participant['status']) => {
     try {
         const participantRef = doc(db, `chatRooms/${chatRoomId}/participants`, userId);
-        if (status === 'denied') {
-             await updateDoc(participantRef, { status, isBroadcasting: false });
-        } else {
-             await updateDoc(participantRef, { status });
-        }
+        await updateDoc(participantRef, { status });
     } catch(e) {
         console.error("Error updating participant status: ", e);
         throw new Error("Could not update participant status.");
@@ -396,7 +390,6 @@ export const deleteChatRoomForHost = async (chatRoomId: string, hostId: string) 
             deleteSubcollection(chatRoomId, 'participants'),
             deleteSubcollection(chatRoomId, 'messages'),
             deleteSubcollection(chatRoomId, 'polls'),
-            deleteSubcollection(chatRoomId, 'webrtc_signals')
         ]);
 
     } catch (error) {
