@@ -5,8 +5,8 @@ import Image from 'next/image';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Share2, MicOff, Loader2, Star, MessageSquare, Mic } from 'lucide-react';
-import { useState } from 'react';
+import { Share2, MicOff, Loader2, Star, MessageSquare, Mic, Volume2 } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { endChatRoom, Participant } from '@/services/chatRoomService';
 import { useRouter } from 'next/navigation';
@@ -14,6 +14,8 @@ import type { Message } from '@/services/chatRoomService';
 import { LivePoll } from './LivePoll';
 import { useAuth } from '@/context/AuthContext';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
+import { useWebRTC } from '@/hooks/useWebRTC';
+import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 
 interface LiveScreenProps {
   id: string;
@@ -28,13 +30,25 @@ interface LiveScreenProps {
   participants: Participant[];
 }
 
-export function LiveScreen({ id, title, host, hostAvatar, isLive, imageHint, isHost = false, featuredMessage, hostReply, participants }: LiveScreenProps) {
+export function LiveScreen({ id: chatRoomId, title, host, hostAvatar, isLive, imageHint, isHost = false, featuredMessage, hostReply, participants }: LiveScreenProps) {
   const [isEnding, setIsEnding] = useState(false);
   const { toast } = useToast();
   const router = useRouter();
   const { currentUser } = useAuth();
+  const audioRef = useRef<HTMLAudioElement>(null);
 
   const speakers = participants.filter(p => p.status === 'speaker');
+  const otherSpeakers = speakers.filter(s => s.userId !== currentUser?.uid);
+  const isCurrentUserSpeaker = speakers.some(s => s.userId === currentUser?.uid);
+  
+  const { remoteStream } = useWebRTC(chatRoomId, currentUser?.uid ?? null, isCurrentUserSpeaker);
+
+  useEffect(() => {
+    if (remoteStream && audioRef.current) {
+        audioRef.current.srcObject = remoteStream;
+    }
+  }, [remoteStream]);
+
 
   const handleShare = () => {
     const url = window.location.href;
@@ -56,7 +70,7 @@ export function LiveScreen({ id, title, host, hostAvatar, isLive, imageHint, isH
   const handleEndChatRoom = async () => {
     setIsEnding(true);
     try {
-        await endChatRoom(id);
+        await endChatRoom(chatRoomId);
         toast({ title: "Chat Room Ended", description: "This chat room session has been successfully ended."});
         router.push('/');
     } catch(e) {
@@ -75,7 +89,7 @@ export function LiveScreen({ id, title, host, hostAvatar, isLive, imageHint, isH
                         <Tooltip key={speaker.userId}>
                             <TooltipTrigger asChild>
                                 <div className="flex flex-col items-center gap-2 animate-in fade-in-50">
-                                    <Avatar className={`h-20 w-20 md:h-24 md:w-24 border-4 ${speaker.userId === currentUser?.uid ? 'border-green-500' : 'border-primary/50'}`}>
+                                    <Avatar className={`h-20 w-20 md:h-24 md:w-24 border-4 ${speaker.isBroadcasting ? 'border-green-500' : 'border-primary/50'}`}>
                                         <AvatarFallback className="text-3xl">{speaker.displayName.substring(0, 1)}</AvatarFallback>
                                     </Avatar>
                                     <div className="flex items-center gap-1.5 bg-muted text-muted-foreground px-2 py-1 rounded-full text-xs font-semibold">
@@ -101,6 +115,8 @@ export function LiveScreen({ id, title, host, hostAvatar, isLive, imageHint, isH
 
   return (
     <Card className="overflow-hidden shadow-lg h-full flex flex-col">
+       {/* Audio element for remote streams */}
+      <audio ref={audioRef} autoPlay playsInline />
       <CardHeader className="flex flex-row items-center gap-4 p-4 md:p-6">
         <Avatar className="h-16 w-16 border-2 border-primary">
           <AvatarImage src={hostAvatar} alt={host} data-ai-hint={imageHint} />
@@ -123,11 +139,35 @@ export function LiveScreen({ id, title, host, hostAvatar, isLive, imageHint, isH
       <CardContent className="bg-card/50 p-4 md:p-6 flex flex-col justify-center space-y-4 border-t flex-1">
        {isLive ? (
         <>
-           {speakers.length > 0 ? renderSpeakers() : <div className='flex-1' />}
+           {speakers.length > 0 ? renderSpeakers() : (
+              <div className="flex-1 flex flex-col items-center justify-center text-center text-muted-foreground space-y-2">
+                 <Mic className="h-12 w-12 text-primary/20" />
+                 <p className="font-bold">Stage is Open</p>
+                 {isHost ? <p>Promote an approved participant to a speaker to get the conversation started.</p> : <p>The host can invite participants to the stage to speak.</p>}
+              </div>
+           )}
            
            <div className="flex-1 flex flex-col justify-center">
+             {remoteStream && (
+                <Alert className="max-w-md mx-auto">
+                    <Volume2 className="h-4 w-4" />
+                    <AlertTitle>Receiving Live Audio</AlertTitle>
+                    <AlertDescription>
+                        You are connected to a speaker's audio stream. Ensure your volume is on.
+                    </AlertDescription>
+                </Alert>
+             )}
+             {!remoteStream && speakers.length > 0 && (
+                <Alert variant="destructive" className="max-w-md mx-auto">
+                    <Loader2 className="h-4 w-4 animate-spin"/>
+                    <AlertTitle>Connecting to Audio...</AlertTitle>
+                    <AlertDescription>
+                        Attempting to connect to the live audio stream.
+                    </AlertDescription>
+                </Alert>
+             )}
             <LivePoll 
-              chatRoomId={id}
+              chatRoomId={chatRoomId}
               isHost={isHost}
               currentUserId={currentUser!.uid}
               renderNoPollContent={() => (
@@ -156,15 +196,19 @@ export function LiveScreen({ id, title, host, hostAvatar, isLive, imageHint, isH
                           )}
                       </div>
                   ) : (
-                      <div className="text-center text-muted-foreground space-y-2">
-                          <MessageSquare className="mx-auto h-12 w-12 text-primary/20" />
-                          <p className="font-bold">The Screen is Live!</p>
-                          {isHost ? (
-                              <p className="text-sm">Click the <Star className="inline h-4 w-4 text-amber-500" /> icon next to a message in the chat to feature it here.</p>
-                          ) : (
-                              <p className="text-sm">The host can feature important messages here.</p>
-                          )}
-                      </div>
+                      <>
+                        {speakers.length === 0 && (
+                           <div className="text-center text-muted-foreground space-y-2">
+                                <MessageSquare className="mx-auto h-12 w-12 text-primary/20" />
+                                <p className="font-bold">The Screen is Live!</p>
+                                {isHost ? (
+                                    <p className="text-sm">Click the <Star className="inline h-4 w-4 text-amber-500" /> icon next to a message in the chat to feature it here.</p>
+                                ) : (
+                                    <p className="text-sm">The host can feature important messages here.</p>
+                                )}
+                            </div>
+                        )}
+                      </>
                   )}
                 </>
               )}
@@ -194,5 +238,3 @@ export function LiveScreen({ id, title, host, hostAvatar, isLive, imageHint, isH
     </Card>
   );
 }
-
-    

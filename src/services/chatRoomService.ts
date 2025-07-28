@@ -46,6 +46,7 @@ export interface Participant {
     displayName: string;
     status: 'pending' | 'approved' | 'removed' | 'denied' | 'speaker';
     requestCount?: number;
+    isBroadcasting?: boolean;
 }
 
 export const createChatRoom = async (input: ChatRoomInput): Promise<{ chatRoomId: string }> => {
@@ -285,7 +286,7 @@ export const updateParticipantStatus = async (chatRoomId: string, userId: string
     try {
         const participantRef = doc(db, `chatRooms/${chatRoomId}/participants`, userId);
         if (status === 'denied') {
-             await updateDoc(participantRef, { status });
+             await updateDoc(participantRef, { status, isBroadcasting: false });
         } else {
              await updateDoc(participantRef, { status });
         }
@@ -394,12 +395,11 @@ export const deleteChatRoomForHost = async (chatRoomId: string, hostId: string) 
         await Promise.all([
             deleteSubcollection(chatRoomId, 'participants'),
             deleteSubcollection(chatRoomId, 'messages'),
-            deleteSubcollection(chatRoomId, 'polls')
+            deleteSubcollection(chatRoomId, 'polls'),
+            deleteSubcollection(chatRoomId, 'webrtc_signals')
         ]);
 
     } catch (error) {
         console.error("Error deleting chat room:", error);
     }
 };
-
-    
