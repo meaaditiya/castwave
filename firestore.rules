@@ -2,66 +2,78 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
+  
+    // Helper function to check if a user is an approved participant
+    function isApprovedParticipant(chatRoomId, userId) {
+      return exists(/databases/$(database)/documents/chatRooms/$(chatRoomId)/participants/$(userId)) &&
+             get(/databases/$(database)/documents/chatRooms/$(chatRoomId)/participants/$(userId)).data.status == 'approved';
+    }
 
     match /chatRooms/{chatRoomId} {
-      // READ:
-      // - Allow reading any public room.
-      // - Allow reading a private room if the user is the host.
-      allow get: if resource.data.isPrivate == false || resource.data.hostId == request.auth.uid;
+      // READ: Anyone can read a public room. 
+      // Private rooms can be read by the host or an approved participant.
+      // Anyone can read to check its status before attempting to join.
+      allow read: if request.auth != null;
 
-      // LIST (QUERY):
-      // - Allow querying for public rooms.
-      // - Allow querying for a user's own rooms.
-      allow list: if (request.query.where.isPrivate == false && request.query.where.hostId == null) ||
-                     (request.query.where.hostId == request.auth.uid);
+      // CREATE: Any authenticated user can create a chat room.
+      allow create: if request.auth != null;
 
-      // WRITE:
-      // - CREATE: Any authenticated user can create a chat room.
-      // - UPDATE: Only the host can update a chat room (e.g., end it, feature a message).
-      // - DELETE: Only the host can delete a chat room.
-      allow write: if request.auth != null;
-      allow update, delete: if request.auth.uid == resource.data.hostId;
+      // UPDATE: Only the host can update room details (e.g., end the session, feature a message).
+      allow update: if request.auth.uid == resource.data.hostId;
 
-      match /messages/{messageId} {
-        // READ: Anyone who is an approved participant can read messages.
-        // This is controlled by client-side logic which only fetches messages if the user is approved.
-        // We allow broad read access here, secured by the parent document logic.
-        allow read: if request.auth != null;
+      // DELETE: Only the host can delete their own chat room.
+      allow delete: if request.auth.uid == resource.data.hostId;
 
-        // WRITE:
-        // - CREATE: Only approved participants can send messages.
-        // - UPDATE: Only authenticated users can vote (update upvotes/downvotes).
-        // - DELETE: No one can delete messages directly.
-        allow create: if request.auth != null && exists(/databases/$(database)/documents/chatRooms/$(chatRoomId)/participants/$(request.auth.uid)) &&
-                         (get(/databases/$(database)/documents/chatRooms/$(chatRoomId)/participants/$(request.auth.uid)).data.status == 'approved' ||
-                          get(/databases/$(database)/documents/chatRooms/$(chatRoomId)/participants/$(request.auth.uid)).data.status == 'speaker');
+      // =================================================================
+      // SUBCOLLECTIONS
+      // =================================================================
 
-        allow update: if request.auth != null;
-        allow delete: if false;
-      }
-
-      match /participants/{participantId} {
-        // READ: Any authenticated user can read the participants list.
-        allow read: if request.auth != null;
+      // -- PARTICIPANTS --
+      match /participants/{userId} {
+        // LIST: Any authenticated user can list participants to check who is in the room.
+        allow list: if request.auth != null;
         
-        // WRITE:
-        // - CREATE: Any authenticated user can add themselves (request to join).
-        // - UPDATE: Only the host can change a participant's status. The user can update their own document to request joining again.
-        // - DELETE: Only the host can delete/remove a participant.
-        allow create: if request.auth.uid == participantId;
-        allow update: if get(/databases/$(database)/documents/chatRooms/$(chatRoomId)).data.hostId == request.auth.uid || request.auth.uid == participantId;
-        allow delete: if get(/databases/$(database)/documents/chatRooms/$(chatRoomId)).data.hostId == request.auth.uid;
+        // GET: The host can read any participant's status. A user can only read their own status.
+        allow get: if request.auth != null && (request.auth.uid == resource.data.hostId || request.auth.uid == userId);
+        
+        // CREATE: A user can add themselves to the participants list to request to join.
+        allow create: if request.auth != null && request.auth.uid == userId;
+
+        // UPDATE: The host can update any participant's status (approve/deny). A user can update their own to request again.
+        allow update: if request.auth != null && (request.auth.uid == get(/databases/$(database)/documents/chatRooms/$(chatRoomId)).data.hostId || request.auth.uid == userId);
+        
+        // DELETE: Only the host can remove a participant.
+        allow delete: if request.auth.uid == get(/databases/$(database)/documents/chatRooms/$(chatRoomId)).data.hostId;
       }
 
-      match /polls/{pollId} {
-         // READ: Any authenticated user can read polls.
-        allow read: if request.auth != null;
+      // -- MESSAGES --
+      match /messages/{messageId} {
+        // READ: Only the host or an approved participant can read messages.
+        allow read: if request.auth != null && (request.auth.uid == resource.data.hostId || isApprovedParticipant(chatRoomId, request.auth.uid));
 
-        // WRITE:
-        // - CREATE/DELETE: Only the host can create or delete polls.
-        // - UPDATE: Host can update (end poll), users can update (vote).
-        allow create, delete: if get(/databases/$(database)/documents/chatRooms/$(chatRoomId)).data.hostId == request.auth.uid;
-        allow update: if request.auth != null;
+        // CREATE: Only an approved participant can send a message.
+        allow create: if request.auth != null && isApprovedParticipant(chatRoomId, request.auth.uid) && request.resource.data.userId == request.auth.uid;
+        
+        // UPDATE: Only the host or an approved participant can vote (update vote counts).
+        allow update: if request.auth != null && (request.auth.uid == resource.data.hostId || isApprovedParticipant(chatRoomId, request.auth.uid));
+
+        // DELETE: Only the host can delete a message.
+        allow delete: if request.auth.uid == get(/databases/$(database)/documents/chatRooms/$(chatRoomId)).data.hostId;
+      }
+      
+      // -- POLLS --
+      match /polls/{pollId} {
+        // READ: Only the host or an approved participant can see polls.
+        allow read: if request.auth != null && (request.auth.uid == resource.data.hostId || isApprovedParticipant(chatRoomId, request.auth.uid));
+        
+        // CREATE: Only the host can create a poll.
+        allow create: if request.auth.uid == get(/databases/$(database)/documents/chatRooms/$(chatRoomId)).data.hostId;
+        
+        // UPDATE: The host can end a poll. An approved participant can vote (update options).
+        allow update: if request.auth != null && (request.auth.uid == get(/databases/$(database)/documents/chatRooms/$(chatRoomId)).data.hostId || isApprovedParticipant(chatRoomId, request.auth.uid));
+
+        // DELETE: Only the host can delete a poll.
+        allow delete: if request.auth.uid == get(/databases/$(database)/documents/chatRooms/$(chatRoomId)).data.hostId;
       }
     }
   }
