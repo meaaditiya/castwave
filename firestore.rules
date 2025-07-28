@@ -2,36 +2,24 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    // Helper function to check if a user is the host of a given chat room.
-    function isHost(chatRoomId) {
-      return request.auth.uid == get(/databases/$(database)/documents/chatRooms/$(chatRoomId)).data.hostId;
+  
+    // Helper function to check if a user is an approved participant
+    function isApprovedParticipant(chatRoomId, userId) {
+      let participant = get(/databases/$(database)/documents/chatRooms/$(chatRoomId)/participants/$(userId));
+      return exists(/databases/$(database)/documents/chatRooms/$(chatRoomId)/participants/$(userId)) &&
+             (participant.data.status == 'approved' || participant.data.status == 'speaker');
     }
-
-    // Helper function to check if a user is an approved participant (or speaker/host) in a chat room.
-    function isApprovedOrHost(chatRoomId, userId) {
-      let participantDoc = get(/databases/$(database)/documents/chatRooms/$(chatRoomId)/participants/$(userId));
-      return isHost(chatRoomId) || (exists(/databases/$(database)/documents/chatRooms/$(chatRoomId)/participants/$(userId)) &&
-             (participantDoc.data.status == 'approved' || participantDoc.data.status == 'speaker'));
+    
+    function isHost(chatRoomId) {
+        return request.auth.uid == get(/databases/$(database)/documents/chatRooms/$(chatRoomId)).data.hostId;
     }
 
     match /chatRooms/{chatRoomId} {
-      // LIST: Allow authenticated users to list public rooms OR list the rooms they host.
-      // This is crucial for the homepage tabs to work without permission errors.
-      allow list: if request.auth != null &&
-                   (request.query.get('isPrivate') == false || request.query.get('hostId') == request.auth.uid);
-
-      // READ: Any authenticated user can read any single chat room document.
+      allow list: if request.auth != null;
       allow read: if request.auth != null;
-
-      // CREATE: Any authenticated user can create a chat room.
-      allow create: if request.auth != null && request.resource.data.hostId == request.auth.uid;
-
-      // UPDATE: Only the host can update room details (e.g., end session, feature message, update typing status).
-      allow update: if request.auth != null && isHost(chatRoomId);
-
-      // DELETE: Only the host can delete their own chat room.
-      allow delete: if request.auth != null && isHost(chatRoomId);
+      allow create: if request.auth != null;
+      allow update: if request.auth.uid == resource.data.hostId;
+      allow delete: if request.auth.uid == resource.data.hostId;
 
       // =================================================================
       // SUBCOLLECTIONS
@@ -39,55 +27,34 @@ service cloud.firestore {
 
       // -- PARTICIPANTS --
       match /participants/{userId} {
-        // READ/LIST: Any authenticated user in the room can get or list participants to see who is present.
-        allow get, list: if request.auth != null;
-
-        // CREATE: A user can add themselves to the participants list to request to join.
+        allow list, get: if request.auth != null;
         allow create: if request.auth != null && request.auth.uid == userId;
-
-        // UPDATE: The host can update any participant's status. A user can update their own status to re-request.
         allow update: if request.auth != null && (isHost(chatRoomId) || request.auth.uid == userId);
-
-        // DELETE: Only the host can remove a participant.
         allow delete: if request.auth != null && isHost(chatRoomId);
       }
 
       // -- MESSAGES --
       match /messages/{messageId} {
-        // READ/LIST: Only approved participants (or the host) can read messages.
-        allow get, list: if request.auth != null && isApprovedOrHost(chatRoomId, request.auth.uid);
-
-        // CREATE: Only approved participants (or the host) can send messages.
-        allow create: if request.auth != null && isApprovedOrHost(chatRoomId, request.auth.uid) && request.resource.data.userId == request.auth.uid;
-
-        // UPDATE: Only approved participants (or the host) can vote on messages.
-        allow update: if request.auth != null && isApprovedOrHost(chatRoomId, request.auth.uid);
-
-        // DELETE: Only the host can delete a message.
+        allow get, list: if request.auth != null && (isHost(chatRoomId) || isApprovedParticipant(chatRoomId, request.auth.uid));
+        allow create: if request.auth != null && isApprovedParticipant(chatRoomId, request.auth.uid) && request.resource.data.userId == request.auth.uid;
+        allow update: if request.auth != null && (isHost(chatRoomId) || isApprovedParticipant(chatRoomId, request.auth.uid));
         allow delete: if request.auth != null && isHost(chatRoomId);
       }
-
+      
       // -- POLLS --
       match /polls/{pollId} {
-        // READ/LIST: Only approved participants (or the host) can see polls.
-        allow get, list: if request.auth != null && isApprovedOrHost(chatRoomId, request.auth.uid);
-
-        // CREATE/DELETE: Only the host can create or delete a poll.
-        allow create, delete: if request.auth != null && isHost(chatRoomId);
-
-        // UPDATE: The host can update the poll (end it, toggle visibility). Approved users can vote.
-        allow update: if request.auth != null && isApprovedOrHost(chatRoomId, request.auth.uid);
+        allow get, list: if request.auth != null && (isHost(chatRoomId) || isApprovedParticipant(chatRoomId, request.auth.uid));
+        allow create: if isHost(chatRoomId);
+        allow update: if request.auth != null && (isHost(chatRoomId) || isApprovedParticipant(chatRoomId, request.auth.uid));
+        allow delete: if isHost(chatRoomId);
       }
 
       // -- WEBRTC SIGNALS --
       // This collection is used for WebRTC signaling to set up audio calls.
       match /webrtc_signals/{signalId} {
-        // READ/LIST: Authenticated users can see signals to establish connections.
-        allow read, list: if request.auth != null;
-        // CREATE: Authenticated users can create signals (offers/answers).
-        allow create: if request.auth != null && request.resource.data.sender == request.auth.uid;
-        // DELETE: Users can delete signals they've sent or that are targeted at them.
-        allow delete: if request.auth != null && (request.auth.uid == resource.data.sender || request.auth.uid == resource.data.target);
+        // Any authenticated user can create, read, and delete signals.
+        // These are temporary and short-lived documents needed to establish a peer-to-peer connection.
+        allow read, write, delete: if request.auth != null;
       }
     }
   }
