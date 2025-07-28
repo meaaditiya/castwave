@@ -97,16 +97,17 @@ export const getChatRooms = (
     options: GetChatRoomsOptions,
     onError?: (error: Error) => void
 ) => {
-    // If we're not filtering by a specific host, we can't query due to security rules.
-    // Return an empty list to prevent a permission error for the "Public" tab.
+    // If we are on the "Public" tab, hostId will be undefined.
+    // The current security rules do not allow a collection-wide 'list' operation.
+    // To prevent a permission error, we must avoid making the query.
+    // Return an empty array and a no-op unsubscribe function.
     if (!options.hostId) {
         callback([]);
-        // Return a dummy unsubscribe function
-        return () => {};
+        return () => {}; // Return a dummy unsubscribe function
     }
 
     // This query is for the "My Sessions" tab and is allowed by the security rules
-    // because it's constrained by hostId.
+    // because it's constrained by the user's hostId.
     const chatRoomsRef = collection(db, 'chatRooms');
     const q = query(chatRoomsRef, where('hostId', '==', options.hostId), orderBy('createdAt', 'desc'));
 
