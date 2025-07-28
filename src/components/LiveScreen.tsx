@@ -35,20 +35,11 @@ export function LiveScreen({ id: chatRoomId, title, host, hostAvatar, isLive, im
   const { toast } = useToast();
   const router = useRouter();
   const { currentUser } = useAuth();
-  const audioRef = useRef<HTMLAudioElement>(null);
-
+  
   const speakers = participants.filter(p => p.status === 'speaker');
-  const otherSpeakers = speakers.filter(s => s.userId !== currentUser?.uid);
   const isCurrentUserSpeaker = speakers.some(s => s.userId === currentUser?.uid);
   
-  const { remoteStream } = useWebRTC(chatRoomId, currentUser?.uid ?? null, isCurrentUserSpeaker);
-
-  useEffect(() => {
-    if (remoteStream && audioRef.current) {
-        audioRef.current.srcObject = remoteStream;
-    }
-  }, [remoteStream]);
-
+  const { remoteStreams, connectionStatus } = useWebRTC(chatRoomId, currentUser?.uid ?? null, isCurrentUserSpeaker, speakers);
 
   const handleShare = () => {
     const url = window.location.href;
@@ -89,7 +80,7 @@ export function LiveScreen({ id: chatRoomId, title, host, hostAvatar, isLive, im
                         <Tooltip key={speaker.userId}>
                             <TooltipTrigger asChild>
                                 <div className="flex flex-col items-center gap-2 animate-in fade-in-50">
-                                    <Avatar className={`h-20 w-20 md:h-24 md:w-24 border-4 ${speaker.isBroadcasting ? 'border-green-500' : 'border-primary/50'}`}>
+                                    <Avatar className={`h-20 w-20 md:h-24 md:w-24 border-4 ${connectionStatus[speaker.userId] === 'connected' ? 'border-green-500' : 'border-primary/50'}`}>
                                         <AvatarFallback className="text-3xl">{speaker.displayName.substring(0, 1)}</AvatarFallback>
                                     </Avatar>
                                     <div className="flex items-center gap-1.5 bg-muted text-muted-foreground px-2 py-1 rounded-full text-xs font-semibold">
@@ -99,7 +90,7 @@ export function LiveScreen({ id: chatRoomId, title, host, hostAvatar, isLive, im
                                 </div>
                             </TooltipTrigger>
                             <TooltipContent>
-                                <p>{speaker.displayName}</p>
+                                <p>{speaker.displayName} - {connectionStatus[speaker.userId] || 'connecting...'}</p>
                             </TooltipContent>
                         </Tooltip>
                     ))}
@@ -115,8 +106,10 @@ export function LiveScreen({ id: chatRoomId, title, host, hostAvatar, isLive, im
 
   return (
     <Card className="overflow-hidden shadow-lg h-full flex flex-col">
-       {/* Audio element for remote streams */}
-      <audio ref={audioRef} autoPlay playsInline />
+       {/* Audio elements for remote streams */}
+      {Object.entries(remoteStreams).map(([peerId, stream]) => (
+        <AudioPlayer key={peerId} stream={stream} />
+      ))}
       <CardHeader className="flex flex-row items-center gap-4 p-4 md:p-6">
         <Avatar className="h-16 w-16 border-2 border-primary">
           <AvatarImage src={hostAvatar} alt={host} data-ai-hint={imageHint} />
@@ -148,21 +141,12 @@ export function LiveScreen({ id: chatRoomId, title, host, hostAvatar, isLive, im
            )}
            
            <div className="flex-1 flex flex-col justify-center">
-             {remoteStream && (
+             {Object.keys(remoteStreams).length > 0 && (
                 <Alert className="max-w-md mx-auto">
                     <Volume2 className="h-4 w-4" />
                     <AlertTitle>Receiving Live Audio</AlertTitle>
                     <AlertDescription>
-                        You are connected to a speaker's audio stream. Ensure your volume is on.
-                    </AlertDescription>
-                </Alert>
-             )}
-             {!remoteStream && speakers.length > 0 && (
-                <Alert variant="destructive" className="max-w-md mx-auto">
-                    <Loader2 className="h-4 w-4 animate-spin"/>
-                    <AlertTitle>Connecting to Audio...</AlertTitle>
-                    <AlertDescription>
-                        Attempting to connect to the live audio stream.
+                        You are connected to the speakers. Ensure your volume is on.
                     </AlertDescription>
                 </Alert>
              )}
@@ -238,3 +222,16 @@ export function LiveScreen({ id: chatRoomId, title, host, hostAvatar, isLive, im
     </Card>
   );
 }
+
+
+// Helper component to manage the audio element lifecycle
+const AudioPlayer = ({ stream }: { stream: MediaStream }) => {
+    const audioRef = useRef<HTMLAudioElement>(null);
+    useEffect(() => {
+        if (audioRef.current) {
+            audioRef.current.srcObject = stream;
+        }
+    }, [stream]);
+    return <audio ref={audioRef} autoPlay playsInline />;
+};
+
