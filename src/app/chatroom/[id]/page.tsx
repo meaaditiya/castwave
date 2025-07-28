@@ -70,7 +70,7 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
 
   const isHost = currentUser && chatRoom && currentUser.uid === chatRoom.hostId;
   const currentParticipant = participants.find(p => p.userId === currentUser?.uid);
-  const canChat = isHost || currentParticipant?.status === 'approved';
+  const canChat = isHost || currentParticipant?.status === 'approved' || currentParticipant?.status === 'speaker';
 
   useEffect(() => {
     if (!authLoading && !currentUser) {
@@ -117,7 +117,7 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
         }
 
         const current = newParticipants.find(p => p.userId === currentUser.uid);
-        if (current?.status === 'approved') {
+        if (current?.status === 'approved' || current?.status === 'speaker') {
             setPermissionsReady(true);
         } else if (current) {
             setPermissionsReady(false);
@@ -146,7 +146,7 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
   useEffect(() => {
     const chatRoomId = resolvedParams.id;
     const current = participants.find(p => p.userId === currentUser?.uid);
-    const isApproved = isHost || current?.status === 'approved';
+    const isApproved = isHost || current?.status === 'approved' || current?.status === 'speaker';
 
     if (!chatRoomId || !isApproved) {
         if(chatLog.length > 0) setChatLog([]);
@@ -193,6 +193,7 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
     isHost: isHost,
     featuredMessage: chatRoom.featuredMessage,
     hostReply: chatRoom.hostReply,
+    participants: participants,
   };
 
 

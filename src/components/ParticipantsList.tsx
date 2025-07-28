@@ -6,7 +6,7 @@ import { Avatar, AvatarFallback } from "./ui/avatar";
 import { Button } from "./ui/button";
 import { ScrollArea } from "./ui/scroll-area";
 import { Badge } from "./ui/badge";
-import { Check, Loader2, MinusCircle, User, X } from "lucide-react";
+import { Check, Loader2, Mic, MicOff, MinusCircle, User, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useState, useMemo } from "react";
 
@@ -19,8 +19,10 @@ const statusBadgeVariant = {
     pending: 'secondary',
     approved: 'default',
     denied: 'destructive',
-    removed: 'destructive'
+    removed: 'destructive',
+    speaker: 'default'
 } as const;
+
 
 export function ParticipantsList({ chatRoomId, participants }: ParticipantsListProps) {
     const { toast } = useToast();
@@ -28,10 +30,15 @@ export function ParticipantsList({ chatRoomId, participants }: ParticipantsListP
 
     const activeParticipants = useMemo(() => {
         return participants
-            .filter(p => p.status === 'approved' || p.status === 'pending')
+            .filter(p => p.status !== 'removed' && p.status !== 'denied')
             .sort((a, b) => {
+                // Speakers first
+                if (a.status === 'speaker' && b.status !== 'speaker') return -1;
+                if (b.status === 'speaker' && a.status !== 'speaker') return 1;
+                // Then pending
                 if (a.status === 'pending' && b.status !== 'pending') return -1;
                 if (b.status === 'pending' && a.status !== 'pending') return 1;
+                // Then alphabetical
                 if (a.displayName < b.displayName) return -1;
                 if (a.displayName > b.displayName) return 1;
                 return 0;
@@ -70,7 +77,10 @@ export function ParticipantsList({ chatRoomId, participants }: ParticipantsListP
                         </Avatar>
                         <div className="flex-1">
                             <p className="font-medium text-sm truncate">{participant.displayName}</p>
-                            <Badge variant={statusBadgeVariant[participant.status]} className="capitalize mt-1 text-xs px-1.5 py-0.5">{participant.status}</Badge>
+                            <Badge variant={participant.status === 'speaker' ? 'default' : statusBadgeVariant[participant.status]} className="capitalize mt-1 text-xs px-1.5 py-0.5">
+                               {participant.status === 'speaker' && <Mic className="h-3 w-3 mr-1"/>}
+                               {participant.status}
+                            </Badge>
                         </div>
                         {loadingStates[participant.userId] ? (
                             <Loader2 className="animate-spin h-5 w-5 text-muted-foreground" />
@@ -87,9 +97,24 @@ export function ParticipantsList({ chatRoomId, participants }: ParticipantsListP
                                     </>
                                 )}
                                 {participant.status === 'approved' && (
-                                     <Button size="icon" variant="ghost" className="h-8 w-8 text-red-500 hover:text-red-500 hover:bg-red-500/10" onClick={() => handleUpdateStatus(participant.userId, 'removed')}>
-                                        <MinusCircle className="h-4 w-4" />
-                                    </Button>
+                                    <>
+                                        <Button size="icon" variant="ghost" className="h-8 w-8 text-primary hover:text-primary hover:bg-primary/10" onClick={() => handleUpdateStatus(participant.userId, 'speaker')}>
+                                            <Mic className="h-4 w-4"/>
+                                        </Button>
+                                        <Button size="icon" variant="ghost" className="h-8 w-8 text-red-500 hover:text-red-500 hover:bg-red-500/10" onClick={() => handleUpdateStatus(participant.userId, 'removed')}>
+                                            <MinusCircle className="h-4 w-4" />
+                                        </Button>
+                                    </>
+                                )}
+                                 {participant.status === 'speaker' && (
+                                     <>
+                                        <Button size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground hover:text-primary hover:bg-primary/10" onClick={() => handleUpdateStatus(participant.userId, 'approved')}>
+                                            <MicOff className="h-4 w-4"/>
+                                        </Button>
+                                        <Button size="icon" variant="ghost" className="h-8 w-8 text-red-500 hover:text-red-500 hover:bg-red-500/10" onClick={() => handleUpdateStatus(participant.userId, 'removed')}>
+                                            <MinusCircle className="h-4 w-4" />
+                                        </Button>
+                                    </>
                                 )}
                             </div>
                         )}

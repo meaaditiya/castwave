@@ -44,7 +44,7 @@ export interface Participant {
     id?: string;
     userId: string;
     displayName: string;
-    status: 'pending' | 'approved' | 'removed' | 'denied';
+    status: 'pending' | 'approved' | 'removed' | 'denied' | 'speaker';
     requestCount?: number;
 }
 
@@ -69,11 +69,11 @@ export const createChatRoom = async (input: ChatRoomInput): Promise<{ chatRoomId
             });
 
             const participantRef = doc(db, 'chatRooms', newChatRoomRef.id, 'participants', input.hostId);
-            // The host is always approved by default.
+            // The host is always a speaker by default.
             transaction.set(participantRef, {
                 userId: input.hostId,
                 displayName: input.host,
-                status: 'approved',
+                status: 'speaker',
                 requestCount: 0
             });
         });

@@ -5,14 +5,15 @@ import Image from 'next/image';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Share2, MicOff, Loader2, Star, MessageSquare } from 'lucide-react';
+import { Share2, MicOff, Loader2, Star, MessageSquare, Mic } from 'lucide-react';
 import { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
-import { endChatRoom } from '@/services/chatRoomService';
+import { endChatRoom, Participant } from '@/services/chatRoomService';
 import { useRouter } from 'next/navigation';
 import type { Message } from '@/services/chatRoomService';
 import { LivePoll } from './LivePoll';
 import { useAuth } from '@/context/AuthContext';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
 
 interface LiveScreenProps {
   id: string;
@@ -24,14 +25,16 @@ interface LiveScreenProps {
   isHost?: boolean;
   featuredMessage?: Message;
   hostReply?: string;
+  participants: Participant[];
 }
 
-export function LiveScreen({ id, title, host, hostAvatar, isLive, imageHint, isHost = false, featuredMessage, hostReply }: LiveScreenProps) {
+export function LiveScreen({ id, title, host, hostAvatar, isLive, imageHint, isHost = false, featuredMessage, hostReply, participants }: LiveScreenProps) {
   const [isEnding, setIsEnding] = useState(false);
   const { toast } = useToast();
   const router = useRouter();
   const { currentUser } = useAuth();
 
+  const speakers = participants.filter(p => p.status === 'speaker');
 
   const handleShare = () => {
     const url = window.location.href;
@@ -63,6 +66,39 @@ export function LiveScreen({ id, title, host, hostAvatar, isLive, imageHint, isH
     }
   }
 
+  const renderSpeakers = () => {
+    return (
+        <div className='flex-1 flex flex-col justify-center items-center'>
+            <div className="flex flex-wrap justify-center items-center gap-4 md:gap-6 p-4">
+                <TooltipProvider>
+                    {speakers.map(speaker => (
+                        <Tooltip key={speaker.userId}>
+                            <TooltipTrigger asChild>
+                                <div className="flex flex-col items-center gap-2 animate-in fade-in-50">
+                                    <Avatar className={`h-20 w-20 md:h-24 md:w-24 border-4 ${speaker.userId === currentUser?.uid ? 'border-green-500' : 'border-primary/50'}`}>
+                                        <AvatarFallback className="text-3xl">{speaker.displayName.substring(0, 1)}</AvatarFallback>
+                                    </Avatar>
+                                    <div className="flex items-center gap-1.5 bg-muted text-muted-foreground px-2 py-1 rounded-full text-xs font-semibold">
+                                        <Mic className="h-3 w-3 text-primary" />
+                                        <span className="truncate max-w-[100px]">{speaker.displayName}</span>
+                                    </div>
+                                </div>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                <p>{speaker.displayName}</p>
+                            </TooltipContent>
+                        </Tooltip>
+                    ))}
+                </TooltipProvider>
+            </div>
+             <p className="text-muted-foreground text-sm mt-4">
+                {speakers.length} {speakers.length === 1 ? 'speaker' : 'speakers'} currently on stage
+            </p>
+        </div>
+    );
+  }
+
+
   return (
     <Card className="overflow-hidden shadow-lg h-full flex flex-col">
       <CardHeader className="flex flex-row items-center gap-4 p-4 md:p-6">
@@ -87,6 +123,8 @@ export function LiveScreen({ id, title, host, hostAvatar, isLive, imageHint, isH
       <CardContent className="bg-card/50 p-4 md:p-6 flex flex-col justify-center space-y-4 border-t flex-1">
        {isLive ? (
         <>
+           {speakers.length > 0 ? renderSpeakers() : <div className='flex-1' />}
+           
            <div className="flex-1 flex flex-col justify-center">
             <LivePoll 
               chatRoomId={id}
