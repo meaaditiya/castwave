@@ -97,49 +97,31 @@ export const getChatRooms = (
     options: GetChatRoomsOptions,
     onError?: (error: Error) => void
 ) => {
+    // If we're not filtering by a specific host, we can't query due to security rules.
+    // Return an empty list to prevent a permission error for the "Public" tab.
+    if (!options.hostId) {
+        callback([]);
+        // Return a dummy unsubscribe function
+        return () => {};
+    }
+
+    // This query is for the "My Sessions" tab and is allowed by the security rules
+    // because it's constrained by hostId.
     const chatRoomsRef = collection(db, 'chatRooms');
-    
-    // Because the rules don't allow a `list` operation, we must fetch documents
-    // one-by-one. This is less efficient but respects the rules.
-    const unsubscribe = onSnapshot(chatRoomsRef, async (querySnapshot) => {
-        try {
-            const chatRoomPromises = querySnapshot.docs.map(docRef => getDoc(doc(db, 'chatRooms', docRef.id)));
-            const chatRoomDocs = await Promise.all(chatRoomPromises);
+    const q = query(chatRoomsRef, where('hostId', '==', options.hostId), orderBy('createdAt', 'desc'));
 
-            let chatRooms: ChatRoom[] = [];
-            chatRoomDocs.forEach((doc) => {
-                if (doc.exists()) {
-                    chatRooms.push({ id: doc.id, ...doc.data() } as ChatRoom);
-                }
-            });
-
-            // Now, filter based on the options
-            if (options.hostId) {
-                chatRooms = chatRooms.filter(room => room.hostId === options.hostId);
-            } else if (options.isPublic) {
-                chatRooms = chatRooms.filter(room => !room.isPrivate);
-            }
-            
-            // Client-side sort
-            chatRooms.sort((a, b) => {
-                const aTime = a.createdAt?.toMillis() || 0;
-                const bTime = b.createdAt?.toMillis() || 0;
-                return bTime - aTime;
-            });
-
+    const unsubscribe = onSnapshot(q, 
+        (querySnapshot) => {
+            const chatRooms = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ChatRoom));
             callback(chatRooms);
-        } catch (err: any) {
-            console.error("Error fetching individual chat rooms:", err);
+        }, 
+        (err) => {
+            console.error("Error in getChatRooms snapshot listener:", err);
             if (onError) {
                 onError(new Error("Could not load sessions. Check permissions or network."));
             }
         }
-    }, (err) => {
-        console.error("Error in getChatRooms snapshot listener:", err);
-        if (onError) {
-            onError(new Error("Could not load sessions. Check permissions or network."));
-        }
-    });
+    );
 
     return unsubscribe;
 };
@@ -415,4 +397,3 @@ export const deleteChatRoomForHost = async (chatRoomId: string, hostId: string) 
         console.error("Error deleting chat room:", error);
     }
 };
-
