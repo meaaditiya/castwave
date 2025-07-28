@@ -61,13 +61,12 @@ export const useWebRTC = (
         if (chatRoomId && currentUserId) {
             try {
                 const signalsRef = collection(db, 'chatRooms', chatRoomId, 'webrtc_signals');
-                const q = query(signalsRef, where('target', '==', currentUserId));
+                const q = query(signalsRef, where('sender', '==', currentUserId));
                 const snapshot = await getDocs(q);
                 if (!snapshot.empty) {
                     const batch = writeBatch(db);
                     snapshot.docs.forEach(doc => batch.delete(doc.ref));
                     await batch.commit();
-                    console.log(`Cleaned up ${snapshot.size} signals for user ${currentUserId}`);
                 }
             } catch (error) {
                 console.error("Error during signal cleanup:", error);
@@ -76,30 +75,34 @@ export const useWebRTC = (
     }, [chatRoomId, currentUserId]);
 
 
-    // 2. Local Stream Initialization
-    const initializeLocalStream = useCallback(async () => {
-        if (localStreamRef.current) {
-            return localStreamRef.current;
-        }
-        try {
-            const stream = await navigator.mediaDevices.getUserMedia({ video: false, audio: true });
-            localStreamRef.current = stream;
-            return stream;
-        } catch (err) {
-            toast({ variant: 'destructive', title: 'Microphone Access Denied', description: 'Please allow microphone access to participate.' });
-            console.error('getUserMedia error:', err);
-            return null;
-        }
-    }, [toast]);
-
-    // 3. Peer Creation
-    const createPeer = useCallback((peerUserId: string, initiator: boolean) => {
-        if (!localStreamRef.current || !currentUserId || peersRef.current[peerUserId]) {
-            if(peersRef.current[peerUserId]) console.warn(`Peer already exists for ${peerUserId}`);
+    // 2. Local Stream Initialization and Management
+    const manageLocalStream = useCallback(async () => {
+        if (!isCurrentUserSpeaker) {
+            if (localStreamRef.current) {
+                console.log("Not a speaker, stopping local stream.");
+                localStreamRef.current.getTracks().forEach(track => track.stop());
+                localStreamRef.current = null;
+            }
             return;
         }
 
-        console.log(`Creating Peer. Initiator: ${initiator}. MyID: ${currentUserId} -> PeerID: ${peerUserId}`);
+        if (isCurrentUserSpeaker && !localStreamRef.current) {
+            console.log("Is a speaker, initializing local stream.");
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: false, audio: true });
+                localStreamRef.current = stream;
+            } catch (err) {
+                toast({ variant: 'destructive', title: 'Microphone Access Denied', description: 'Please allow microphone access to participate.' });
+                console.error('getUserMedia error:', err);
+            }
+        }
+    }, [isCurrentUserSpeaker, toast]);
+
+    // 3. Peer Creation Logic
+    const createPeer = useCallback((peerUserId: string, initiator: boolean) => {
+        if (!currentUserId || !localStreamRef.current) return;
+        
+        console.log(`Creating Peer. MyID: ${currentUserId} -> PeerID: ${peerUserId}. Initiator: ${initiator}`);
         setConnectionStatus(prev => ({ ...prev, [peerUserId]: 'connecting' }));
         
         const peer = new Peer({
@@ -111,8 +114,7 @@ export const useWebRTC = (
 
         peer.on('signal', async (data) => {
             try {
-                const signalsRef = collection(db, 'chatRooms', chatRoomId, 'webrtc_signals');
-                await addDoc(signalsRef, {
+                await addDoc(collection(db, 'chatRooms', chatRoomId, 'webrtc_signals'), {
                     signal: JSON.stringify(data),
                     sender: currentUserId,
                     target: peerUserId,
@@ -135,15 +137,15 @@ export const useWebRTC = (
         peer.on('error', (err) => {
             console.error(`Peer error with ${peerUserId}:`, err);
             setConnectionStatus(prev => ({ ...prev, [peerUserId]: 'failed' }));
-            if (peersRef.current[peerUserId] && !peersRef.current[peerUserId].destroyed) {
-                peersRef.current[peerUserId].destroy();
-                delete peersRef.current[peerUserId];
-            }
         });
         
         peer.on('close', () => {
             console.log(`Connection closed with ${peerUserId}`);
-            setConnectionStatus(prev => ({ ...prev, [peerUserId]: 'disconnected' }));
+            setConnectionStatus(prev => {
+                const newStatus = { ...prev };
+                delete newStatus[peerUserId];
+                return newStatus;
+            });
             setRemoteStreams(prev => {
                 const newStreams = { ...prev };
                 delete newStreams[peerUserId];
@@ -157,47 +159,38 @@ export const useWebRTC = (
         peersRef.current[peerUserId] = peer;
     }, [chatRoomId, currentUserId]);
 
-
     // 4. Main useEffect to manage connections
     useEffect(() => {
         if (!currentUserId) return;
 
-        const connectToPeers = async () => {
-            await initializeLocalStream();
-            if (!localStreamRef.current) return;
-            
-            // Mute/unmute local stream based on speaker status
-            localStreamRef.current.getAudioTracks().forEach(track => {
-                track.enabled = isCurrentUserSpeaker;
-            });
+        const handleConnections = async () => {
+            await manageLocalStream();
 
             const otherSpeakers = speakers.filter(s => s.userId !== currentUserId);
 
-            // Create connections to all other speakers
+            // Connect to all other speakers
             otherSpeakers.forEach(speaker => {
-                if (!peersRef.current[speaker.userId]) {
-                    // Speakers initiate connections to other speakers to ensure broadcast
-                    // Listeners will wait for offers from speakers
-                    if (isCurrentUserSpeaker) {
-                        createPeer(speaker.userId, true);
-                   }
+                if (!peersRef.current[speaker.userId] && localStreamRef.current) {
+                    // To avoid both peers initiating, the one with the smaller ID initiates
+                    const isInitiator = currentUserId < speaker.userId;
+                    createPeer(speaker.userId, isInitiator);
                 }
             });
 
             // Clean up connections to users who are no longer speakers
             Object.keys(peersRef.current).forEach(peerId => {
                 if (!speakers.some(s => s.userId === peerId)) {
-                    if (peersRef.current[peerId] && !peersRef.current[peerId].destroyed) {
+                    if (peersRef.current[peerId]) {
                          peersRef.current[peerId].destroy();
+                         delete peersRef.current[peerId];
                     }
-                    delete peersRef.current[peerId];
                 }
             });
         };
 
-        connectToPeers();
-        
-    }, [currentUserId, speakers, isCurrentUserSpeaker, initializeLocalStream, createPeer]);
+        handleConnections();
+
+    }, [currentUserId, speakers, manageLocalStream, createPeer]);
     
 
     // 5. Firestore signaling listener
@@ -208,14 +201,6 @@ export const useWebRTC = (
         const q = query(signalsRef, where('target', '==', currentUserId));
         
         const unsubscribe = onSnapshot(q, async (snapshot) => {
-            if (!localStreamRef.current) {
-                await initializeLocalStream();
-            }
-            if (!localStreamRef.current) {
-                 console.error("Cannot process signals without a local stream.");
-                return;
-            }
-
             const changes = snapshot.docChanges().filter(change => change.type === 'added');
             for (const change of changes) {
                 const signalData = change.doc.data();
@@ -224,33 +209,38 @@ export const useWebRTC = (
 
                 let peer = peersRef.current[senderId];
                 
-                // If we get an offer, it means a speaker wants to connect to us. We create a peer to answer.
-                if (signal.type === 'offer' && !peer) {
-                     console.log(`Received offer from ${senderId}, creating non-initiator peer.`);
-                     createPeer(senderId, false);
-                     peer = peersRef.current[senderId]; // Peer is now in the ref
+                // If we get an offer and we are a speaker, create a peer to answer.
+                if (signal.type === 'offer' && !peer && isCurrentUserSpeaker) {
+                    await manageLocalStream();
+                    if (localStreamRef.current) {
+                        const isInitiator = currentUserId < senderId;
+                        // We received an offer, so we are not the initiator
+                        createPeer(senderId, false);
+                        peer = peersRef.current[senderId];
+                    }
                 }
 
                 if (peer && !peer.destroyed) {
                     peer.signal(signal);
-                } else {
-                    console.warn(`Peer not found or destroyed for sender ${senderId}. Cannot process signal.`);
                 }
                 
+                // We must delete the signal after processing
                 await deleteDoc(change.doc.ref);
             }
-        }, (error) => {
-            console.error("Error in signal listener:", error);
         });
 
-        // Cleanup on unmount
         return () => {
             unsubscribe();
-            cleanup();
         };
 
-    }, [chatRoomId, currentUserId, initializeLocalStream, createPeer, cleanup]);
+    }, [chatRoomId, currentUserId, createPeer, isCurrentUserSpeaker, manageLocalStream]);
 
+    // Final cleanup on unmount
+    useEffect(() => {
+        return () => {
+            cleanup();
+        }
+    }, [cleanup]);
 
     return { remoteStreams, connectionStatus };
 };

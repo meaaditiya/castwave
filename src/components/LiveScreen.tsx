@@ -48,7 +48,7 @@ export function LiveScreen({ id: chatRoomId, title, host, hostAvatar, isLive, im
   const router = useRouter();
   const { currentUser } = useAuth();
   
-  const speakers = participants.filter(p => p.status === 'speaker' || (p.userId === host.toString() && isHost));
+  const speakers = participants.filter(p => p.status === 'speaker');
   const isCurrentUserSpeaker = !!currentUser && speakers.some(s => s.userId === currentUser.uid);
   
   const { remoteStreams, connectionStatus } = useWebRTC(chatRoomId, currentUser?.uid ?? null, isCurrentUserSpeaker, speakers);
@@ -84,12 +84,11 @@ export function LiveScreen({ id: chatRoomId, title, host, hostAvatar, isLive, im
   }
 
   const renderSpeakers = () => {
-    const displaySpeakers = participants.filter(p => p.status === 'speaker');
     return (
         <div className='flex-1 flex flex-col justify-center items-center'>
             <div className="flex flex-wrap justify-center items-center gap-4 md:gap-6 p-4">
                 <TooltipProvider>
-                    {displaySpeakers.map(speaker => (
+                    {speakers.map(speaker => (
                         <Tooltip key={speaker.userId}>
                             <TooltipTrigger asChild>
                                 <div className="flex flex-col items-center gap-2 animate-in fade-in-50">
@@ -110,7 +109,7 @@ export function LiveScreen({ id: chatRoomId, title, host, hostAvatar, isLive, im
                 </TooltipProvider>
             </div>
              <p className="text-muted-foreground text-sm mt-4">
-                {displaySpeakers.length} {displaySpeakers.length === 1 ? 'speaker' : 'speakers'} currently on stage
+                {speakers.length} {speakers.length === 1 ? 'speaker' : 'speakers'} currently on stage
             </p>
         </div>
     );
@@ -154,7 +153,7 @@ export function LiveScreen({ id: chatRoomId, title, host, hostAvatar, isLive, im
            )}
            
            <div className="flex-1 flex flex-col justify-center">
-             {Object.keys(remoteStreams).length > 0 && (
+             {Object.keys(remoteStreams).length > 0 && !isCurrentUserSpeaker && (
                 <Alert className="max-w-md mx-auto">
                     <Volume2 className="h-4 w-4" />
                     <AlertTitle>Receiving Live Audio</AlertTitle>
