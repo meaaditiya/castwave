@@ -1,6 +1,6 @@
 
 import { db } from '@/lib/firebase';
-import { collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, doc, getDoc, updateDoc, setDoc, getDocs, writeBatch, runTransaction, increment, where, deleteDoc } from 'firebase/firestore';
+import { collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, doc, getDoc, updateDoc, setDoc, getDocs, writeBatch, runTransaction, increment, where, deleteDoc, Query } from 'firebase/firestore';
 
 export interface Message {
   id?: string;
@@ -97,23 +97,28 @@ export const getChatRooms = (
     options: GetChatRoomsOptions,
     onError?: (error: Error) => void
 ) => {
-    // If we are on the "Public" tab, hostId will be undefined.
-    // The current security rules do not allow a collection-wide 'list' operation.
-    // To prevent a permission error, we must avoid making the query.
-    // Return an empty array and a no-op unsubscribe function.
-    if (!options.hostId) {
-        callback([]);
-        return () => {}; // Return a dummy unsubscribe function
-    }
-
-    // This query is for the "My Sessions" tab and is allowed by the security rules
-    // because it's constrained by the user's hostId.
     const chatRoomsRef = collection(db, 'chatRooms');
-    const q = query(chatRoomsRef, where('hostId', '==', options.hostId), orderBy('createdAt', 'desc'));
+    let q: Query; 
 
+    if (options.hostId) {
+         q = query(chatRoomsRef, where('hostId', '==', options.hostId));
+    } else {
+         q = query(chatRoomsRef, where('isPrivate', '==', false));
+    }
+   
     const unsubscribe = onSnapshot(q, 
         (querySnapshot) => {
             const chatRooms = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ChatRoom));
+            
+            // Sort on the client side to avoid needing a composite index
+            chatRooms.sort((a, b) => {
+                const dateA = a.createdAt?.toDate() || 0;
+                const dateB = b.createdAt?.toDate() || 0;
+                if (dateA > dateB) return -1;
+                if (dateA < dateB) return 1;
+                return 0;
+            });
+
             callback(chatRooms);
         }, 
         (err) => {
