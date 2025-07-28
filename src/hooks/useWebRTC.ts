@@ -41,15 +41,15 @@ export const useWebRTC = (
 
     // 1. Cleanup Function: Destroys all peers and stops media tracks.
     const cleanup = useCallback(async () => {
-        console.log(`Cleaning up WebRTC connections for user: ${currentUserId}`);
+        console.log(`[WebRTC] Cleaning up connections for user: ${currentUserId}`);
         
         if (localStreamRef.current) {
             localStreamRef.current.getTracks().forEach(track => track.stop());
             localStreamRef.current = null;
         }
 
-        Object.values(peersRef.current).forEach(peer => {
-            if (!peer.destroyed) {
+        Object.entries(peersRef.current).forEach(([peerId, peer]) => {
+            if (peer && !peer.destroyed) {
                 peer.destroy();
             }
         });
@@ -67,49 +67,57 @@ export const useWebRTC = (
                     const batch = writeBatch(db);
                     snapshot.docs.forEach(doc => batch.delete(doc.ref));
                     await batch.commit();
+                    console.log(`[WebRTC] Cleaned up signals for ${currentUserId}`);
                 }
             } catch (error) {
-                console.error("Error during signal cleanup:", error);
+                console.error("[WebRTC] Error during signal cleanup:", error);
             }
         }
     }, [chatRoomId, currentUserId]);
 
 
-    // 2. Local Stream Initialization and Management
-    const manageLocalStream = useCallback(async () => {
+    const getLocalStream = useCallback(async () => {
         if (!isCurrentUserSpeaker) {
             if (localStreamRef.current) {
-                console.log("Not a speaker, stopping local stream.");
+                console.log("[WebRTC] Not a speaker, stopping local stream.");
                 localStreamRef.current.getTracks().forEach(track => track.stop());
                 localStreamRef.current = null;
             }
-            return;
+            return null;
         }
 
-        if (isCurrentUserSpeaker && !localStreamRef.current) {
-            console.log("Is a speaker, initializing local stream.");
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({ video: false, audio: true });
-                localStreamRef.current = stream;
-            } catch (err) {
-                toast({ variant: 'destructive', title: 'Microphone Access Denied', description: 'Please allow microphone access to participate.' });
-                console.error('getUserMedia error:', err);
-            }
+        if (localStreamRef.current) {
+            return localStreamRef.current;
+        }
+        
+        console.log("[WebRTC] Is a speaker, initializing local stream.");
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ video: false, audio: true });
+            localStreamRef.current = stream;
+            return stream;
+        } catch (err) {
+            toast({ variant: 'destructive', title: 'Microphone Access Denied', description: 'Please allow microphone access to participate.' });
+            console.error('[WebRTC] getUserMedia error:', err);
+            return null;
         }
     }, [isCurrentUserSpeaker, toast]);
 
-    // 3. Peer Creation Logic
-    const createPeer = useCallback((peerUserId: string, initiator: boolean) => {
-        if (!currentUserId || !localStreamRef.current) return;
+    const createPeer = useCallback((peerUserId: string, initiator: boolean, stream: MediaStream) => {
+        if (!currentUserId) return;
+        // Prevent creating a peer if one already exists and is not destroyed
+        if (peersRef.current[peerUserId] && !peersRef.current[peerUserId].destroyed) {
+            console.log(`[WebRTC] Peer already exists for ${peerUserId}. Aborting creation.`);
+            return;
+        }
         
-        console.log(`Creating Peer. MyID: ${currentUserId} -> PeerID: ${peerUserId}. Initiator: ${initiator}`);
+        console.log(`[WebRTC] Creating Peer. MyID: ${currentUserId} -> PeerID: ${peerUserId}. Initiator: ${initiator}`);
         setConnectionStatus(prev => ({ ...prev, [peerUserId]: 'connecting' }));
         
         const peer = new Peer({
             initiator,
             trickle: true,
             config: servers,
-            stream: localStreamRef.current,
+            stream: stream,
         });
 
         peer.on('signal', async (data) => {
@@ -120,27 +128,32 @@ export const useWebRTC = (
                     target: peerUserId,
                 });
             } catch (error) {
-                console.error(`Failed to send signal to ${peerUserId}:`, error);
+                console.error(`[WebRTC] Failed to send signal to ${peerUserId}:`, error);
             }
         });
 
         peer.on('stream', (stream) => {
-            console.log('Received remote stream from:', peerUserId);
+            console.log('[WebRTC] Received remote stream from:', peerUserId);
             setRemoteStreams(prev => ({ ...prev, [peerUserId]: stream }));
         });
 
         peer.on('connect', () => {
-            console.log('CONNECTED to:', peerUserId);
+            console.log('[WebRTC] CONNECTED to:', peerUserId);
             setConnectionStatus(prev => ({ ...prev, [peerUserId]: 'connected' }));
         });
         
         peer.on('error', (err) => {
-            console.error(`Peer error with ${peerUserId}:`, err);
+            console.error(`[WebRTC] Peer error with ${peerUserId}:`, err);
             setConnectionStatus(prev => ({ ...prev, [peerUserId]: 'failed' }));
+            // Clean up on error
+             if (peersRef.current[peerUserId]) {
+                peersRef.current[peerUserId].destroy();
+                delete peersRef.current[peerUserId];
+            }
         });
         
         peer.on('close', () => {
-            console.log(`Connection closed with ${peerUserId}`);
+            console.log(`[WebRTC] Connection closed with ${peerUserId}`);
             setConnectionStatus(prev => {
                 const newStatus = { ...prev };
                 delete newStatus[peerUserId];
@@ -159,27 +172,27 @@ export const useWebRTC = (
         peersRef.current[peerUserId] = peer;
     }, [chatRoomId, currentUserId]);
 
-    // 4. Main useEffect to manage connections
+
+    // Manage connections based on speaker list changes
     useEffect(() => {
         if (!currentUserId) return;
 
         const handleConnections = async () => {
-            await manageLocalStream();
+            const stream = await getLocalStream();
 
-            const otherSpeakers = speakers.filter(s => s.userId !== currentUserId);
+            if (isCurrentUserSpeaker && stream) {
+                 const otherSpeakers = speakers.filter(s => s.userId !== currentUserId && s.status === 'speaker');
 
-            // Connect to all other speakers
-            otherSpeakers.forEach(speaker => {
-                if (!peersRef.current[speaker.userId] && localStreamRef.current) {
-                    // To avoid both peers initiating, the one with the smaller ID initiates
+                // Connect to all other speakers
+                otherSpeakers.forEach(speaker => {
                     const isInitiator = currentUserId < speaker.userId;
-                    createPeer(speaker.userId, isInitiator);
-                }
-            });
+                    createPeer(speaker.userId, isInitiator, stream);
+                });
+            }
 
             // Clean up connections to users who are no longer speakers
             Object.keys(peersRef.current).forEach(peerId => {
-                if (!speakers.some(s => s.userId === peerId)) {
+                if (!speakers.some(s => s.userId === peerId && s.status === 'speaker')) {
                     if (peersRef.current[peerId]) {
                          peersRef.current[peerId].destroy();
                          delete peersRef.current[peerId];
@@ -190,10 +203,10 @@ export const useWebRTC = (
 
         handleConnections();
 
-    }, [currentUserId, speakers, manageLocalStream, createPeer]);
+    }, [currentUserId, speakers, isCurrentUserSpeaker, getLocalStream, createPeer]);
     
 
-    // 5. Firestore signaling listener
+    // Firestore signaling listener
     useEffect(() => {
         if (!currentUserId || !chatRoomId) return () => {};
 
@@ -202,6 +215,7 @@ export const useWebRTC = (
         
         const unsubscribe = onSnapshot(q, async (snapshot) => {
             const changes = snapshot.docChanges().filter(change => change.type === 'added');
+
             for (const change of changes) {
                 const signalData = change.doc.data();
                 const senderId = signalData.sender;
@@ -209,19 +223,25 @@ export const useWebRTC = (
 
                 let peer = peersRef.current[senderId];
                 
-                // If we get an offer and we are a speaker, create a peer to answer.
-                if (signal.type === 'offer' && !peer && isCurrentUserSpeaker) {
-                    await manageLocalStream();
-                    if (localStreamRef.current) {
-                        const isInitiator = currentUserId < senderId;
-                        // We received an offer, so we are not the initiator
-                        createPeer(senderId, false);
-                        peer = peersRef.current[senderId];
+                if (signal.type === 'offer') {
+                    // If we get an offer, we must not be the initiator.
+                    // If a peer object already exists (e.g., from our own initiation attempt), destroy it to accept the incoming offer.
+                    if (peer) {
+                        console.warn(`[WebRTC] Received an offer from ${senderId}, but a peer already exists. Destroying old peer to accept offer.`);
+                        peer.destroy();
+                    }
+                    const stream = await getLocalStream();
+                    if (stream) {
+                         createPeer(senderId, false, stream);
+                         peer = peersRef.current[senderId];
                     }
                 }
-
+                
+                // Only signal if the peer exists and is not yet destroyed.
                 if (peer && !peer.destroyed) {
                     peer.signal(signal);
+                } else {
+                     console.log(`[WebRTC] Received signal from ${senderId}, but peer is not ready or has been destroyed.`);
                 }
                 
                 // We must delete the signal after processing
@@ -229,11 +249,8 @@ export const useWebRTC = (
             }
         });
 
-        return () => {
-            unsubscribe();
-        };
-
-    }, [chatRoomId, currentUserId, createPeer, isCurrentUserSpeaker, manageLocalStream]);
+        return () => unsubscribe();
+    }, [chatRoomId, currentUserId, createPeer, getLocalStream]);
 
     // Final cleanup on unmount
     useEffect(() => {
@@ -244,3 +261,5 @@ export const useWebRTC = (
 
     return { remoteStreams, connectionStatus };
 };
+
+    
