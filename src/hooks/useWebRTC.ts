@@ -8,10 +8,9 @@ import {
     doc,
     onSnapshot,
     addDoc,
-    deleteDoc,
+    writeBatch,
     query,
     where,
-    writeBatch,
     getDocs,
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
@@ -73,6 +72,7 @@ export const useWebRTC = (
         }
     }, [chatRoomId, currentUserId]);
 
+
     const getLocalStream = useCallback(async () => {
         if (!isCurrentUserSpeaker) {
             if (localStreamRef.current) {
@@ -93,19 +93,21 @@ export const useWebRTC = (
         }
     }, [isCurrentUserSpeaker, toast]);
 
-    const createPeer = useCallback((peerUserId: string, initiator: boolean, stream: MediaStream) => {
+    const createPeer = useCallback((peerUserId: string, initiator: boolean, stream: MediaStream | null) => {
         if (!currentUserId || peersRef.current[peerUserId]) return;
 
         console.log(`[WebRTC] Creating Peer for ${peerUserId}. Initiator: ${initiator}`);
         setConnectionStatus(prev => ({ ...prev, [peerUserId]: 'connecting' }));
 
-        const peer = new Peer({ initiator, trickle: true, config: servers, stream });
+        const peer = new Peer({ initiator, trickle: true, config: servers, stream: stream || undefined });
 
         peer.on('signal', async (data) => {
+             if (peer.destroyed) return;
             await addDoc(collection(db, 'chatRooms', chatRoomId, 'webrtc_signals'), {
                 signal: JSON.stringify(data),
                 sender: currentUserId,
                 target: peerUserId,
+                createdAt: new Date(),
             });
         });
 
@@ -149,18 +151,20 @@ export const useWebRTC = (
         if (!currentUserId) return;
 
         getLocalStream().then(stream => {
-            if (isCurrentUserSpeaker && stream) {
-                const otherSpeakers = speakers.filter(s => s.userId !== currentUserId && s.status === 'speaker');
-                otherSpeakers.forEach(speaker => {
-                    if (currentUserId < speaker.userId) { // Initiate connection
-                        createPeer(speaker.userId, true, stream);
-                    }
-                });
-            }
+            const currentSpeakers = speakers.filter(s => s.status === 'speaker');
+            const otherSpeakers = currentSpeakers.filter(s => s.userId !== currentUserId);
+
+            otherSpeakers.forEach(speaker => {
+                // The user with the smaller ID initiates the connection to avoid race conditions.
+                const shouldInitiate = currentUserId < speaker.userId;
+                if(shouldInitiate) {
+                    createPeer(speaker.userId, true, stream);
+                }
+            });
 
             // Cleanup connections for users who are no longer speakers
             Object.keys(peersRef.current).forEach(peerId => {
-                if (!speakers.some(s => s.userId === peerId)) {
+                if (!currentSpeakers.some(s => s.userId === peerId)) {
                     peersRef.current[peerId]?.destroy();
                     delete peersRef.current[peerId];
                 }
@@ -183,42 +187,36 @@ export const useWebRTC = (
             const batch = writeBatch(db);
 
             for (const change of changes) {
-                if (change.type === 'added') {
+                 if (change.type === 'added') {
                     const signalData = change.doc.data();
                     const senderId = signalData.sender;
-                    
-                    if (peersRef.current[senderId] && signalData.signal.type === 'offer') {
-                        // If we already have a peer, it means we initiated.
-                        // This can happen in a race condition. Let the other side's offer win.
-                        console.warn(`[WebRTC] Received an offer from ${senderId} but a peer already exists. Re-creating peer.`);
-                        peersRef.current[senderId].destroy();
-                        delete peersRef.current[senderId];
-                    }
                     
                     const signal = JSON.parse(signalData.signal);
 
                     if (signal.type === 'offer') {
-                        const stream = await getLocalStream();
-                        if (stream) {
-                            createPeer(senderId, false, stream);
-                        }
+                         const stream = await getLocalStream();
+                         createPeer(senderId, false, stream);
                     }
-
+                    
                     const peer = peersRef.current[senderId];
                     if (peer && !peer.destroyed) {
                         peer.signal(signal);
+                    } else {
+                        console.warn(`[WebRTC] Received signal for non-existent or destroyed peer: ${senderId}`);
                     }
                     
-                    // Defer deletion to avoid race conditions
+                    // IMPORTANT: Delete the signal document after processing it.
+                    // This prevents re-processing and potential loops.
                     batch.delete(change.doc.ref);
                 }
             }
-
+            // Commit all deletions in a single batch operation.
             await batch.commit();
         });
 
         return () => unsubscribe();
     }, [chatRoomId, currentUserId, getLocalStream, createPeer]);
+
 
     // Final cleanup on unmount
     useEffect(() => {
