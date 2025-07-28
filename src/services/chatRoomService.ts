@@ -104,7 +104,7 @@ export const getChatRooms = (
         q = query(chatRoomsRef, where('hostId', '==', options.hostId));
     } else {
         // Query for public sessions only using a simple equality check.
-        q = query(chatRoomsRef, where('isPrivate', '!=', true));
+        q = query(chatRoomsRef, where('isPrivate', '==', false));
     }
     
     const unsubscribe = onSnapshot(q, (querySnapshot) => {
