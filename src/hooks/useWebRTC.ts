@@ -57,13 +57,18 @@ export const useWebRTC = (
         setConnectionStatus({});
 
         if (chatRoomId && currentUserId) {
-            const signalsRef = collection(db, 'chatRooms', chatRoomId, 'webrtc_signals');
-            const q = query(signalsRef, where('sender', '==', currentUserId));
-            const snapshot = await getDocs(q);
-            if (!snapshot.empty) {
-                const batch = writeBatch(db);
-                snapshot.docs.forEach(doc => batch.delete(doc.ref));
-                await batch.commit();
+            try {
+                const signalsRef = collection(db, 'chatRooms', chatRoomId, 'webrtc_signals');
+                const q = query(signalsRef, where('sender', '==', currentUserId));
+                const snapshot = await getDocs(q);
+                if (!snapshot.empty) {
+                    const batch = writeBatch(db);
+                    snapshot.docs.forEach(doc => batch.delete(doc.ref));
+                    await batch.commit();
+                    console.log(`[WebRTC] Cleaned up ${snapshot.size} signals for user ${currentUserId}`);
+                }
+            } catch (error) {
+                console.error("[WebRTC] Error during signal cleanup:", error);
             }
         }
     }, [chatRoomId, currentUserId]);
@@ -172,10 +177,24 @@ export const useWebRTC = (
         const q = query(signalsRef, where('target', '==', currentUserId));
         
         const unsubscribe = onSnapshot(q, async (snapshot) => {
-            for (const change of snapshot.docChanges()) {
+            const changes = snapshot.docChanges();
+            if (changes.length === 0) return;
+
+            const batch = writeBatch(db);
+
+            for (const change of changes) {
                 if (change.type === 'added') {
                     const signalData = change.doc.data();
                     const senderId = signalData.sender;
+                    
+                    if (peersRef.current[senderId] && signalData.signal.type === 'offer') {
+                        // If we already have a peer, it means we initiated.
+                        // This can happen in a race condition. Let the other side's offer win.
+                        console.warn(`[WebRTC] Received an offer from ${senderId} but a peer already exists. Re-creating peer.`);
+                        peersRef.current[senderId].destroy();
+                        delete peersRef.current[senderId];
+                    }
+                    
                     const signal = JSON.parse(signalData.signal);
 
                     if (signal.type === 'offer') {
@@ -190,9 +209,12 @@ export const useWebRTC = (
                         peer.signal(signal);
                     }
                     
-                    await deleteDoc(change.doc.ref);
+                    // Defer deletion to avoid race conditions
+                    batch.delete(change.doc.ref);
                 }
             }
+
+            await batch.commit();
         });
 
         return () => unsubscribe();
