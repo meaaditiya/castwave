@@ -25,7 +25,7 @@ const servers = {
     ],
 };
 
-type ConnectionStatus = 'connecting' | 'connected' | 'failed' | 'disconnected';
+type ConnectionStatus = 'connecting' | 'connected' | 'failed' | 'disconnected' | 'new';
 
 export const useWebRTC = (
     chatRoomId: string,
@@ -45,27 +45,37 @@ export const useWebRTC = (
             localStreamRef.current.getTracks().forEach(track => track.stop());
             localStreamRef.current = null;
         }
-        Object.values(peersRef.current).forEach(peer => peer.destroy());
+        Object.values(peersRef.current).forEach(peer => {
+            if (!peer.destroyed) {
+                peer.destroy();
+            }
+        });
         peersRef.current = {};
         setRemoteStreams({});
         setConnectionStatus({});
 
         if (currentUserId) {
-            const signalsRef = collection(db, 'chatRooms', chatRoomId, 'webrtc_signals');
-            const q = query(signalsRef, where('target', '==', currentUserId));
-            const snapshot = await getDocs(q);
-            if (!snapshot.empty) {
-                const batch = writeBatch(db);
-                snapshot.docs.forEach(d => batch.delete(d.ref));
-                await batch.commit().catch(e => console.error("Error cleaning up signals:", e));
+            try {
+                const signalsRef = collection(db, 'chatRooms', chatRoomId, 'webrtc_signals');
+                const q = query(signalsRef, where('target', '==', currentUserId));
+                const snapshot = await getDocs(q);
+                if (!snapshot.empty) {
+                    const batch = writeBatch(db);
+                    snapshot.docs.forEach(d => batch.delete(d.ref));
+                    await batch.commit();
+                }
+            } catch (e) {
+                console.error("Error cleaning up signals:", e);
             }
         }
     }, [chatRoomId, currentUserId]);
 
+
     const createPeer = useCallback((peerUserId: string, initiator: boolean) => {
-        if (!localStreamRef.current || !currentUserId) return;
+        if (!localStreamRef.current || !currentUserId || peersRef.current[peerUserId]) return;
+
         console.log(`Creating peer connection to ${peerUserId}. Initiator: ${initiator}`);
-        setConnectionStatus(prev => ({...prev, [peerUserId]: 'connecting'}));
+        setConnectionStatus(prev => ({ ...prev, [peerUserId]: 'connecting' }));
 
         const peer = new Peer({
             initiator,
@@ -76,11 +86,15 @@ export const useWebRTC = (
 
         peer.on('signal', async (data) => {
             const signalsRef = collection(db, 'chatRooms', chatRoomId, 'webrtc_signals');
-            await addDoc(signalsRef, {
-                signal: JSON.stringify(data),
-                sender: currentUserId,
-                target: peerUserId,
-            });
+            try {
+                await addDoc(signalsRef, {
+                    signal: JSON.stringify(data),
+                    sender: currentUserId,
+                    target: peerUserId,
+                });
+            } catch (error) {
+                console.error("Failed to send signal:", error);
+            }
         });
 
         peer.on('stream', (stream) => {
@@ -89,125 +103,146 @@ export const useWebRTC = (
         });
 
         peer.on('connect', () => {
-             console.log('Connected to', peerUserId);
-             setConnectionStatus(prev => ({...prev, [peerUserId]: 'connected'}));
+            console.log('Connected to', peerUserId);
+            setConnectionStatus(prev => ({ ...prev, [peerUserId]: 'connected' }));
         });
 
         peer.on('close', () => {
             console.log('Connection closed with', peerUserId);
-            setConnectionStatus(prev => ({...prev, [peerUserId]: 'disconnected'}));
+            setConnectionStatus(prev => ({ ...prev, [peerUserId]: 'disconnected' }));
             setRemoteStreams(prev => {
                 const newStreams = { ...prev };
                 delete newStreams[peerUserId];
                 return newStreams;
             });
-            delete peersRef.current[peerUserId];
+            if (peersRef.current[peerUserId]) {
+                delete peersRef.current[peerUserId];
+            }
         });
 
         peer.on('error', (err) => {
             console.error(`Peer error with ${peerUserId}:`, err);
-            setConnectionStatus(prev => ({...prev, [peerUserId]: 'failed'}));
-            peer.destroy();
+            setConnectionStatus(prev => ({ ...prev, [peerUserId]: 'failed' }));
+            if (!peer.destroyed) {
+                peer.destroy();
+            }
         });
 
         peersRef.current[peerUserId] = peer;
     }, [chatRoomId, currentUserId]);
 
+    const initializeLocalStream = useCallback(async () => {
+        if (localStreamRef.current) return localStreamRef.current;
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ video: false, audio: true });
+            localStreamRef.current = stream;
+            if (!isCurrentUserSpeaker) {
+                stream.getTracks().forEach(track => track.enabled = false);
+            }
+            return stream;
+        } catch (err) {
+            console.error('Failed to get user media', err);
+            toast({ variant: 'destructive', title: 'Microphone Access Denied', description: 'Please allow microphone access to speak.' });
+            return null;
+        }
+    }, [isCurrentUserSpeaker, toast]);
 
     useEffect(() => {
         if (!currentUserId) return;
 
-        const initializeLocalStream = async () => {
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({ video: false, audio: true });
-                localStreamRef.current = stream;
-            } catch (err) {
-                console.error('Failed to get user media', err);
-                toast({ variant: 'destructive', title: 'Microphone Access Denied', description: 'Please allow microphone access to speak.' });
-                return false;
-            }
-            return true;
-        };
-        
         const initializeConnections = async () => {
-            if (isCurrentUserSpeaker) {
-                const streamReady = await initializeLocalStream();
-                if (!streamReady) return;
-                
-                // Speakers should connect to all OTHER speakers.
+            await initializeLocalStream();
+            if (!localStreamRef.current) return;
+
+            const speakerIds = speakers.map(s => s.userId);
+            
+            // Connect to all speakers if you are not one of them
+            if (!isCurrentUserSpeaker) {
                 speakers.forEach(speaker => {
-                    if (speaker.userId !== currentUserId && !peersRef.current[speaker.userId]) {
-                        createPeer(speaker.userId, true); // Speaker initiates connection to other speakers
+                    if (speaker.userId !== currentUserId) {
+                        // Listeners are not initiators, they wait for offers.
                     }
                 });
-            } else {
-                 // Listeners should connect to ALL speakers.
-                 // We only need a 'silent' local stream to create the peer connection object.
-                 const streamReady = await initializeLocalStream();
-                 if(!streamReady) return;
-
-                 localStreamRef.current?.getTracks().forEach(track => track.enabled = false); // Mute stream for listeners
-
-                 speakers.forEach(speaker => {
-                    if (!peersRef.current[speaker.userId]) {
-                         // Listeners do not initiate. They wait for offers.
-                         console.log(`Ready to receive offer from speaker: ${speaker.userId}`);
+            } else { // If you are a speaker
+                speakers.forEach(speaker => {
+                    if (speaker.userId !== currentUserId && !peersRef.current[speaker.userId]) {
+                        createPeer(speaker.userId, true); // Speakers initiate connections to other speakers
                     }
-                 });
+                });
             }
+
+            // Cleanup old peer connections that are no longer for current speakers
+            Object.keys(peersRef.current).forEach(peerId => {
+                if (!speakerIds.includes(peerId)) {
+                    if (peersRef.current[peerId] && !peersRef.current[peerId].destroyed) {
+                        peersRef.current[peerId].destroy();
+                    }
+                    delete peersRef.current[peerId];
+                }
+            });
         };
 
         initializeConnections();
-        
-        // Cleanup old connections
-        const currentSpeakerIds = new Set(speakers.map(s => s.userId));
-        Object.keys(peersRef.current).forEach(peerId => {
-            if (!currentSpeakerIds.has(peerId)) {
-                peersRef.current[peerId].destroy();
-                delete peersRef.current[peerId];
-            }
-        });
 
-    }, [currentUserId, isCurrentUserSpeaker, speakers, createPeer, toast]);
-    
+    }, [currentUserId, isCurrentUserSpeaker, speakers, createPeer, initializeLocalStream]);
 
-     // Universal signaling listener
     useEffect(() => {
         if (!currentUserId) return;
 
         const signalsRef = collection(db, 'chatRooms', chatRoomId, 'webrtc_signals');
         const q = query(signalsRef, where('target', '==', currentUserId));
 
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-            snapshot.docChanges().forEach(async (change) => {
-                if (change.type === 'added') {
-                    const data = change.doc.data();
-                    const signal = JSON.parse(data.signal);
-                    const senderId = data.sender;
+        const unsubscribe = onSnapshot(q, async (snapshot) => {
+            if (!localStreamRef.current) {
+                await initializeLocalStream();
+            }
+            if (!localStreamRef.current) {
+                console.error("Cannot process signals without a local stream.");
+                return;
+            }
 
-                    // If we receive an offer and we are not the initiator (i.e., we are a listener or a non-initiating speaker)
-                    if (signal.type === 'offer' && !peersRef.current[senderId]) {
-                        console.log(`Received offer from ${senderId}, creating peer...`);
-                        createPeer(senderId, false);
-                    }
+            const changes = snapshot.docChanges().filter(change => change.type === 'added');
+            if (changes.length === 0) return;
 
-                    // For both offers and answers, signal the existing peer
-                    if (peersRef.current[senderId] && !peersRef.current[senderId].destroyed) {
-                         peersRef.current[senderId].signal(signal);
-                    }
-                    
-                    // Delete signal doc after processing
-                    await deleteDoc(change.doc.ref);
+            for (const change of changes) {
+                const data = change.doc.data();
+                const signal = JSON.parse(data.signal);
+                const senderId = data.sender;
+
+                let peer = peersRef.current[senderId];
+
+                // If a peer connection doesn't exist and we receive an offer, create a new peer.
+                // This is the case for listeners or speakers who didn't initiate.
+                if (signal.type === 'offer' && !peer) {
+                    console.log(`Received offer from ${senderId}, creating peer...`);
+                    createPeer(senderId, false);
+                    peer = peersRef.current[senderId]; // The peer is now created and in the ref
                 }
-            });
+                
+                // Signal the peer if it exists and is not destroyed
+                if (peer && !peer.destroyed) {
+                    peer.signal(signal);
+                } else {
+                     console.warn(`Could not signal peer ${senderId}. It might have been destroyed.`);
+                }
+                
+                // Delete the signal document after processing to prevent re-processing
+                try {
+                    await deleteDoc(change.doc.ref);
+                } catch (error) {
+                    console.error("Failed to delete signal doc:", error);
+                }
+            }
+        }, (error) => {
+            console.error("Firestore signal listener error:", error);
         });
 
+        // Main cleanup on component unmount
         return () => {
             unsubscribe();
             cleanup();
         };
-    }, [chatRoomId, currentUserId, cleanup, createPeer]);
-
+    }, [chatRoomId, currentUserId, cleanup, createPeer, initializeLocalStream]);
 
     return { remoteStreams, connectionStatus };
 };
