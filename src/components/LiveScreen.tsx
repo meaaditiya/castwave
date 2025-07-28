@@ -34,7 +34,7 @@ interface LiveScreenProps {
 const AudioPlayer = ({ stream }: { stream: MediaStream }) => {
     const audioRef = useRef<HTMLAudioElement>(null);
     useEffect(() => {
-        if (audioRef.current) {
+        if (audioRef.current && stream) {
             audioRef.current.srcObject = stream;
         }
     }, [stream]);
@@ -48,8 +48,8 @@ export function LiveScreen({ id: chatRoomId, title, host, hostAvatar, isLive, im
   const router = useRouter();
   const { currentUser } = useAuth();
   
-  const speakers = participants.filter(p => p.status === 'speaker');
-  const isCurrentUserSpeaker = speakers.some(s => s.userId === currentUser?.uid);
+  const speakers = participants.filter(p => p.status === 'speaker' || (p.userId === host.toString() && isHost));
+  const isCurrentUserSpeaker = !!currentUser && speakers.some(s => s.userId === currentUser.uid);
   
   const { remoteStreams, connectionStatus } = useWebRTC(chatRoomId, currentUser?.uid ?? null, isCurrentUserSpeaker, speakers);
 
@@ -84,11 +84,12 @@ export function LiveScreen({ id: chatRoomId, title, host, hostAvatar, isLive, im
   }
 
   const renderSpeakers = () => {
+    const displaySpeakers = participants.filter(p => p.status === 'speaker');
     return (
         <div className='flex-1 flex flex-col justify-center items-center'>
             <div className="flex flex-wrap justify-center items-center gap-4 md:gap-6 p-4">
                 <TooltipProvider>
-                    {speakers.map(speaker => (
+                    {displaySpeakers.map(speaker => (
                         <Tooltip key={speaker.userId}>
                             <TooltipTrigger asChild>
                                 <div className="flex flex-col items-center gap-2 animate-in fade-in-50">
@@ -109,7 +110,7 @@ export function LiveScreen({ id: chatRoomId, title, host, hostAvatar, isLive, im
                 </TooltipProvider>
             </div>
              <p className="text-muted-foreground text-sm mt-4">
-                {speakers.length} {speakers.length === 1 ? 'speaker' : 'speakers'} currently on stage
+                {displaySpeakers.length} {displaySpeakers.length === 1 ? 'speaker' : 'speakers'} currently on stage
             </p>
         </div>
     );
