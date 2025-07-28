@@ -104,7 +104,7 @@ export const getChatRooms = (
         q = query(chatRoomsRef, where('hostId', '==', options.hostId));
     } else {
         // Query for public sessions only using a simple equality check.
-        q = query(chatRoomsRef, where('isPrivate', '==', false));
+        q = query(chatRoomsRef, where('isPrivate', '!=', true));
     }
     
     const unsubscribe = onSnapshot(q, (querySnapshot) => {
@@ -399,7 +399,7 @@ export const deleteChatRoomForHost = async (chatRoomId: string, hostId: string) 
 
     } catch (error) {
         console.error("Error deleting chat room:", error);
-        // Re-throw the error to be handled by the calling component
-        throw error;
     }
 };
+
+    

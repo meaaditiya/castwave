@@ -248,3 +248,5 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
     </div>
   );
 }
+
+    

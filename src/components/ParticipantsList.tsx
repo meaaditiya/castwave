@@ -124,3 +124,5 @@ export function ParticipantsList({ chatRoomId, participants }: ParticipantsListP
         </ScrollArea>
     )
 }
+
+    
