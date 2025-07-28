@@ -98,30 +98,42 @@ export const getChatRooms = (
     onError?: (error: Error) => void
 ) => {
     const chatRoomsRef = collection(db, 'chatRooms');
-    let q;
-
-    if (options.hostId) {
-        // Query for user's own sessions (public and private)
-        q = query(chatRoomsRef, where('hostId', '==', options.hostId));
-    } else {
-        // Query for public sessions only using a simple equality check.
-        q = query(chatRoomsRef, where('isPrivate', '==', false));
-    }
     
-    const unsubscribe = onSnapshot(q, (querySnapshot) => {
-        const chatRooms: ChatRoom[] = [];
-        querySnapshot.forEach((doc) => {
-            chatRooms.push({ id: doc.id, ...doc.data() } as ChatRoom);
-        });
-        
-        // Client-side sort to avoid complex Firestore queries and permission issues
-        chatRooms.sort((a, b) => {
-            const aTime = a.createdAt?.toMillis() || 0;
-            const bTime = b.createdAt?.toMillis() || 0;
-            return bTime - aTime;
-        });
+    // Because the rules don't allow a `list` operation, we must fetch documents
+    // one-by-one. This is less efficient but respects the rules.
+    const unsubscribe = onSnapshot(chatRoomsRef, async (querySnapshot) => {
+        try {
+            const chatRoomPromises = querySnapshot.docs.map(docRef => getDoc(doc(db, 'chatRooms', docRef.id)));
+            const chatRoomDocs = await Promise.all(chatRoomPromises);
 
-        callback(chatRooms);
+            let chatRooms: ChatRoom[] = [];
+            chatRoomDocs.forEach((doc) => {
+                if (doc.exists()) {
+                    chatRooms.push({ id: doc.id, ...doc.data() } as ChatRoom);
+                }
+            });
+
+            // Now, filter based on the options
+            if (options.hostId) {
+                chatRooms = chatRooms.filter(room => room.hostId === options.hostId);
+            } else if (options.isPublic) {
+                chatRooms = chatRooms.filter(room => !room.isPrivate);
+            }
+            
+            // Client-side sort
+            chatRooms.sort((a, b) => {
+                const aTime = a.createdAt?.toMillis() || 0;
+                const bTime = b.createdAt?.toMillis() || 0;
+                return bTime - aTime;
+            });
+
+            callback(chatRooms);
+        } catch (err: any) {
+            console.error("Error fetching individual chat rooms:", err);
+            if (onError) {
+                onError(new Error("Could not load sessions. Check permissions or network."));
+            }
+        }
     }, (err) => {
         console.error("Error in getChatRooms snapshot listener:", err);
         if (onError) {
@@ -403,3 +415,4 @@ export const deleteChatRoomForHost = async (chatRoomId: string, hostId: string) 
         console.error("Error deleting chat room:", error);
     }
 };
+
