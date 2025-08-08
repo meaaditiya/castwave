@@ -79,7 +79,7 @@ export default function SignupPage() {
                 <Alert>
                     <AlertTitle>Verification Required</AlertTitle>
                     <AlertDescription>
-                        Please click the link in the email to verify your account before logging in.
+                        Please click the link in the email to verify your account. You can log in, and the app will automatically update once you're verified.
                     </AlertDescription>
                 </Alert>
                 <Button asChild className="w-full mt-4">

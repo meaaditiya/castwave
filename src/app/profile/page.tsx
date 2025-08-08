@@ -269,12 +269,12 @@ export default function ProfilePage() {
                                             <>
                                                 <AlertTriangle className="h-5 w-5 text-yellow-500" />
                                                 <div className="flex-1 space-y-1">
-                                                    <p className="text-sm font-medium leading-none">Email Verification</p>
-                                                    <p className="text-sm text-muted-foreground">Your email is not verified.</p>
+                                                    <p className="text-sm font-medium leading-none">Email Not Verified</p>
+                                                    <p className="text-sm text-muted-foreground">Please check your inbox for a verification link. It might take a moment to update here after you click it.</p>
                                                 </div>
                                                 <Button variant="secondary" onClick={handleSendVerificationEmail} disabled={isSendingVerification}>
-                                                    {isSendingVerification ? <Loader2 className="animate-spin" /> : null}
-                                                    Send Email
+                                                    {isSendingVerification ? <Loader2 className="animate-spin mr-2" /> : null}
+                                                    Resend Email
                                                 </Button>
                                             </>
                                         )}
@@ -363,5 +363,3 @@ export default function ProfilePage() {
 
     
 }
-
-    

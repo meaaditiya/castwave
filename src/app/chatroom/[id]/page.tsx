@@ -58,7 +58,6 @@ function ChatRoomPageSkeleton() {
 
 
 export default function ChatRoomPage({ params }: { params: { id: string } }) {
-  const resolvedParams = use(params);
   const [chatRoom, setChatRoom] = useState<ChatRoom | null>(null);
   const [chatLog, setChatLog] = useState<Message[]>([]);
   const [participants, setParticipants] = useState<Participant[]>([]);
@@ -74,14 +73,13 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
 
   useEffect(() => {
     if (!authLoading && !currentUser) {
-      // No redirect here, let the main rendering logic handle it
-      // to avoid race conditions.
+      // Let other logic handle display, no hard redirect
     }
   }, [authLoading, currentUser, router]);
 
   // Step 1: Fetch the main chat room data
   useEffect(() => {
-    const chatRoomId = resolvedParams.id;
+    const chatRoomId = params.id;
     if (!currentUser) return; // Wait for user to exist
   
     setPageLoading(true);
@@ -101,11 +99,11 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
     });
   
     return () => unsubscribeChatRoom();
-  }, [resolvedParams.id, currentUser, router, toast]);
+  }, [params.id, currentUser, router, toast]);
 
   // Step 2: Once chat room data is loaded, manage participants and permissions
   useEffect(() => {
-    const chatRoomId = resolvedParams.id;
+    const chatRoomId = params.id;
     if (!chatRoomId || !currentUser || !chatRoom) return;
 
     const unsubscribeParticipants = getParticipants(chatRoomId, async (newParticipants) => {
@@ -142,11 +140,11 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
     });
 
     return () => unsubscribeParticipants();
-  }, [resolvedParams.id, currentUser, chatRoom, toast]);
+  }, [params.id, currentUser, chatRoom, toast]);
 
   // Step 3: Once permissions are ready, fetch chat messages
   useEffect(() => {
-    const chatRoomId = resolvedParams.id;
+    const chatRoomId = params.id;
     if (!currentUser) return;
 
     const current = participants.find(p => p.userId === currentUser?.uid);
@@ -161,7 +159,7 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
         console.error("Error fetching messages:", error);
     });
     return () => unsubscribeMessages();
-  }, [resolvedParams.id, isHost, participants, currentUser, chatLog.length]);
+  }, [params.id, isHost, participants, currentUser, chatLog.length]);
   
   if (authLoading) {
     return <ChatRoomPageSkeleton />;

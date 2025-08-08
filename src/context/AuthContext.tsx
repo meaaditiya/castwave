@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
 import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, User as FirebaseAuthUser, EmailAuthProvider, reauthenticateWithCredential, updatePassword, sendEmailVerification } from 'firebase/auth';
 import { auth, db } from '@/lib/firebase';
 import { doc, getDoc, setDoc, onSnapshot } from 'firebase/firestore';
@@ -41,36 +41,59 @@ export function useAuth() {
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [currentUser, setCurrentUser] = useState<AppUser | null>(null);
   const [loading, setLoading] = useState(true);
+  const verificationTimer = useRef<NodeJS.Timeout | null>(null);
 
-  const updateUserProfileInFirestore = useCallback(async (user: FirebaseAuthUser, profileData: UserProfile | null) => {
-    const userProfileDocRef = doc(db, 'users', user.uid);
-    // Always use the live `emailVerified` from the user object
-    const isVerified = user.emailVerified;
-
-    if (profileData?.emailVerified !== isVerified) {
-        await setDoc(userProfileDocRef, { emailVerified: isVerified }, { merge: true });
+  const stopVerificationCheck = () => {
+    if (verificationTimer.current) {
+      clearInterval(verificationTimer.current);
+      verificationTimer.current = null;
     }
+  };
 
-    const docSnap = await getDoc(userProfileDocRef);
-    if (docSnap.exists()) {
-        setCurrentUser({ ...user, profile: docSnap.data() as UserProfile });
-    } else {
-        setCurrentUser(user);
+  const startVerificationCheck = useCallback((user: FirebaseAuthUser) => {
+    stopVerificationCheck();
+    if (user && !user.emailVerified) {
+      verificationTimer.current = setInterval(async () => {
+        await user.reload();
+        const freshUser = auth.currentUser;
+        if (freshUser && freshUser.emailVerified) {
+          // The onAuthStateChanged listener will handle the update
+          // by re-triggering, so we can just stop the timer.
+          stopVerificationCheck();
+        }
+      }, 5000); // Check every 5 seconds
     }
   }, []);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
+        stopVerificationCheck(); // Stop any previous timers
         if (user) {
             const userProfileDocRef = doc(db, 'users', user.uid);
-
+            
             const unsubProfile = onSnapshot(userProfileDocRef, (docSnap) => {
                 const profileData = docSnap.exists() ? docSnap.data() as UserProfile : null;
-                // We must reload the user to get the latest emailVerified status
-                user.reload().then(() => {
-                    updateUserProfileInFirestore(user, profileData);
-                    setLoading(false);
-                });
+                
+                // We must use the user from auth.currentUser to get the latest state
+                const freshUser = auth.currentUser; 
+                if (freshUser) {
+                    const appUser: AppUser = {
+                        ...freshUser,
+                        profile: profileData || undefined
+                    };
+                    
+                    // Update the user profile in Firestore if verification status has changed
+                    if (profileData?.emailVerified !== freshUser.emailVerified) {
+                        setDoc(userProfileDocRef, { emailVerified: freshUser.emailVerified }, { merge: true });
+                    }
+                    
+                    setCurrentUser(appUser);
+                    
+                    if (!freshUser.emailVerified) {
+                        startVerificationCheck(freshUser);
+                    }
+                }
+                setLoading(false);
             });
             return () => unsubProfile();
         } else {
@@ -79,8 +102,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
     });
 
-    return unsubscribe;
-  }, [updateUserProfileInFirestore]);
+    return () => {
+        unsubscribe();
+        stopVerificationCheck();
+    };
+  }, [startVerificationCheck]);
 
   const signup = async (email: string, password: string, username: string) => {
     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
@@ -94,7 +120,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
     await setDoc(doc(db, 'users', user.uid), userProfile);
     
-    // Send verification email on signup
     await sendEmailVerification(user);
 
     return userCredential;
