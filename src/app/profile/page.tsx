@@ -20,6 +20,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from 'zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Separator } from "@/components/ui/separator";
+import { isUsernameTaken } from "@/services/userService";
 
 const passwordFormSchema = z.object({
   currentPassword: z.string().min(1, { message: 'Current password is required.' }),
@@ -94,7 +95,9 @@ export default function ProfilePage() {
     
     const handleUpdateUsername = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!currentUser || !newUsername || newUsername.trim().length < 3) {
+        const trimmedUsername = newUsername.trim();
+
+        if (!currentUser || !trimmedUsername || trimmedUsername.length < 3) {
              toast({
                 variant: 'destructive',
                 title: 'Invalid Username',
@@ -102,11 +105,28 @@ export default function ProfilePage() {
             });
             return;
         }
+
+        if (trimmedUsername === currentUser.profile?.username) {
+            setIsEditing(false);
+            return;
+        }
+
         setIsSaving(true);
-        const userDocRef = doc(db, 'users', currentUser.uid);
         try {
+            const usernameIsTaken = await isUsernameTaken(trimmedUsername);
+            if (usernameIsTaken) {
+                toast({
+                    variant: 'destructive',
+                    title: 'Username Taken',
+                    description: 'This username is already in use. Please choose another one.',
+                });
+                setIsSaving(false);
+                return;
+            }
+
+            const userDocRef = doc(db, 'users', currentUser.uid);
             await setDoc(userDocRef, {
-                username: newUsername.trim(),
+                username: trimmedUsername,
                 email: currentUser.email,
             }, { merge: true });
 
