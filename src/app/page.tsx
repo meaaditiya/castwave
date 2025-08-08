@@ -62,7 +62,7 @@ export default function Home() {
             unsubscribe();
         }
     };
-  }, [currentUser?.uid, toast]);
+  }, [currentUser, toast]);
 
 
   const filteredAndSortedRooms = useMemo(() => {
@@ -92,11 +92,11 @@ export default function Home() {
 
 
   const handleDelete = async () => {
-    if (!chatRoomToDelete || !currentUser || !currentUser.email) return;
+    if (!chatRoomToDelete || !currentUser) return;
 
     setIsDeleting(true);
     try {
-        await deleteChatRoomForHost(chatRoomToDelete, currentUser.email);
+        await deleteChatRoomForHost(chatRoomToDelete, currentUser.uid);
         toast({
             title: 'Chat Room Deleted',
             description: 'The chat room has been successfully deleted.',
@@ -136,7 +136,7 @@ export default function Home() {
                     <ChatRoomCard 
                         key={chatRoom.id} 
                         {...chatRoom} 
-                        isOwner={currentUser?.email === chatRoom.hostEmail}
+                        isOwner={currentUser?.uid === chatRoom.hostId}
                         onDelete={() => setChatRoomToDelete(chatRoom.id)}
                         onStartSession={() => handleStartSession(chatRoom.id)}
                     />
