@@ -1,10 +1,10 @@
+
 "use client";
 
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -14,7 +14,8 @@ import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { Waves, Loader2, UserPlus } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { isUsernameTaken } from '@/ai/flows/is-username-taken';
+import { signupUser } from '@/ai/flows/signup-user';
+
 
 const formSchema = z.object({
   username: z.string().min(3, { message: 'Username must be at least 3 characters.' }).max(20, { message: "Username can't be longer than 20 characters."}),
@@ -27,7 +28,6 @@ const formSchema = z.object({
 });
 
 export default function SignupPage() {
-  const { signup } = useAuth();
   const router = useRouter();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
@@ -46,19 +46,29 @@ export default function SignupPage() {
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true);
     try {
-      const { isTaken } = await isUsernameTaken({ username: values.username });
-      if (isTaken) {
-        form.setError('username', { type: 'manual', message: 'This username is already taken.' });
-        setIsLoading(false);
-        return;
+      const result = await signupUser({
+          username: values.username,
+          email: values.email,
+          password: values.password
+      });
+
+      if (result.isTaken) {
+          form.setError('username', { type: 'manual', message: 'This username is already taken.' });
+          setIsLoading(false);
+          return;
+      }
+
+      if (result.error) {
+          throw new Error(result.error);
       }
       
-      await signup(values.email, values.password, values.username);
       setSignupSuccess(true);
     } catch (error: any) {
         let errorMessage = "An unexpected error occurred.";
-        if (error.code === 'auth/email-already-in-use') {
+        if (error.message.includes('auth/email-already-in-use')) {
             errorMessage = "This email is already registered. Please log in or use a different email.";
+        } else if (error.message) {
+            errorMessage = error.message;
         }
       toast({
         variant: 'destructive',

@@ -22,7 +22,6 @@ export interface AppUser extends FirebaseAuthUser {
 interface AuthContextType {
   currentUser: AppUser | null;
   loading: boolean;
-  signup: (email: string, password: string, username: string) => Promise<any>;
   login: typeof signInWithEmailAndPassword;
   logout: () => Promise<void>;
   reauthenticate: (password: string) => Promise<void>;
@@ -111,24 +110,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, [startVerificationCheck]);
 
-  const signup = async (email: string, password: string, username: string) => {
-    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-    const user = userCredential.user;
-
-    const userProfile: UserProfile = {
-      uid: user.uid,
-      email: user.email!,
-      username: username,
-      emailVerified: user.emailVerified,
-      photoURL: '',
-      avatarGenerationCount: 0,
-    };
-    await setDoc(doc(db, 'users', user.uid), userProfile);
-    
-    await sendEmailVerification(user);
-
-    return userCredential;
-  };
 
   const reauthenticate = async (password: string) => {
     if (!auth.currentUser || !auth.currentUser.email) {
@@ -163,7 +144,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const value = {
     currentUser,
     loading,
-    signup,
     login: (email, password) => signInWithEmailAndPassword(auth, email, password),
     logout: logoutHandler,
     reauthenticate,
