@@ -147,6 +147,8 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
   // Step 3: Once permissions are ready, fetch chat messages
   useEffect(() => {
     const chatRoomId = resolvedParams.id;
+    if (!currentUser) return;
+
     const current = participants.find(p => p.userId === currentUser?.uid);
     const isApproved = isHost || current?.status === 'approved';
 
@@ -172,7 +174,7 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
   
   // If we have a user, but other data is still loading, show skeleton.
   if (pageLoading || !chatRoom || !permissionsReady || (participants.length === 0 && !isHost)) {
-    if (!pageLoading && chatRoom && !permissionsReady && currentParticipant?.status === 'pending') {
+    if (!authLoading && !pageLoading && chatRoom && !permissionsReady && currentParticipant?.status === 'pending') {
          // Show a waiting screen for users pending approval
          return (
             <div className="min-h-screen flex flex-col">
