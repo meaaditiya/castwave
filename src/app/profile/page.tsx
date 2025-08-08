@@ -62,7 +62,7 @@ export default function ProfilePage() {
     const router = useRouter();
     const { toast } = useToast();
     const [isEditing, setIsEditing] = useState(false);
-    const [newUsername, setNewUsername] = useState(currentUser?.profile?.username || '');
+    const [newUsername, setNewUsername] = useState('');
     const [isSaving, setIsSaving] = useState(false);
     const [isSendingVerification, setIsSendingVerification] = useState(false);
     
@@ -127,7 +127,6 @@ export default function ProfilePage() {
             const userDocRef = doc(db, 'users', currentUser.uid);
             await setDoc(userDocRef, {
                 username: trimmedUsername,
-                email: currentUser.email,
             }, { merge: true });
 
             toast({
@@ -383,3 +382,5 @@ export default function ProfilePage() {
 
     
 }
+
+    
