@@ -1,10 +1,32 @@
 
-import { storage } from '@/lib/firebase';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { nanoid } from 'nanoid';
+import { uploadMedia } from '@/ai/flows/upload-media';
 
 /**
- * Uploads a profile image directly using the Firebase client-side SDK.
+ * Reads a file and converts it to a base64 data URI.
+ * @param file The file to read.
+ * @returns A promise that resolves with the data URI.
+ */
+function fileToDataUri(file: File): Promise<string> {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+            if (typeof reader.result === 'string') {
+                resolve(reader.result);
+            } else {
+                reject(new Error('Failed to read file as data URI.'));
+            }
+        };
+        reader.onerror = (error) => {
+            reject(error);
+        };
+        reader.readAsDataURL(file);
+    });
+}
+
+
+/**
+ * Uploads a profile image by sending it to a backend flow.
  * @param userId The ID of the user.
  * @param file The image file to upload.
  * @returns The public URL of the uploaded image.
@@ -20,37 +42,25 @@ export const uploadProfileImage = async (userId: string, file: File): Promise<st
     try {
         const fileExtension = file.name.split('.').pop() || 'jpg';
         const fileName = `${nanoid()}.${fileExtension}`;
-        const storageRef = ref(storage, `profileImages/${userId}/${fileName}`);
-        
-        const snapshot = await uploadBytes(storageRef, file);
-        const downloadURL = await getDownloadURL(snapshot.ref);
+        const filePath = `profileImages/${userId}/${fileName}`;
 
-        return downloadURL;
+        // Convert file to data URI to send to the backend
+        const dataUri = await fileToDataUri(file);
+
+        // Call the backend flow to handle the upload
+        const result = await uploadMedia({
+            filePath,
+            dataUri,
+        });
+
+        if (!result.url) {
+            throw new Error('Backend flow did not return a URL.');
+        }
+
+        return result.url;
 
     } catch (error: any) {
-        console.error("Error uploading image directly to Firebase Storage:", error);
-        
-        let errorMessage = 'Could not upload image. Please try again.';
-        if (error.code) {
-            switch (error.code) {
-                case 'storage/unauthorized':
-                    errorMessage = "You don't have permission to upload this file.";
-                    break;
-                case 'storage/canceled':
-                    errorMessage = "Upload was canceled.";
-                    break;
-                case 'storage/object-not-found':
-                     errorMessage = "File not found. This shouldn't happen during an upload.";
-                     break;
-                 case 'storage/bucket-not-found':
-                     errorMessage = "Storage bucket is not configured correctly.";
-                     break;
-                case 'storage/quota-exceeded':
-                    errorMessage = "You have exceeded your storage quota.";
-                    break;
-            }
-        }
-        
-        throw new Error(errorMessage);
+        console.error("Error in storage service during upload:", error);
+        throw new Error(error.message || 'Failed to upload image via backend service.');
     }
 };
