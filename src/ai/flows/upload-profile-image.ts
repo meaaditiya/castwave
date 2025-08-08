@@ -16,9 +16,7 @@ import { nanoid } from 'nanoid';
 const storage = new Storage({
     projectId: process.env.GCLOUD_PROJECT,
 });
-const bucketName = `${process.env.GCLOUD_PROJECT}.appspot.com`;
-const bucket = storage.bucket(bucketName);
-
+const bucketName = process.env.GCLOUD_PROJECT ? `${process.env.GCLOUD_PROJECT}.appspot.com` : undefined;
 
 const UploadProfileImageInputSchema = z.object({
   userId: z.string().describe('The ID of the user uploading the image.'),
@@ -42,6 +40,11 @@ const uploadProfileImageFlowFn = ai.defineFlow(
     outputSchema: UploadProfileImageOutputSchema,
   },
   async ({ userId, imageDataUri }) => {
+    if (!bucketName) {
+        throw new Error('Firebase Storage bucket name is not configured. Set GCLOUD_PROJECT environment variable.');
+    }
+    const bucket = storage.bucket(bucketName);
+
     try {
         // Extract MIME type and Base64 data from the data URI
         const matches = imageDataUri.match(/^data:(.+);base64,(.*)$/);
@@ -52,7 +55,7 @@ const uploadProfileImageFlowFn = ai.defineFlow(
         const mimeType = matches[1];
         const base64Data = matches[2];
         const buffer = Buffer.from(base64Data, 'base64');
-        const fileExtension = mimeType.split('/')[1];
+        const fileExtension = mimeType.split('/')[1] || 'jpg';
         const fileName = `${nanoid()}.${fileExtension}`;
         const filePath = `profileImages/${userId}/${fileName}`;
 
