@@ -5,10 +5,10 @@ import Image from 'next/image';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Share2, MicOff, Loader2, Star, MessageSquare } from 'lucide-react';
+import { Share2, MicOff, Loader2, Star, MessageSquare, Mic } from 'lucide-react';
 import { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
-import { endChatRoom, Participant } from '@/services/chatRoomService';
+import { endChatRoom, Participant, startChatRoom } from '@/services/chatRoomService';
 import { useRouter } from 'next/navigation';
 import type { Message } from '@/services/chatRoomService';
 import { LivePoll } from './LivePoll';
@@ -30,6 +30,7 @@ interface LiveScreenProps {
 
 export function LiveScreen({ id: chatRoomId, title, host, hostAvatar, isLive, imageHint, isHost = false, featuredMessage, hostReply }: LiveScreenProps) {
   const [isEnding, setIsEnding] = useState(false);
+  const [isStarting, setIsStarting] = useState(false);
   const { toast } = useToast();
   const router = useRouter();
   const { currentUser } = useAuth();
@@ -56,11 +57,24 @@ export function LiveScreen({ id: chatRoomId, title, host, hostAvatar, isLive, im
     try {
         await endChatRoom(chatRoomId);
         toast({ title: "Chat Room Ended", description: "This chat room session has been successfully ended."});
-        router.push('/');
     } catch(e) {
         console.error(e);
         toast({ variant: 'destructive', title: "Error", description: "Could not end the chat room."});
+    } finally {
         setIsEnding(false);
+    }
+  }
+
+  const handleStartChatRoom = async () => {
+    setIsStarting(true);
+    try {
+        await startChatRoom(chatRoomId);
+        toast({ title: "Session is Live!", description: "The chat room is now live again."});
+    } catch(e) {
+        console.error(e);
+        toast({ variant: 'destructive', title: "Error", description: "Could not restart the chat room."});
+    } finally {
+        setIsStarting(false);
     }
   }
 
@@ -152,6 +166,12 @@ export function LiveScreen({ id: chatRoomId, title, host, hostAvatar, isLive, im
         <div className="flex flex-col items-center justify-center text-center space-y-4 flex-1">
             <MicOff size={80} className="text-muted-foreground mx-auto" />
             <p className="text-muted-foreground">This chat room has ended.</p>
+            {isHost && (
+                <Button onClick={handleStartChatRoom} disabled={isStarting}>
+                    {isStarting ? <Loader2 className="animate-spin" /> : <Mic />}
+                    Go Live Again
+                </Button>
+            )}
         </div>
        )}
       </CardContent>
