@@ -8,7 +8,7 @@ import { Header } from "@/components/Header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { LogOut, Loader2, Mail, User, Edit, Check, ShieldCheck, KeyRound, MailCheck, AlertTriangle, CheckCircle, XCircle } from "lucide-react";
+import { LogOut, Loader2, Mail, User, Edit, Check, ShieldCheck, KeyRound, MailCheck, AlertTriangle, CheckCircle, XCircle, X } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { doc, setDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
