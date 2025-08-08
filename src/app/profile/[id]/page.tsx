@@ -1,7 +1,8 @@
 
 "use client";
 
-import { useState, useEffect, use } from 'react';
+import { useState, useEffect } from 'react';
+import { use } from 'react';
 import { Header } from '@/components/Header';
 import { ChatRoomCard } from '@/components/ChatRoomCard';
 import { getChatRooms, ChatRoom } from '@/services/chatRoomService';
@@ -9,7 +10,7 @@ import { getUserProfile, UserProfileData } from '@/services/userService';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/context/AuthContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { CheckCircle, XCircle, Mic } from 'lucide-react';
 import { notFound, useRouter } from 'next/navigation';
 
@@ -120,6 +121,7 @@ export default function PublicProfilePage({ params }: { params: { id: string } }
                      <Card className="mb-8 shadow-md">
                         <CardHeader className="flex flex-col sm:flex-row items-center gap-6 text-center sm:text-left">
                             <Avatar className="h-24 w-24 text-3xl border-2 border-primary">
+                                <AvatarImage src={userProfile.photoURL} alt={userProfile.username} />
                                 <AvatarFallback>{getInitials(userProfile.username)}</AvatarFallback>
                             </Avatar>
                             <div className="flex-1">
@@ -161,5 +163,3 @@ export default function PublicProfilePage({ params }: { params: { id: string } }
         </div>
     )
 }
-
-    

@@ -2,7 +2,7 @@
 "use client";
 
 import { Participant, updateParticipantStatus } from "@/services/chatRoomService";
-import { Avatar, AvatarFallback } from "./ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { Button } from "./ui/button";
 import { ScrollArea } from "./ui/scroll-area";
 import { Badge } from "./ui/badge";
@@ -55,6 +55,15 @@ export function ParticipantsList({ chatRoomId, participants }: ParticipantsListP
             setLoadingStates(prev => ({ ...prev, [userId]: false }));
         }
     }
+    
+    const getInitials = (name: string) => {
+        if (!name) return "..";
+        const nameParts = name.split(' ');
+        if (nameParts.length > 1) {
+            return (nameParts[0][0] + nameParts[1][0]).toUpperCase();
+        }
+        return name.substring(0, 2).toUpperCase();
+    }
 
     if (activeParticipants.length === 0) {
         return (
@@ -72,7 +81,8 @@ export function ParticipantsList({ chatRoomId, participants }: ParticipantsListP
                 {activeParticipants.map(participant => (
                     <div key={participant.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 transition-colors">
                         <Avatar className="h-8 w-8">
-                            <AvatarFallback>{participant.displayName.substring(0,1).toUpperCase()}</AvatarFallback>
+                            <AvatarImage src={participant.photoURL} alt={participant.displayName} />
+                            <AvatarFallback>{getInitials(participant.displayName)}</AvatarFallback>
                         </Avatar>
                         <div className="flex-1">
                             <div className="flex items-center gap-1.5">

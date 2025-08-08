@@ -48,6 +48,7 @@ export interface Participant {
     status: 'pending' | 'approved' | 'removed' | 'denied';
     requestCount?: number;
     emailVerified: boolean;
+    photoURL?: string;
 }
 
 export const createChatRoom = async (input: ChatRoomInput): Promise<{ chatRoomId: string }> => {
@@ -71,7 +72,6 @@ export const createChatRoom = async (input: ChatRoomInput): Promise<{ chatRoomId
             });
 
             const userProfile = await getUserProfile(input.hostId);
-            const userVerified = userProfile?.emailVerified ?? false;
 
             const participantRef = doc(db, 'chatRooms', newChatRoomRef.id, 'participants', input.hostId);
             transaction.set(participantRef, {
@@ -79,7 +79,8 @@ export const createChatRoom = async (input: ChatRoomInput): Promise<{ chatRoomId
                 displayName: input.host,
                 status: 'approved',
                 requestCount: 0,
-                emailVerified: userVerified
+                emailVerified: userProfile?.emailVerified ?? false,
+                photoURL: userProfile?.photoURL || ''
             });
         });
         
@@ -233,8 +234,12 @@ export const getMessages = (chatRoomId: string, callback: (messages: Message[]) 
 
 export const addParticipant = async (chatRoomId: string, participant: Omit<Participant, 'id'>) => {
     try {
+        const userProfile = await getUserProfile(participant.userId);
         const participantRef = doc(db, `chatRooms/${chatRoomId}/participants`, participant.userId);
-        await setDoc(participantRef, participant, { merge: true });
+        await setDoc(participantRef, {
+            ...participant,
+            photoURL: userProfile?.photoURL || ''
+        }, { merge: true });
     } catch (error) {
         console.error("Error adding participant: ", error);
         throw new Error("Could not add participant.");
@@ -257,6 +262,7 @@ export const requestToJoinChat = async (chatRoomId: string, userId: string, disp
     try {
         await runTransaction(db, async (transaction) => {
             const docSnap = await transaction.get(participantRef);
+            const userProfile = await getUserProfile(userId);
 
             if (docSnap.exists()) {
                 const participant = docSnap.data() as Participant;
@@ -276,6 +282,7 @@ export const requestToJoinChat = async (chatRoomId: string, userId: string, disp
                     status: 'pending',
                     requestCount: 1,
                     emailVerified,
+                    photoURL: userProfile?.photoURL || ''
                 });
             }
         });

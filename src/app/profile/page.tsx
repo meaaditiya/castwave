@@ -3,12 +3,12 @@
 
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { Header } from "@/components/Header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { LogOut, Loader2, Mail, User, Edit, Check, ShieldCheck, KeyRound, MailCheck, AlertTriangle, CheckCircle, XCircle, X } from "lucide-react";
+import { LogOut, Loader2, Mail, User, Edit, Check, ShieldCheck, KeyRound, MailCheck, AlertTriangle, CheckCircle, XCircle, X, Camera } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { doc, setDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
@@ -21,6 +21,7 @@ import * as z from 'zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Separator } from "@/components/ui/separator";
 import { isUsernameTaken } from "@/services/userService";
+import { uploadProfileImage } from "@/services/storageService";
 
 const passwordFormSchema = z.object({
   currentPassword: z.string().min(1, { message: 'Current password is required.' }),
@@ -65,6 +66,8 @@ export default function ProfilePage() {
     const [newUsername, setNewUsername] = useState('');
     const [isSaving, setIsSaving] = useState(false);
     const [isSendingVerification, setIsSendingVerification] = useState(false);
+    const [isUploading, setIsUploading] = useState(false);
+    const fileInputRef = useRef<HTMLInputElement>(null);
     
     const passwordForm = useForm<z.infer<typeof passwordFormSchema>>({
         resolver: zodResolver(passwordFormSchema),
@@ -99,17 +102,17 @@ export default function ProfilePage() {
 
         const trimmedUsername = newUsername.trim();
 
+        if (trimmedUsername === currentUser.profile?.username) {
+            setIsEditing(false);
+            return;
+        }
+
         if (!trimmedUsername || trimmedUsername.length < 3) {
              toast({
                 variant: 'destructive',
                 title: 'Invalid Username',
                 description: 'Username must be at least 3 characters.',
             });
-            return;
-        }
-
-        if (trimmedUsername === currentUser.profile?.username) {
-            setIsEditing(false);
             return;
         }
 
@@ -129,7 +132,6 @@ export default function ProfilePage() {
             const userDocRef = doc(db, 'users', currentUser.uid);
             await setDoc(userDocRef, {
                 username: trimmedUsername,
-                uid: currentUser.uid,
             }, { merge: true });
 
             toast({
@@ -188,6 +190,31 @@ export default function ProfilePage() {
         }
     }
 
+    const handleAvatarClick = () => {
+        fileInputRef.current?.click();
+    };
+
+    const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+        if (event.target.files && event.target.files[0] && currentUser) {
+            const file = event.target.files[0];
+            setIsUploading(true);
+            try {
+                const photoURL = await uploadProfileImage(currentUser.uid, file);
+                const userDocRef = doc(db, 'users', currentUser.uid);
+                await setDoc(userDocRef, { photoURL }, { merge: true });
+                toast({ title: "Avatar Updated", description: "Your new profile picture has been saved." });
+            } catch (error: any) {
+                toast({
+                    variant: 'destructive',
+                    title: 'Upload Failed',
+                    description: error.message,
+                });
+            } finally {
+                setIsUploading(false);
+            }
+        }
+    };
+
 
     if (loading || !currentUser) {
         return <ProfilePageSkeleton />;
@@ -209,9 +236,20 @@ export default function ProfilePage() {
                 <div className="container max-w-2xl py-12">
                     <Card className="shadow-lg">
                         <CardHeader className="flex flex-col sm:flex-row items-center gap-6 text-center sm:text-left">
-                            <Avatar className="h-24 w-24 text-3xl border-2 border-primary">
-                                <AvatarFallback>{getInitials(currentUser.profile?.username || currentUser.email)}</AvatarFallback>
-                            </Avatar>
+                           <div className="relative group cursor-pointer" onClick={handleAvatarClick}>
+                                <Avatar className="h-24 w-24 text-3xl border-2 border-primary">
+                                     <AvatarImage src={currentUser.profile?.photoURL} alt={currentUser.profile?.username} />
+                                    <AvatarFallback>{getInitials(currentUser.profile?.username || currentUser.email)}</AvatarFallback>
+                                </Avatar>
+                                <div className="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                    {isUploading ? (
+                                        <Loader2 className="h-8 w-8 text-white animate-spin" />
+                                    ) : (
+                                        <Camera className="h-8 w-8 text-white" />
+                                    )}
+                                </div>
+                                <input type="file" ref={fileInputRef} onChange={handleFileChange} accept="image/*" className="hidden" />
+                           </div>
                             <div className="flex-1">
                                 <div className="flex items-center gap-2">
                                     <CardTitle className="text-2xl">{currentUser.profile?.username || 'My Profile'}</CardTitle>

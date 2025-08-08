@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Send, Loader2, Hand, ThumbsUp, ThumbsDown, Star, ArrowDown, CheckCircle, XCircle } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Avatar, AvatarFallback } from './ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { useAuth } from '@/context/AuthContext';
 import { sendMessage, requestToJoinChat, voteOnMessage, featureMessage, updateTypingStatus, ChatRoom, Participant } from '@/services/chatRoomService';
 import { useToast } from '@/hooks/use-toast';
@@ -19,6 +19,7 @@ import { useDebouncedCallback } from 'use-debounce';
 import { TypingIndicator } from './TypingIndicator';
 import { CardContent } from './ui/card';
 import Link from 'next/link';
+import { getUserProfile, UserProfileData } from '@/services/userService';
 
 interface LiveChatProps {
   chatRoom: ChatRoom;
@@ -42,6 +43,15 @@ const getUserColor = (userName: string) => {
     return userColors[Math.abs(hash % userColors.length)];
 }
 
+const getInitials = (name: string) => {
+    if (!name) return "..";
+    const nameParts = name.split(' ');
+    if (nameParts.length > 1) {
+        return (nameParts[0][0] + nameParts[1][0]).toUpperCase();
+    }
+    return name.substring(0, 2).toUpperCase();
+}
+
 export function LiveChat({ chatRoom, canChat, participant, isHost, messages, participants }: LiveChatProps) {
   const [newMessage, setNewMessage] = useState('');
   const [isSending, setIsSending] = useState(false);
@@ -53,9 +63,29 @@ export function LiveChat({ chatRoom, canChat, participant, isHost, messages, par
   const [messageToFeature, setMessageToFeature] = useState<Message | null>(null);
   const [hostReply, setHostReply] = useState('');
   const [isFeaturing, setIsFeaturing] = useState(false);
+  const [participantProfiles, setParticipantProfiles] = useState<Map<string, UserProfileData>>(new Map());
 
-  const participantsMap = useMemo(() => {
-    return new Map(participants.map(p => [p.userId, p]));
+
+  useEffect(() => {
+    const fetchProfiles = async () => {
+        const profiles = new Map<string, UserProfileData>();
+        for (const p of participants) {
+            if (!participantProfiles.has(p.userId)) {
+                try {
+                    const profile = await getUserProfile(p.userId);
+                    if (profile) {
+                        profiles.set(p.userId, profile);
+                    }
+                } catch (error) {
+                    console.error(`Failed to fetch profile for ${p.userId}`, error);
+                }
+            }
+        }
+        setParticipantProfiles(prev => new Map([...prev, ...profiles]));
+    };
+    if (participants.length > 0) {
+        fetchProfiles();
+    }
   }, [participants]);
 
   const scrollToBottom = useCallback((behavior: 'smooth' | 'auto' = 'smooth') => {
@@ -259,12 +289,15 @@ export function LiveChat({ chatRoom, canChat, participant, isHost, messages, par
       <div className="flex-1 min-h-0 relative">
         <ScrollArea className="h-full pr-4" viewportRef={scrollViewportRef}>
             <div className="space-y-4">
-            {messages && messages.map((msg) => (
+            {messages && messages.map((msg) => {
+                const userProfile = participantProfiles.get(msg.userId);
+                return (
                 <div key={msg.id} className="flex items-start space-x-3 group">
                     <Link href={`/profile/${msg.userId}`} passHref>
                         <Avatar className="h-8 w-8 cursor-pointer">
+                            <AvatarImage src={userProfile?.photoURL} alt={msg.user} />
                             <AvatarFallback className={`${getUserColor(msg.user)}/20 border ${getUserColor(msg.user)}/50`}>
-                                {msg.user?.substring(0,1) || 'A'}
+                                {getInitials(msg.user)}
                             </AvatarFallback>
                         </Avatar>
                     </Link>
@@ -299,7 +332,7 @@ export function LiveChat({ chatRoom, canChat, participant, isHost, messages, par
                     </div>
                 </div>
                 </div>
-            ))}
+            )})}
             {messages && messages.length === 0 && (
                     <div className="text-center text-muted-foreground pt-10">
                         <p>No messages yet. Be the first to start the conversation!</p>

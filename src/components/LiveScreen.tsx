@@ -6,20 +6,21 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Share2, MicOff, Loader2, Star, MessageSquare, Mic } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { endChatRoom, Participant, startChatRoom } from '@/services/chatRoomService';
 import { useRouter } from 'next/navigation';
 import type { Message } from '@/services/chatRoomService';
 import { LivePoll } from './LivePoll';
 import { useAuth } from '@/context/AuthContext';
+import { getUserProfile, UserProfileData } from '@/services/userService';
 
 
 interface LiveScreenProps {
   id: string;
   title: string;
   host: string;
-  hostAvatar: string;
+  hostAvatar: string; // This will be deprecated
   isLive: boolean;
   imageHint: string;
   isHost?: boolean;
@@ -28,12 +29,23 @@ interface LiveScreenProps {
   participants: Participant[];
 }
 
-export function LiveScreen({ id: chatRoomId, title, host, hostAvatar, isLive, imageHint, isHost = false, featuredMessage, hostReply }: LiveScreenProps) {
+export function LiveScreen({ id: chatRoomId, title, host, hostAvatar, isLive, imageHint, isHost = false, featuredMessage, hostReply, participants }: LiveScreenProps) {
   const [isEnding, setIsEnding] = useState(false);
   const [isStarting, setIsStarting] = useState(false);
   const { toast } = useToast();
   const router = useRouter();
   const { currentUser } = useAuth();
+  const [hostProfile, setHostProfile] = useState<UserProfileData | null>(null);
+
+  const hostParticipant = participants.find(p => p.userId === (currentUser?.uid));
+  const featuredParticipant = featuredMessage ? participants.find(p => p.userId === featuredMessage.userId) : null;
+
+  useEffect(() => {
+    const hostInfo = participants.find(p => p.status === 'approved');
+    if (hostInfo) {
+      getUserProfile(hostInfo.userId).then(setHostProfile);
+    }
+  }, [participants]);
   
   const handleShare = () => {
     const url = window.location.href;
@@ -78,13 +90,22 @@ export function LiveScreen({ id: chatRoomId, title, host, hostAvatar, isLive, im
     }
   }
 
+  const getInitials = (name: string) => {
+    if (!name) return "..";
+    const nameParts = name.split(' ');
+    if (nameParts.length > 1) {
+        return (nameParts[0][0] + nameParts[1][0]).toUpperCase();
+    }
+    return name.substring(0, 2).toUpperCase();
+  }
+
 
   return (
     <Card className="overflow-hidden shadow-lg h-full flex flex-col">
       <CardHeader className="flex flex-row items-center gap-4 p-4 md:p-6">
         <Avatar className="h-16 w-16 border-2 border-primary">
-          <AvatarImage src={hostAvatar} alt={host} data-ai-hint={imageHint} />
-          <AvatarFallback>{host.substring(0, 2)}</AvatarFallback>
+          <AvatarImage src={hostProfile?.photoURL} alt={host} />
+          <AvatarFallback>{getInitials(host)}</AvatarFallback>
         </Avatar>
         <div className="flex-1">
           <CardTitle className="text-xl md:text-2xl font-headline">{title}</CardTitle>
@@ -110,21 +131,23 @@ export function LiveScreen({ id: chatRoomId, title, host, hostAvatar, isLive, im
               currentUserId={currentUser!.uid}
               renderNoPollContent={() => (
                 <>
-                  {featuredMessage ? (
+                  {featuredMessage && featuredParticipant ? (
                        <div className="w-full space-y-4 animate-in fade-in-50 duration-500">
                           <div className="flex items-start space-x-3">
                               <Avatar className="h-8 w-8 border">
-                                  <AvatarFallback>{featuredMessage.user?.substring(0,1) || 'A'}</AvatarFallback>
+                                  <AvatarImage src={featuredParticipant.photoURL} alt={featuredParticipant.displayName} />
+                                  <AvatarFallback>{getInitials(featuredMessage.user)}</AvatarFallback>
                               </Avatar>
                               <div className="bg-muted p-3 rounded-lg rounded-tl-none flex-1">
                                   <p className="text-sm font-bold text-muted-foreground">{featuredMessage.user}</p>
                                   {featuredMessage.text && <p className="text-base">{featuredMessage.text}</p>}
                               </div>
                           </div>
-                          {hostReply && (
+                          {hostReply && hostProfile && (
                               <div className="flex items-start space-x-3">
                                    <Avatar className="h-8 w-8 border-2 border-primary">
-                                      <AvatarFallback className="text-primary font-bold">{host?.substring(0,1) || 'H'}</AvatarFallback>
+                                      <AvatarImage src={hostProfile.photoURL} alt={hostProfile.username} />
+                                      <AvatarFallback className="text-primary font-bold">{getInitials(host)}</AvatarFallback>
                                   </Avatar>
                                   <div className="bg-primary/10 border border-primary/20 p-3 rounded-lg rounded-tl-none flex-1">
                                       <p className="text-sm font-bold text-primary">{host} (Host)</p>

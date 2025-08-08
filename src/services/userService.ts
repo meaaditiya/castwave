@@ -7,6 +7,7 @@ export interface UserProfileData {
     username: string;
     email: string;
     emailVerified: boolean;
+    photoURL?: string;
 }
 
 export const getUserProfile = async (userId: string): Promise<UserProfileData | null> => {
@@ -21,6 +22,7 @@ export const getUserProfile = async (userId: string): Promise<UserProfileData | 
                 username: data.username,
                 email: data.email,
                 emailVerified: data.emailVerified,
+                photoURL: data.photoURL,
             };
         } else {
             return null;

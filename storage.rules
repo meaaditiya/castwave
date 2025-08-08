@@ -2,19 +2,15 @@ rules_version = '2';
 
 service firebase.storage {
   match /b/{bucket}/o {
-    // Allow reads from anyone
-    match /{allPaths=**} {
-      allow read;
-    }
-
-    // Allow writes to thumbnails only for authenticated users on their own files
-    match /thumbnails/{userId}_{allPaths=**} {
-      allow write: if request.auth != null && request.auth.uid == userId;
-    }
-
-    // Allow writes to chat-media only for authenticated users on their own files
-    match /chat-media/{userId}_{allPaths=**} {
-      allow write: if request.auth != null && request.auth.uid == userId;
+    // Allow users to upload profile images to a folder named after their user ID.
+    // - The file must be an image.
+    // - The file size must be less than 5MB.
+    // - The user must be authenticated and can only write to their own folder.
+    match /profileImages/{userId}/{fileName} {
+      allow read: if true;
+      allow write: if request.auth != null && request.auth.uid == userId
+                   && request.resource.size < 5 * 1024 * 1024
+                   && request.resource.contentType.matches('image/.*');
     }
   }
 }
