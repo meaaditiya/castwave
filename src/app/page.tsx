@@ -33,7 +33,7 @@ function HomePageSkeleton() {
 export default function Home() {
   const [allChatRooms, setAllChatRooms] = useState<ChatRoom[]>([]);
   const [loading, setLoading] = useState(true);
-  const { currentUser, loading: authLoading } = useAuth();
+  const { currentUser } = useAuth();
   const [chatRoomToDelete, setChatRoomToDelete] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const { toast } = useToast();
@@ -41,7 +41,6 @@ export default function Home() {
   const [currentTab, setCurrentTab] = useState('public');
 
   useEffect(() => {
-    if (authLoading) return;
     setLoading(true);
 
     const unsubscribe = getChatRooms(
@@ -58,7 +57,7 @@ export default function Home() {
       }
     );
     return () => unsubscribe();
-  }, [currentUser, authLoading, toast]);
+  }, [currentUser, toast]);
 
   const filteredAndSortedRooms = useMemo(() => {
     // Filter based on search query first
@@ -122,7 +121,7 @@ export default function Home() {
   };
 
   const renderRoomList = (rooms: ChatRoom[]) => {
-    if (loading || authLoading) return <HomePageSkeleton />;
+    if (loading) return <HomePageSkeleton />;
     if (rooms.length > 0) {
         return (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">

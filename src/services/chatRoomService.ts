@@ -70,12 +70,9 @@ export const getChatRooms = (
 ) => {
     const chatRoomsRef = collection(db, 'chatRooms');
     let combinedUnsubscribes: (() => void)[] = [];
-    let allRooms = new Map<string, ChatRoom>();
+    const allRooms = new Map<string, ChatRoom>();
 
-    const handleSnapshot = (snapshot: any) => {
-        snapshot.docs.forEach((doc: any) => {
-            allRooms.set(doc.id, { id: doc.id, ...doc.data() } as ChatRoom);
-        });
+    const updateAndCallback = () => {
         callback(Array.from(allRooms.values()));
     };
 
@@ -85,20 +82,29 @@ export const getChatRooms = (
             onError(new Error("Could not load sessions. Check permissions or network."));
         }
     };
-    
+
     // Query for public rooms
     const publicQuery = query(chatRoomsRef, where('isPrivate', '==', false));
-    const publicUnsubscribe = onSnapshot(publicQuery, handleSnapshot, handleError);
+    const publicUnsubscribe = onSnapshot(publicQuery, (snapshot) => {
+        snapshot.docs.forEach((doc) => {
+            allRooms.set(doc.id, { id: doc.id, ...doc.data() } as ChatRoom);
+        });
+        updateAndCallback();
+    }, handleError);
     combinedUnsubscribes.push(publicUnsubscribe);
 
-    // If user is logged in, also query for rooms they host
+    // If user is logged in, also query for their private rooms
     if (userId) {
-        const privateQuery = query(chatRoomsRef, where('hostId', '==', userId));
-        const privateUnsubscribe = onSnapshot(privateQuery, handleSnapshot, handleError);
+        const privateQuery = query(chatRoomsRef, where('hostId', '==', userId), where('isPrivate', '==', true));
+        const privateUnsubscribe = onSnapshot(privateQuery, (snapshot) => {
+             snapshot.docs.forEach((doc) => {
+                allRooms.set(doc.id, { id: doc.id, ...doc.data() } as ChatRoom);
+            });
+            updateAndCallback();
+        }, handleError);
         combinedUnsubscribes.push(privateUnsubscribe);
     }
 
-    // Return a function that unsubscribes from all listeners
     return () => combinedUnsubscribes.forEach(unsub => unsub());
 };
 
