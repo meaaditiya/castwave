@@ -55,42 +55,41 @@ export default function PublicProfilePage({ params }: { params: { id: string } }
     const [userProfile, setUserProfile] = useState<UserProfileData | null>(null);
     const [userSessions, setUserSessions] = useState<ChatRoom[]>([]);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(false);
 
     const userId = resolvedParams.id;
 
     useEffect(() => {
+        // Wait until auth state is fully determined.
         if (authLoading) {
             return;
         }
 
+        // If auth is resolved and there's no user, redirect to login.
         if (!currentUser) {
             router.push('/login');
             return;
         }
         
+        // If the user is viewing their own profile, redirect to the main profile page.
         if (userId === currentUser.uid) {
             router.replace('/profile');
             return;
         }
 
         async function fetchProfileData() {
-            if (!userId) {
-                notFound();
-                return;
-            };
-
             setLoading(true);
             try {
                 const profile = await getUserProfile(userId);
                 if (!profile) {
-                    notFound();
+                    setError(true); // Mark as not found
                     return;
                 }
                 setUserProfile(profile);
 
-            } catch (error) {
-                console.error("Failed to fetch profile", error);
-                notFound();
+            } catch (err) {
+                console.error("Failed to fetch profile", err);
+                setError(true); // Mark as error
             } finally {
                 setLoading(false);
             }
@@ -121,12 +120,12 @@ export default function PublicProfilePage({ params }: { params: { id: string } }
 
     }, [userId]);
 
-
-     if (authLoading || loading) {
+     if (authLoading || (loading && !error)) {
         return <PublicProfileSkeleton />;
     }
-
-    if (!userProfile) {
+    
+    // If we had an error or the user was not found, trigger Next.js notFound UI
+    if (error || !userProfile) {
         return notFound();
     }
 
