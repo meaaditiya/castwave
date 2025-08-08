@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Send, Loader2, Hand, ThumbsUp, ThumbsDown, Star, ArrowDown, CheckCircle, XCircle } from 'lucide-react';
@@ -18,6 +18,7 @@ import { format } from 'date-fns';
 import { useDebouncedCallback } from 'use-debounce';
 import { TypingIndicator } from './TypingIndicator';
 import { CardContent } from './ui/card';
+import Link from 'next/link';
 
 interface LiveChatProps {
   chatRoom: ChatRoom;
@@ -25,6 +26,7 @@ interface LiveChatProps {
   isHost: boolean;
   messages: Message[];
   participant?: Participant;
+  participants: Participant[];
 }
 
 const userColors = [
@@ -40,7 +42,7 @@ const getUserColor = (userName: string) => {
     return userColors[Math.abs(hash % userColors.length)];
 }
 
-export function LiveChat({ chatRoom, canChat, participant, isHost, messages }: LiveChatProps) {
+export function LiveChat({ chatRoom, canChat, participant, isHost, messages, participants }: LiveChatProps) {
   const [newMessage, setNewMessage] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [isRequesting, setIsRequesting] = useState(false);
@@ -51,6 +53,10 @@ export function LiveChat({ chatRoom, canChat, participant, isHost, messages }: L
   const [messageToFeature, setMessageToFeature] = useState<Message | null>(null);
   const [hostReply, setHostReply] = useState('');
   const [isFeaturing, setIsFeaturing] = useState(false);
+
+  const participantsMap = useMemo(() => {
+    return new Map(participants.map(p => [p.userId, p]));
+  }, [participants]);
 
   const scrollToBottom = useCallback((behavior: 'smooth' | 'auto' = 'smooth') => {
     const viewport = scrollViewportRef.current;
@@ -132,7 +138,6 @@ export function LiveChat({ chatRoom, canChat, participant, isHost, messages }: L
             user: currentUser.profile.username,
             userId: currentUser.uid,
             text: newMessage.trim(),
-            userEmailVerified: currentUser.emailVerified,
         });
         setNewMessage('');
         setShowNewMessageButton(false);
@@ -254,17 +259,24 @@ export function LiveChat({ chatRoom, canChat, participant, isHost, messages }: L
       <div className="flex-1 min-h-0 relative">
         <ScrollArea className="h-full pr-4" viewportRef={scrollViewportRef}>
             <div className="space-y-4">
-            {messages && messages.map((msg) => (
+            {messages && messages.map((msg) => {
+                const messageParticipant = participantsMap.get(msg.userId);
+                const isVerified = messageParticipant?.emailVerified ?? false;
+                return (
                 <div key={msg.id} className="flex items-start space-x-3 group">
-                <Avatar className="h-8 w-8">
-                    <AvatarFallback className={`${getUserColor(msg.user)}/20 border ${getUserColor(msg.user)}/50`}>
-                        {msg.user?.substring(0,1) || 'A'}
-                    </AvatarFallback>
-                </Avatar>
+                    <Link href={`/profile/${msg.userId}`} passHref>
+                        <Avatar className="h-8 w-8 cursor-pointer">
+                            <AvatarFallback className={`${getUserColor(msg.user)}/20 border ${getUserColor(msg.user)}/50`}>
+                                {msg.user?.substring(0,1) || 'A'}
+                            </AvatarFallback>
+                        </Avatar>
+                    </Link>
                 <div className="flex-1">
                     <div className="flex items-center gap-2">
-                        <span className={`font-bold text-sm ${getUserColor(msg.user)}`}>{msg.user}</span>
-                        {msg.userEmailVerified ? <CheckCircle className="h-4 w-4 text-green-500" /> : <XCircle className="h-4 w-4 text-red-500" />}
+                        <Link href={`/profile/${msg.userId}`} passHref>
+                            <span className={`font-bold text-sm ${getUserColor(msg.user)} cursor-pointer hover:underline`}>{msg.user}</span>
+                        </Link>
+                        {isVerified ? <CheckCircle className="h-4 w-4 text-green-500" /> : <XCircle className="h-4 w-4 text-red-500" />}
                         <span className="text-xs text-muted-foreground">{formatTimestamp(msg.timestamp)}</span>
                         {isHost && (
                             <Button size="icon" variant="ghost" className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity text-amber-500" onClick={() => setMessageToFeature(msg)}>
@@ -289,7 +301,7 @@ export function LiveChat({ chatRoom, canChat, participant, isHost, messages }: L
                     </div>
                 </div>
                 </div>
-            ))}
+            )})}
             {messages && messages.length === 0 && (
                     <div className="text-center text-muted-foreground pt-10">
                         <p>No messages yet. Be the first to start the conversation!</p>
@@ -363,3 +375,5 @@ export function LiveChat({ chatRoom, canChat, participant, isHost, messages }: L
     </CardContent>
   );
 }
+
+    

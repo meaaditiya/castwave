@@ -108,7 +108,6 @@ export default function ProfilePage() {
             await setDoc(userDocRef, {
                 username: newUsername.trim(),
                 email: currentUser.email,
-                emailVerified: currentUser.emailVerified,
             }, { merge: true });
 
             toast({
@@ -233,7 +232,7 @@ export default function ProfilePage() {
                                             </Button>
                                         ) : (
                                             <Button variant="ghost" size="icon" className="w-8 h-8" onClick={() => setIsEditing(false)}>
-                                                <Edit className="h-4 w-4" />
+                                                <X className="h-4 w-4" />
                                             </Button>
                                         )}
                                     </div>
@@ -364,3 +363,5 @@ export default function ProfilePage() {
 
     
 }
+
+    

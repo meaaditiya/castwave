@@ -1,6 +1,7 @@
 
 import { db } from '@/lib/firebase';
 import { collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, doc, getDoc, updateDoc, setDoc, getDocs, writeBatch, runTransaction, increment, where, deleteDoc, Query } from 'firebase/firestore';
+import { getUserProfile } from './userService';
 
 export interface Message {
   id?: string;
@@ -11,7 +12,6 @@ export interface Message {
   upvotes: number;
   downvotes: number;
   voters: { [userId: string]: 'upvotes' | 'downvotes' };
-  userEmailVerified: boolean;
 }
 
 export interface ChatRoom {
@@ -70,9 +70,8 @@ export const createChatRoom = async (input: ChatRoomInput): Promise<{ chatRoomId
                 imageHint: ''
             });
 
-            // The host is always approved and assumed to be verified at creation (or will be updated)
-             const userDoc = await getDoc(doc(db, 'users', input.hostId));
-             const userVerified = userDoc.exists() ? userDoc.data().emailVerified : false;
+            const userProfile = await getUserProfile(input.hostId);
+            const userVerified = userProfile?.emailVerified ?? false;
 
             const participantRef = doc(db, 'chatRooms', newChatRoomRef.id, 'participants', input.hostId);
             transaction.set(participantRef, {
@@ -106,7 +105,7 @@ export const getChatRooms = (
     let q: Query; 
 
     if (options.hostId) {
-         q = query(chatRoomsRef, where('hostId', '==', options.hostId));
+        q = query(chatRoomsRef, where('hostId', '==', options.hostId), where('isPrivate', '==', options.isPublic === false ? true : false));
     } else {
          q = query(chatRoomsRef, where('isPrivate', '==', false));
     }
@@ -208,7 +207,6 @@ export const sendMessage = async (chatRoomId: string, message: Partial<Message>)
             downvotes: 0,
             voters: {},
             timestamp: serverTimestamp(),
-            userEmailVerified: message.userEmailVerified || false
         };
 
         await addDoc(messagesCol, messageData);
@@ -404,3 +402,5 @@ export const deleteChatRoomForHost = async (chatRoomId: string, hostId: string) 
         console.error("Error deleting chat room:", error);
     }
 };
+
+    

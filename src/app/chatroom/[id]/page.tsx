@@ -216,6 +216,7 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
                   participant={currentParticipant}
                   isHost={isHost}
                   messages={chatLog}
+                  participants={participants}
               />
               <div className="mt-auto border-t">
                   <Accordion type="single" collapsible className="w-full">
@@ -249,3 +250,5 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
     </div>
   );
 }
+
+    
