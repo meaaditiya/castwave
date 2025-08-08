@@ -108,7 +108,7 @@ export const getChatRooms = (
     let q: Query; 
 
     if (options.hostId) {
-        q = query(chatRoomsRef, where('hostId', '==', options.hostId), where('isPrivate', '==', options.isPublic === false ? true : false));
+        q = query(chatRoomsRef, where('hostId', '==', options.hostId));
     } else {
          q = query(chatRoomsRef, where('isPrivate', '==', false));
     }
@@ -432,5 +432,8 @@ export const deleteChatRoomForHost = async (chatRoomId: string, hostId: string) 
 
     } catch (error) {
         console.error("Error deleting chat room:", error);
+        throw new Error("Could not delete chat room.");
     }
 };
+
+    

@@ -270,7 +270,7 @@ export default function ProfilePage() {
                                 </Avatar>
                            </div>
                             <div className="flex-1">
-                                <div className="flex items-center gap-2">
+                                <div className="flex items-center justify-center sm:justify-start gap-2">
                                     <CardTitle className="text-2xl">{currentUser.profile?.username || 'My Profile'}</CardTitle>
                                     {currentUser.emailVerified ? (
                                         <CheckCircle className="h-6 w-6 text-green-500" />
@@ -280,32 +280,38 @@ export default function ProfilePage() {
                                 </div>
                                 <CardDescription>Manage your account details and security settings.</CardDescription>
                             </div>
-                            <div className="flex flex-col sm:flex-row gap-2">
-                                {currentUser.profile?.photoURL && (
-                                    <Button onClick={handleRemoveAvatar} variant="outline">
-                                        <Trash2 /> Remove Avatar
-                                    </Button>
-                                )}
-                                <TooltipProvider>
-                                    <Tooltip>
-                                        <TooltipTrigger asChild>
-                                            <div tabIndex={canGenerateAvatar ? -1 : 0}> 
-                                                <Button onClick={handleGenerateAvatar} disabled={isGeneratingAvatar || !canGenerateAvatar}>
-                                                    {isGeneratingAvatar ? <Loader2 className="animate-spin" /> : <Sparkles />}
-                                                    Generate New Avatar
-                                                </Button>
-                                            </div>
-                                        </TooltipTrigger>
-                                        {!canGenerateAvatar && (
-                                            <TooltipContent>
-                                                <p>You have used all of your free avatar generations.</p>
-                                            </TooltipContent>
-                                        )}
-                                    </Tooltip>
-                                </TooltipProvider>
-                            </div>
                         </CardHeader>
                         <CardContent className="pt-6 space-y-6">
+                             <div>
+                                <h3 className="text-lg font-semibold mb-4">Avatar Settings</h3>
+                                <div className="flex flex-col sm:flex-row gap-2 rounded-md border p-4">
+                                     {currentUser.profile?.photoURL && (
+                                        <Button onClick={handleRemoveAvatar} variant="outline" className="flex-1">
+                                            <Trash2 /> Remove Avatar
+                                        </Button>
+                                    )}
+                                    <TooltipProvider>
+                                        <Tooltip>
+                                            <TooltipTrigger asChild>
+                                                <div className="flex-1" tabIndex={canGenerateAvatar ? -1 : 0}> 
+                                                    <Button onClick={handleGenerateAvatar} disabled={isGeneratingAvatar || !canGenerateAvatar} className="w-full">
+                                                        {isGeneratingAvatar ? <Loader2 className="animate-spin" /> : <Sparkles />}
+                                                        Generate New Avatar
+                                                    </Button>
+                                                </div>
+                                            </TooltipTrigger>
+                                            {!canGenerateAvatar && (
+                                                <TooltipContent>
+                                                    <p>You have used all of your free avatar generations.</p>
+                                                </TooltipContent>
+                                            )}
+                                        </Tooltip>
+                                    </TooltipProvider>
+                                </div>
+                            </div>
+                            
+                            <Separator />
+
                             <div>
                                 <h3 className="text-lg font-semibold mb-4">Profile Information</h3>
                                 <div className="space-y-4">
@@ -362,7 +368,7 @@ export default function ProfilePage() {
                                      <div className="flex items-center space-x-4 rounded-md border p-4">
                                         {currentUser.emailVerified ? (
                                             <>
-                                                <MailCheck className="h-5 w-5 text-green-green-500" />
+                                                <MailCheck className="h-5 w-5 text-green-500" />
                                                 <div className="flex-1 space-y-1">
                                                     <p className="text-sm font-medium leading-none">Email Verification</p>
                                                     <p className="text-sm text-muted-foreground">Your email address has been verified.</p>
@@ -466,3 +472,5 @@ export default function ProfilePage() {
 
     
 }
+
+    
