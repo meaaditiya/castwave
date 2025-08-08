@@ -72,7 +72,7 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
   const currentParticipant = participants.find(p => p.userId === currentUser?.uid);
   const canChat = isHost || currentParticipant?.status === 'approved';
 
-  // Redirect if not logged in
+  // Redirect if not logged in AFTER auth check is complete.
   useEffect(() => {
     if (!authLoading && !currentUser) {
       router.push('/login');
@@ -82,7 +82,7 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
   // Step 1: Fetch the main chat room data
   useEffect(() => {
     const chatRoomId = resolvedParams.id;
-    if (authLoading || !currentUser) return; // Wait for auth to be ready
+    if (!currentUser) return; // Wait for user to exist
   
     setPageLoading(true);
   
@@ -101,7 +101,7 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
     });
   
     return () => unsubscribeChatRoom();
-  }, [resolvedParams.id, currentUser, authLoading, router, toast]);
+  }, [resolvedParams.id, currentUser, router, toast]);
 
   // Step 2: Once chat room data is loaded, manage participants and permissions
   useEffect(() => {
@@ -161,8 +161,12 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
     return () => unsubscribeMessages();
   }, [resolvedParams.id, isHost, participants, currentUser, chatLog.length]);
   
-  // This is the main loading gate. It waits for auth to finish before doing anything else.
-  if (authLoading || !currentUser) {
+  if (authLoading) {
+    return <ChatRoomPageSkeleton />;
+  }
+
+  // If we have finished auth check but still don't have a user, show skeleton (redirect will happen in useEffect)
+  if (!currentUser) {
     return <ChatRoomPageSkeleton />;
   }
   
