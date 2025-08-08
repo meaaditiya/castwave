@@ -160,7 +160,7 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
     return () => unsubscribeMessages();
   }, [resolvedParams.id, isHost, participants, currentUser, chatLog.length]);
 
-  if (authLoading || pageLoading || !currentUser || !chatRoom || !permissionsReady) {
+  if (authLoading || pageLoading || !currentUser || !chatRoom || !permissionsReady || (participants.length === 0 && !isHost)) {
     if (!authLoading && !pageLoading && currentUser && chatRoom && !permissionsReady && currentParticipant?.status === 'pending') {
          // Show a waiting screen for users pending approval
          return (
