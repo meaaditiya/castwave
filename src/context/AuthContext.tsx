@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, User as FirebaseAuthUser, EmailAuthProvider, reauthenticateWithCredential, updatePassword, sendEmailVerification } from 'firebase/auth';
 import { auth, db } from '@/lib/firebase';
 import { doc, getDoc, setDoc, onSnapshot } from 'firebase/firestore';
@@ -42,31 +42,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [currentUser, setCurrentUser] = useState<AppUser | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const updateUserProfileInFirestore = useCallback(async (user: FirebaseAuthUser, profileData: UserProfile | null) => {
+    const userProfileDocRef = doc(db, 'users', user.uid);
+    // Always use the live `emailVerified` from the user object
+    const isVerified = user.emailVerified;
+
+    if (profileData?.emailVerified !== isVerified) {
+        await setDoc(userProfileDocRef, { emailVerified: isVerified }, { merge: true });
+    }
+
+    const docSnap = await getDoc(userProfileDocRef);
+    if (docSnap.exists()) {
+        setCurrentUser({ ...user, profile: docSnap.data() as UserProfile });
+    } else {
+        setCurrentUser(user);
+    }
+  }, []);
+
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
         if (user) {
             const userProfileDocRef = doc(db, 'users', user.uid);
+
             const unsubProfile = onSnapshot(userProfileDocRef, (docSnap) => {
-                 if (docSnap.exists()) {
-                    const profileData = docSnap.data();
-                    const profile: UserProfile = {
-                        uid: user.uid,
-                        email: user.email || '',
-                        username: profileData.username,
-                        emailVerified: user.emailVerified // Always take the latest from the auth object
-                    };
-
-                    // If the stored verified status is different from the live one, update it
-                    if(profileData.emailVerified !== user.emailVerified) {
-                        setDoc(userProfileDocRef, { emailVerified: user.emailVerified }, { merge: true });
-                    }
-
-                    setCurrentUser({ ...user, profile });
-                } else {
-                    // This case is for users who might have been created before the profiles collection was a thing.
-                    setCurrentUser(user); 
-                }
-                setLoading(false);
+                const profileData = docSnap.exists() ? docSnap.data() as UserProfile : null;
+                // We must reload the user to get the latest emailVerified status
+                user.reload().then(() => {
+                    updateUserProfileInFirestore(user, profileData);
+                    setLoading(false);
+                });
             });
             return () => unsubProfile();
         } else {
@@ -74,9 +78,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setLoading(false);
         }
     });
+
     return unsubscribe;
-  }, []);
-  
+  }, [updateUserProfileInFirestore]);
+
   const signup = async (email: string, password: string, username: string) => {
     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
     const user = userCredential.user;
