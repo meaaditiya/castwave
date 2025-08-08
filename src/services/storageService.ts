@@ -1,5 +1,4 @@
 
-
 import { uploadProfileImageFlow } from '@/ai/flows/upload-profile-image';
 
 // Helper to convert a File to a base64 data URI
@@ -7,9 +6,14 @@ const fileToDataUri = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = () => {
-            resolve(reader.result as string);
+            if (typeof reader.result !== 'string') {
+                return reject(new Error('FileReader did not return a string.'));
+            }
+            resolve(reader.result);
         };
-        reader.onerror = reject;
+        reader.onerror = (error) => {
+            reject(error);
+        };
         reader.readAsDataURL(file);
     });
 };
@@ -35,6 +39,10 @@ export const uploadProfileImage = async (userId: string, file: File): Promise<st
 
         // Call the Genkit flow to handle the upload securely
         const result = await uploadProfileImageFlow({ userId, imageDataUri });
+        
+        if (!result || !result.photoURL) {
+            throw new Error("The upload flow did not return a photo URL.");
+        }
         
         return result.photoURL;
     } catch (error) {

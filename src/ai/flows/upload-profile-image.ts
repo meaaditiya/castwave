@@ -42,7 +42,7 @@ const uploadProfileImageFlowFn = ai.defineFlow(
   },
   async ({ userId, imageDataUri }) => {
     if (!bucketName) {
-        throw new Error('Firebase Storage bucket name is not configured in your firebaseConfig. Please check `src/lib/firebase.ts`.');
+        throw new Error('Firebase Storage bucket name is not configured. Check `src/lib/firebase.ts`.');
     }
     const bucket = storage.bucket(bucketName);
 
@@ -50,7 +50,7 @@ const uploadProfileImageFlowFn = ai.defineFlow(
         // Extract MIME type and Base64 data from the data URI
         const matches = imageDataUri.match(/^data:(.+);base64,(.*)$/);
         if (!matches || matches.length !== 3) {
-            throw new Error('Invalid data URI format.');
+            throw new Error('Invalid data URI format. Expected "data:<mimetype>;base64,<data>".');
         }
 
         const mimeType = matches[1];
@@ -62,22 +62,24 @@ const uploadProfileImageFlowFn = ai.defineFlow(
 
         const file = bucket.file(filePath);
 
-        // Upload the file buffer
+        // Upload the file buffer to GCS
         await file.save(buffer, {
             metadata: {
                 contentType: mimeType,
             },
+            public: true, // Make the file public upon upload
         });
         
-        // Make the file public and get its URL
-        await file.makePublic();
-        const photoURL = file.publicUrl();
+        // Construct the public URL
+        const photoURL = `https://storage.googleapis.com/${bucketName}/${filePath}`;
 
         return { photoURL };
 
     } catch (error: any) {
         console.error('Error uploading to Cloud Storage:', error);
-        throw new Error(`Failed to upload profile image: ${error.message}`);
+        // Provide a more detailed error message
+        const errorMessage = error.response?.data?.error?.message || error.message || 'An unknown error occurred.';
+        throw new Error(`Failed to upload profile image: ${errorMessage}`);
     }
   }
 );
