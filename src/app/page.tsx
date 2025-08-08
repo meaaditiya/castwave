@@ -42,7 +42,6 @@ export default function Home() {
 
   useEffect(() => {
     setLoading(true);
-
     const unsubscribe = getChatRooms(
       (newChatRooms) => {
         setAllChatRooms(newChatRooms);
@@ -50,11 +49,10 @@ export default function Home() {
       },
       (error) => {
         console.error("Failed to get chat rooms:", error);
-        // Do not toast on permission errors which can happen during logout
         if (error.code !== 'permission-denied') {
            toast({ variant: 'destructive', title: 'Error', description: 'Could not load sessions. Check permissions or network.' });
         }
-        setAllChatRooms([]); // Clear rooms on error
+        setAllChatRooms([]);
         setLoading(false);
       }
     );
@@ -65,6 +63,7 @@ export default function Home() {
         }
     };
   }, [currentUser?.uid, toast]);
+
 
   const filteredAndSortedRooms = useMemo(() => {
     // Filter based on search query first
@@ -93,11 +92,11 @@ export default function Home() {
 
 
   const handleDelete = async () => {
-    if (!chatRoomToDelete || !currentUser) return;
+    if (!chatRoomToDelete || !currentUser || !currentUser.email) return;
 
     setIsDeleting(true);
     try {
-        await deleteChatRoomForHost(chatRoomToDelete, currentUser.uid);
+        await deleteChatRoomForHost(chatRoomToDelete, currentUser.email);
         toast({
             title: 'Chat Room Deleted',
             description: 'The chat room has been successfully deleted.',
@@ -137,7 +136,7 @@ export default function Home() {
                     <ChatRoomCard 
                         key={chatRoom.id} 
                         {...chatRoom} 
-                        isOwner={currentUser?.uid === chatRoom.hostId}
+                        isOwner={currentUser?.email === chatRoom.hostEmail}
                         onDelete={() => setChatRoomToDelete(chatRoom.id)}
                         onStartSession={() => handleStartSession(chatRoom.id)}
                     />

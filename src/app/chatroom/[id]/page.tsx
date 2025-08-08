@@ -140,7 +140,7 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
   const { toast } = useToast();
   
   const chatRoomId = resolvedParams.id;
-  const isHost = currentUser && chatRoom && currentUser.uid === chatRoom.hostId;
+  const isHost = currentUser && chatRoom && currentUser.email === chatRoom.hostEmail;
 
   useEffect(() => {
     if (!authLoading && !currentUser) {

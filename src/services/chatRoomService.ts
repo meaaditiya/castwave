@@ -1,3 +1,4 @@
+
 import { db } from '@/lib/firebase';
 import { collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, doc, getDoc, updateDoc, setDoc, getDocs, writeBatch, runTransaction, increment, where, deleteDoc, Query, FirestoreError } from 'firebase/firestore';
 import { getUserProfile } from './userService';
@@ -19,6 +20,7 @@ export interface ChatRoom {
     description: string;
     host: string;
     hostId: string;
+    hostEmail: string;
     isLive: boolean;
     createdAt: any;
     isPrivate: boolean;
@@ -319,7 +321,7 @@ const deleteSubcollection = async (chatRoomId: string, subcollectionName: string
 };
 
 
-export const deleteChatRoomForHost = async (chatRoomId: string, hostId: string) => {
+export const deleteChatRoomForHost = async (chatRoomId: string, hostEmail: string) => {
     const chatRoomRef = doc(db, 'chatRooms', chatRoomId);
     try {
         await runTransaction(db, async (transaction) => {
@@ -328,7 +330,7 @@ export const deleteChatRoomForHost = async (chatRoomId: string, hostId: string) 
                 throw new Error("Chat room not found.");
             }
             const chatRoomData = chatRoomSnap.data();
-            if (chatRoomData.hostId !== hostId) {
+            if (chatRoomData.hostEmail !== hostEmail) {
                 throw new Error("Only the host can delete this chat room.");
             }
             transaction.delete(chatRoomRef);

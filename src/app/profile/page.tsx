@@ -22,7 +22,6 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Separator } from "@/components/ui/separator";
 import { generateAvatar } from "@/ai/flows/generate-avatar";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { updateUsername } from '@/ai/flows/update-username';
 
 
 const passwordFormSchema = z.object({
@@ -32,6 +31,10 @@ const passwordFormSchema = z.object({
 }).refine((data) => data.newPassword === data.confirmPassword, {
   message: "New passwords don't match",
   path: ['confirmPassword'],
+});
+
+const usernameFormSchema = z.object({
+    username: z.string().min(3, "Username must be at least 3 characters.").max(20, "Username must be 20 characters or less."),
 });
 
 function ProfilePageSkeleton() {
@@ -119,25 +122,14 @@ export default function ProfilePage() {
 
         setIsSaving(true);
         try {
-            const result = await updateUsername({ 
-                userId: currentUser.uid, 
-                newUsername: trimmedUsername,
-                currentUsername: currentUser.profile.username
+            const userDocRef = doc(db, 'users', currentUser.uid);
+            await updateDoc(userDocRef, { username: trimmedUsername });
+            toast({
+                title: 'Success!',
+                description: 'Your username has been updated.',
             });
+            setIsEditing(false);
 
-            if (result.success) {
-                toast({
-                    title: 'Success!',
-                    description: 'Your username has been updated everywhere.',
-                });
-                setIsEditing(false);
-            } else {
-                 toast({
-                    variant: 'destructive',
-                    title: 'Update Failed',
-                    description: result.message,
-                });
-            }
         } catch (error) {
              toast({
                 variant: 'destructive',
