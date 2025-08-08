@@ -105,7 +105,7 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
   // Step 2: Once chat room data is loaded, manage participants
   useEffect(() => {
     const chatRoomId = resolvedParams.id;
-    if (!chatRoom || !currentUser) return;
+    if (!chatRoom || !currentUser || !currentUser.profile) return;
 
     const localIsHost = chatRoom.hostId === currentUser.uid;
 
@@ -129,14 +129,17 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
                 setCurrentParticipant(participant);
             } else {
                 // User is not in the list, add them with pending status
-                await addParticipant(chatRoomId, {
-                    userId: currentUser.uid,
-                    displayName: currentUser.profile?.username || currentUser.email || 'Anonymous',
-                    status: 'pending',
-                    requestCount: 1,
-                    emailVerified: currentUser.emailVerified || false,
-                    photoURL: currentUser.profile?.photoURL,
-                });
+                // Ensure we have the full profile info before adding
+                if (currentUser.profile?.username) {
+                    await addParticipant(chatRoomId, {
+                        userId: currentUser.uid,
+                        displayName: currentUser.profile.username,
+                        status: 'pending',
+                        requestCount: 1,
+                        emailVerified: currentUser.emailVerified || false,
+                        photoURL: currentUser.profile.photoURL || '',
+                    });
+                }
             }
             setPageLoading(false);
         }, (error) => {

@@ -237,14 +237,7 @@ export const getMessages = (chatRoomId: string, callback: (messages: Message[]) 
 export const addParticipant = async (chatRoomId: string, participant: Omit<Participant, 'id'>) => {
     try {
         const participantRef = doc(db, `chatRooms/${chatRoomId}/participants`, participant.userId);
-        const userProfileRef = doc(db, 'users', participant.userId);
-        const userProfileSnap = await getDoc(userProfileRef);
-        const userProfile = userProfileSnap.data();
-
-        await setDoc(participantRef, {
-            ...participant,
-            photoURL: userProfile?.photoURL || ''
-        }, { merge: true });
+        await setDoc(participantRef, participant, { merge: true });
     } catch (error) {
         console.error("Error adding participant: ", error);
         throw new Error("Could not add participant.");
@@ -279,15 +272,11 @@ export const getParticipantStream = (chatRoomId: string, userId: string, callbac
     return unsubscribe;
 };
 
-export const requestToJoinChat = async (chatRoomId: string, userId: string, displayName: string, emailVerified: boolean) => {
-    const participantRef = doc(db, `chatRooms/${chatRoomId}/participants`, userId);
+export const requestToJoinChat = async (chatRoomId: string, participantData: Omit<Participant, 'id' | 'status' | 'requestCount'>) => {
+    const participantRef = doc(db, `chatRooms/${chatRoomId}/participants`, participantData.userId);
     try {
         await runTransaction(db, async (transaction) => {
             const docSnap = await transaction.get(participantRef);
-
-            const userProfileRef = doc(db, 'users', userId);
-            const userProfileSnap = await transaction.get(userProfileRef);
-            const userProfile = userProfileSnap.data();
 
             if (docSnap.exists()) {
                 const participant = docSnap.data() as Participant;
@@ -301,13 +290,10 @@ export const requestToJoinChat = async (chatRoomId: string, userId: string, disp
                     });
                 }
             } else {
-                transaction.set(participantRef, {
-                    userId,
-                    displayName,
+                 transaction.set(participantRef, {
+                    ...participantData,
                     status: 'pending',
                     requestCount: 1,
-                    emailVerified,
-                    photoURL: userProfile?.photoURL || ''
                 });
             }
         });
@@ -435,5 +421,3 @@ export const deleteChatRoomForHost = async (chatRoomId: string, hostId: string) 
         throw new Error("Could not delete chat room.");
     }
 };
-
-    

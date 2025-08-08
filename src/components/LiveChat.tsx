@@ -128,7 +128,12 @@ export function LiveChat({ chatRoom, canChat, participant, isHost, messages, par
     if (!currentUser || !currentUser.profile) return;
     setIsRequesting(true);
     try {
-        await requestToJoinChat(chatRoom.id, currentUser.uid, currentUser.profile.username, currentUser.emailVerified);
+        await requestToJoinChat(chatRoom.id, {
+            userId: currentUser.uid,
+            displayName: currentUser.profile.username,
+            emailVerified: currentUser.emailVerified,
+            photoURL: currentUser.profile.photoURL || ''
+        });
         toast({ title: "Request Sent", description: "The host has been notified." });
     } catch(e: any) {
         console.error(e);
