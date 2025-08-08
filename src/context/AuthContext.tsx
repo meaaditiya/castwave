@@ -2,7 +2,7 @@
 "use client";
 
 import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
-import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, User as FirebaseAuthUser, EmailAuthProvider, reauthenticateWithCredential, updatePassword, sendEmailVerification } from 'firebase/auth';
+import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, User as FirebaseAuthUser, EmailAuthProvider, reauthenticateWithCredential, updatePassword, sendEmailVerification, sendPasswordResetEmail } from 'firebase/auth';
 import { auth, db } from '@/lib/firebase';
 import { doc, getDoc, setDoc, onSnapshot } from 'firebase/firestore';
 
@@ -26,6 +26,7 @@ interface AuthContextType {
   reauthenticate: (password: string) => Promise<void>;
   updateUserPassword: (password: string) => Promise<void>;
   sendVerificationEmail: () => Promise<void>;
+  sendPasswordReset: (email: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -147,6 +148,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await sendEmailVerification(auth.currentUser);
   }
 
+  const sendPasswordResetHandler = async (email: string) => {
+    await sendPasswordResetEmail(auth, email);
+  }
+
 
   const value = {
     currentUser,
@@ -157,6 +162,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     reauthenticate,
     updateUserPassword,
     sendVerificationEmail: sendVerificationEmailHandler,
+    sendPasswordReset: sendPasswordResetHandler,
   };
   
   return (
