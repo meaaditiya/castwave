@@ -9,7 +9,6 @@ import { ai } from '@/ai/genkit';
 import { z } from 'zod';
 import { db } from '@/lib/firebase';
 import { collection, doc, runTransaction, serverTimestamp, getDoc } from 'firebase/firestore';
-import { onFlow, FlowAuth } from 'genkit/next';
 
 const CreateChatRoomFlowInputSchema = z.object({
   title: z.string().min(5),
@@ -17,24 +16,14 @@ const CreateChatRoomFlowInputSchema = z.object({
   isLive: z.boolean(),
   isPrivate: z.boolean(),
   scheduledAt: z.date().optional(),
+  hostId: z.string(),
+  hostEmail: z.string().email(),
 });
 export type CreateChatRoomFlowInput = z.infer<typeof CreateChatRoomFlowInputSchema>;
 
-export const createChatRoomFlow = onFlow(
-  {
-    name: 'createChatRoomFlow',
-    inputSchema: CreateChatRoomFlowInputSchema,
-    outputSchema: z.object({ chatRoomId: z.string() }),
-    authPolicy: (auth, input) => {
-        if (!auth) {
-            throw new Error('User must be authenticated.');
-        }
-    }
-  },
-  async (input, context) => {
-    const auth: FlowAuth = context.auth;
-    const hostId = auth.uid;
-
+export async function createChatRoomFlow(input: CreateChatRoomFlowInput): Promise<{ chatRoomId: string }> {
+    const { hostId, hostEmail, ...chatRoomData } = input;
+    
     if (!hostId) {
         throw new Error("Authentication failed, user ID not available.");
     }
@@ -49,18 +38,14 @@ export const createChatRoomFlow = onFlow(
         throw new Error("User profile not found.");
       }
       const userProfile = userProfileSnap.data();
-      const hostName = userProfile?.username || auth.email || 'Anonymous Host';
+      const hostName = userProfile?.username || hostEmail || 'Anonymous Host';
       
       // WRITE SECOND: Create the chat room document
       transaction.set(chatRoomRef, {
-        title: input.title,
-        description: input.description,
+        ...chatRoomData,
         host: hostName,
         hostId: hostId,
-        isLive: input.isLive,
-        isPrivate: input.isPrivate,
         createdAt: serverTimestamp(),
-        scheduledAt: input.scheduledAt || null,
         imageUrl: '',
         imageHint: ''
       });
@@ -77,5 +62,13 @@ export const createChatRoomFlow = onFlow(
     });
 
     return { chatRoomId: chatRoomRef.id };
-  }
+}
+
+ai.defineFlow(
+  {
+    name: 'createChatRoomFlow',
+    inputSchema: CreateChatRoomFlowInputSchema,
+    outputSchema: z.object({ chatRoomId: z.string() }),
+  },
+  createChatRoomFlow
 );

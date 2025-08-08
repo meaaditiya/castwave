@@ -2,6 +2,7 @@
 import { db } from '@/lib/firebase';
 import { collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, doc, getDoc, updateDoc, setDoc, getDocs, writeBatch, where, deleteDoc, Query, runTransaction } from 'firebase/firestore';
 import { createChatRoomFlow } from '@/ai/flows/create-chat-room';
+import { getAuth } from 'firebase/auth';
 
 export interface Message {
   id?: string;
@@ -49,7 +50,16 @@ export interface Participant {
 
 
 export const createChatRoom = async (input: ChatRoomInput): Promise<{ chatRoomId: string }> => {
-    return createChatRoomFlow(input);
+    const auth = getAuth();
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+        throw new Error("User must be authenticated.");
+    }
+    return createChatRoomFlow({
+        ...input,
+        hostId: currentUser.uid,
+        hostEmail: currentUser.email!,
+    });
 };
 
 interface GetChatRoomsOptions {
