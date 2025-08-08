@@ -83,5 +83,3 @@ export const getUserProfileStream = (userId: string, callback: (profile: UserPro
     });
     return unsubscribe;
 };
-
-    

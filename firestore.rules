@@ -8,10 +8,6 @@ service cloud.firestore {
     function isHost(chatRoomId) {
       return request.auth.uid == get(/databases/$(database)/documents/chatRooms/$(chatRoomId)).data.hostId;
     }
-    
-    function isHostOfNewDoc() {
-      return request.auth.uid == request.resource.data.hostId;
-    }
 
     // Helper function to check if a user is an approved participant (or speaker/host) in a chat room.
     function isApprovedOrHost(chatRoomId, userId) {
@@ -45,7 +41,7 @@ service cloud.firestore {
       allow read: if request.auth != null;
 
       // CREATE: Any authenticated user can create a chat room.
-      allow create: if request.auth != null && isHostOfNewDoc();
+      allow create: if request.auth != null && request.resource.data.hostId == request.auth.uid;
 
       // UPDATE: Only the host can update room details (e.g., end session, feature message, update typing status).
       allow update: if request.auth != null && isHost(chatRoomId);
