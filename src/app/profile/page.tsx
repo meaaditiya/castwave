@@ -22,7 +22,6 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Separator } from "@/components/ui/separator";
 import { isUsernameTaken } from "@/services/userService";
 import { generateAvatar } from "@/ai/flows/generate-avatar";
-import { uploadProfileImage } from "@/services/storageService";
 
 
 const passwordFormSchema = z.object({
@@ -195,23 +194,13 @@ export default function ProfilePage() {
         if (!currentUser || !currentUser.profile) return;
         setIsGeneratingAvatar(true);
         try {
-            // Step 1: Generate the avatar image data
             const result = await generateAvatar({ prompt: currentUser.profile.username });
             if (!result.dataUri) {
                 throw new Error("AI did not return an image.");
             }
-
-            // Step 2: Convert data URI to a Blob for uploading
-            const response = await fetch(result.dataUri);
-            const blob = await response.blob();
-            const file = new File([blob], "avatar.png", { type: "image/png" });
-
-            // Step 3: Upload the blob to Firebase Storage
-            const downloadURL = await uploadProfileImage(currentUser.uid, file);
             
-            // Step 4: Save the public downloadURL to Firestore
             const userDocRef = doc(db, 'users', currentUser.uid);
-            await setDoc(userDocRef, { photoURL: downloadURL }, { merge: true });
+            await setDoc(userDocRef, { photoURL: result.dataUri }, { merge: true });
             
             toast({
                 title: 'Avatar Generated!',
@@ -432,5 +421,3 @@ export default function ProfilePage() {
 
     
 }
-
-    
