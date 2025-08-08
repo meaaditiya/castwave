@@ -1,19 +1,34 @@
 
 "use client";
 
-import { useAuth, UserProfile } from "@/context/AuthContext";
+import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Header } from "@/components/Header";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { LogOut, Loader2, Mail, User, Edit, Check } from "lucide-react";
+import { LogOut, Loader2, Mail, User, Edit, Check, ShieldCheck, KeyRound, MailCheck, AlertTriangle } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { doc, setDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from 'zod';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Separator } from "@/components/ui/separator";
+
+const passwordFormSchema = z.object({
+  currentPassword: z.string().min(1, { message: 'Current password is required.' }),
+  newPassword: z.string().min(6, { message: 'New password must be at least 6 characters.' }),
+  confirmPassword: z.string(),
+}).refine((data) => data.newPassword === data.confirmPassword, {
+  message: "New passwords don't match",
+  path: ['confirmPassword'],
+});
 
 function ProfilePageSkeleton() {
     return (
@@ -42,12 +57,22 @@ function ProfilePageSkeleton() {
 
 
 export default function ProfilePage() {
-    const { currentUser, loading, logout } = useAuth();
+    const { currentUser, loading, logout, reauthenticate, updateUserPassword, sendVerificationEmail } = useAuth();
     const router = useRouter();
     const { toast } = useToast();
     const [isEditing, setIsEditing] = useState(false);
     const [newUsername, setNewUsername] = useState(currentUser?.profile?.username || '');
     const [isSaving, setIsSaving] = useState(false);
+    const [isSendingVerification, setIsSendingVerification] = useState(false);
+    
+    const passwordForm = useForm<z.infer<typeof passwordFormSchema>>({
+        resolver: zodResolver(passwordFormSchema),
+        defaultValues: {
+            currentPassword: '',
+            newPassword: '',
+            confirmPassword: '',
+        }
+    });
 
     useEffect(() => {
         if (!loading && !currentUser) {
@@ -80,11 +105,9 @@ export default function ProfilePage() {
         setIsSaving(true);
         const userDocRef = doc(db, 'users', currentUser.uid);
         try {
-            // Use setDoc with merge: true to create the document if it doesn't exist,
-            // or update it if it does. This handles users created before the profile feature.
             await setDoc(userDocRef, {
                 username: newUsername.trim(),
-                email: currentUser.email // Also ensure email is present in the profile
+                email: currentUser.email
             }, { merge: true });
 
             toast({
@@ -101,6 +124,45 @@ export default function ProfilePage() {
             console.error("Failed to update username", error);
         } finally {
             setIsSaving(false);
+        }
+    };
+
+    const handleChangePassword = async (values: z.infer<typeof passwordFormSchema>) => {
+        if (!currentUser) return;
+        
+        try {
+            await reauthenticate(values.currentPassword);
+            await updateUserPassword(values.newPassword);
+            toast({
+                title: 'Password Updated',
+                description: 'Your password has been changed successfully.',
+            });
+            passwordForm.reset();
+        } catch (error: any) {
+             toast({
+                variant: 'destructive',
+                title: 'Error updating password',
+                description: error.message,
+            });
+        }
+    }
+    
+    const handleSendVerificationEmail = async () => {
+        setIsSendingVerification(true);
+        try {
+            await sendVerificationEmail();
+            toast({
+                title: 'Verification Email Sent',
+                description: 'Please check your inbox to verify your email address.',
+            });
+        } catch (error: any) {
+            toast({
+                variant: 'destructive',
+                title: 'Error',
+                description: error.message,
+            });
+        } finally {
+            setIsSendingVerification(false);
         }
     }
 
@@ -130,51 +192,157 @@ export default function ProfilePage() {
                             </Avatar>
                             <div className="flex-1">
                                 <CardTitle className="text-2xl">{currentUser.profile?.username || 'My Profile'}</CardTitle>
-                                <CardDescription>Manage your account details below.</CardDescription>
+                                <CardDescription>Manage your account details and security settings.</CardDescription>
                             </div>
                         </CardHeader>
-                        <CardContent className="pt-6 space-y-4">
-                            <div className="flex items-center space-x-4 rounded-md border p-4">
-                                <User className="h-5 w-5 text-muted-foreground" />
-                                <div className="flex-1 space-y-1">
-                                    <p className="text-sm font-medium leading-none">Username</p>
-                                    {!isEditing ? (
-                                        <p className="text-sm text-muted-foreground">{currentUser.profile?.username || 'Not set'}</p>
-                                    ) : (
-                                        <form onSubmit={handleUpdateUsername} className="flex gap-2 items-center">
-                                            <Input 
-                                                value={newUsername}
-                                                onChange={(e) => setNewUsername(e.target.value)}
-                                                className="h-8"
-                                                disabled={isSaving}
-                                            />
-                                            <Button size="icon" className="h-8 w-8" disabled={isSaving}>
-                                                {isSaving ? <Loader2 className="animate-spin" /> : <Check />}
+                        <CardContent className="pt-6 space-y-6">
+                            <div>
+                                <h3 className="text-lg font-semibold mb-4">Profile Information</h3>
+                                <div className="space-y-4">
+                                    <div className="flex items-center space-x-4 rounded-md border p-4">
+                                        <User className="h-5 w-5 text-muted-foreground" />
+                                        <div className="flex-1 space-y-1">
+                                            <p className="text-sm font-medium leading-none">Username</p>
+                                            {!isEditing ? (
+                                                <p className="text-sm text-muted-foreground">{currentUser.profile?.username || 'Not set'}</p>
+                                            ) : (
+                                                <form onSubmit={handleUpdateUsername} className="flex gap-2 items-center">
+                                                    <Input 
+                                                        value={newUsername}
+                                                        onChange={(e) => setNewUsername(e.target.value)}
+                                                        className="h-8"
+                                                        disabled={isSaving}
+                                                    />
+                                                    <Button size="icon" className="h-8 w-8" disabled={isSaving}>
+                                                        {isSaving ? <Loader2 className="animate-spin" /> : <Check />}
+                                                    </Button>
+                                                </form>
+                                            )}
+                                        </div>
+                                        {!isEditing ? (
+                                            <Button variant="ghost" size="icon" className="w-8 h-8" onClick={() => setIsEditing(true)}>
+                                                <Edit className="h-4 w-4" />
                                             </Button>
-                                        </form>
-                                    )}
-                                </div>
-                                {!isEditing ? (
-                                    <Button variant="ghost" size="icon" className="w-8 h-8" onClick={() => setIsEditing(true)}>
-                                        <Edit className="h-4 w-4" />
-                                    </Button>
-                                ) : (
-                                     <Button variant="ghost" size="icon" className="w-8 h-8" onClick={() => setIsEditing(false)}>
-                                        <Edit className="h-4 w-4" />
-                                    </Button>
-                                )}
-                            </div>
-                             <div className="flex items-center space-x-4 rounded-md border p-4">
-                                <Mail className="h-5 w-5 text-muted-foreground" />
-                                <div className="flex-1 space-y-1">
-                                    <p className="text-sm font-medium leading-none">Email</p>
-                                    <p className="text-sm text-muted-foreground">{currentUser.email}</p>
+                                        ) : (
+                                            <Button variant="ghost" size="icon" className="w-8 h-8" onClick={() => setIsEditing(false)}>
+                                                <Edit className="h-4 w-4" />
+                                            </Button>
+                                        )}
+                                    </div>
+                                    <div className="flex items-center space-x-4 rounded-md border p-4">
+                                        <Mail className="h-5 w-5 text-muted-foreground" />
+                                        <div className="flex-1 space-y-1">
+                                            <p className="text-sm font-medium leading-none">Email</p>
+                                            <p className="text-sm text-muted-foreground">{currentUser.email}</p>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
-                            <Button onClick={handleLogout} variant="outline" className="w-full mt-4">
+                            
+                            <Separator />
+
+                            <div>
+                                <h3 className="text-lg font-semibold mb-4">Security Settings</h3>
+                                <div className="space-y-4">
+                                     <div className="flex items-center space-x-4 rounded-md border p-4">
+                                        {currentUser.emailVerified ? (
+                                            <>
+                                                <MailCheck className="h-5 w-5 text-green-500" />
+                                                <div className="flex-1 space-y-1">
+                                                    <p className="text-sm font-medium leading-none">Email Verification</p>
+                                                    <p className="text-sm text-muted-foreground">Your email address has been verified.</p>
+                                                </div>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <AlertTriangle className="h-5 w-5 text-yellow-500" />
+                                                <div className="flex-1 space-y-1">
+                                                    <p className="text-sm font-medium leading-none">Email Verification</p>
+                                                    <p className="text-sm text-muted-foreground">Your email is not verified.</p>
+                                                </div>
+                                                <Button variant="secondary" onClick={handleSendVerificationEmail} disabled={isSendingVerification}>
+                                                    {isSendingVerification ? <Loader2 className="animate-spin" /> : null}
+                                                    Send Email
+                                                </Button>
+                                            </>
+                                        )}
+                                    </div>
+
+                                    <div className="flex items-center space-x-4 rounded-md border p-4">
+                                        <KeyRound className="h-5 w-5 text-muted-foreground" />
+                                        <div className="flex-1 space-y-1">
+                                            <p className="text-sm font-medium leading-none">Password</p>
+                                            <p className="text-sm text-muted-foreground">Change your account password.</p>
+                                        </div>
+                                        <Dialog>
+                                            <DialogTrigger asChild>
+                                                <Button variant="secondary">Change Password</Button>
+                                            </DialogTrigger>
+                                            <DialogContent>
+                                                <DialogHeader>
+                                                    <DialogTitle>Change Your Password</DialogTitle>
+                                                    <DialogDescription>Enter your current password and a new password below.</DialogDescription>
+                                                </DialogHeader>
+                                                <Form {...passwordForm}>
+                                                    <form onSubmit={passwordForm.handleSubmit(handleChangePassword)} className="space-y-4 py-4">
+                                                         <FormField
+                                                            control={passwordForm.control}
+                                                            name="currentPassword"
+                                                            render={({ field }) => (
+                                                            <FormItem>
+                                                                <FormLabel>Current Password</FormLabel>
+                                                                <FormControl>
+                                                                    <Input type="password" {...field} />
+                                                                </FormControl>
+                                                                <FormMessage />
+                                                            </FormItem>
+                                                            )}
+                                                        />
+                                                         <FormField
+                                                            control={passwordForm.control}
+                                                            name="newPassword"
+                                                            render={({ field }) => (
+                                                            <FormItem>
+                                                                <FormLabel>New Password</FormLabel>
+                                                                <FormControl>
+                                                                    <Input type="password" {...field} />
+                                                                </FormControl>
+                                                                <FormMessage />
+                                                            </FormItem>
+                                                            )}
+                                                        />
+                                                         <FormField
+                                                            control={passwordForm.control}
+                                                            name="confirmPassword"
+                                                            render={({ field }) => (
+                                                            <FormItem>
+                                                                <FormLabel>Confirm New Password</FormLabel>
+                                                                <FormControl>
+                                                                    <Input type="password" {...field} />
+                                                                </FormControl>
+                                                                <FormMessage />
+                                                            </FormItem>
+                                                            )}
+                                                        />
+                                                        <DialogFooter>
+                                                            <Button type="submit" disabled={passwordForm.formState.isSubmitting}>
+                                                                {passwordForm.formState.isSubmitting && <Loader2 className="animate-spin" />}
+                                                                Update Password
+                                                            </Button>
+                                                        </DialogFooter>
+                                                    </form>
+                                                </Form>
+                                            </DialogContent>
+                                        </Dialog>
+                                    </div>
+                                </div>
+                            </div>
+                        </CardContent>
+                         <CardFooter className="border-t pt-6">
+                            <Button onClick={handleLogout} variant="outline" className="w-full">
                                 <LogOut className="mr-2 h-4 w-4" /> Logout
                             </Button>
-                        </CardContent>
+                        </CardFooter>
                     </Card>
                 </div>
             </main>

@@ -2,7 +2,7 @@
 "use client";
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, User as FirebaseAuthUser } from 'firebase/auth';
+import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, User as FirebaseAuthUser, EmailAuthProvider, reauthenticateWithCredential, updatePassword, sendEmailVerification } from 'firebase/auth';
 import { auth, db } from '@/lib/firebase';
 import { doc, getDoc, setDoc, onSnapshot } from 'firebase/firestore';
 
@@ -22,6 +22,9 @@ interface AuthContextType {
   signup: (email: string, password: string, username: string) => Promise<any>;
   login: typeof signInWithEmailAndPassword;
   logout: () => Promise<void>;
+  reauthenticate: (password: string) => Promise<void>;
+  updateUserPassword: (password: string) => Promise<void>;
+  sendVerificationEmail: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -41,14 +44,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
         if (user) {
-            // User is signed in, now listen for their profile changes.
             const userProfileDocRef = doc(db, 'users', user.uid);
             const unsubProfile = onSnapshot(userProfileDocRef, (docSnap) => {
                  if (docSnap.exists()) {
                     const profile = docSnap.data() as UserProfile;
                     setCurrentUser({ ...user, profile });
                 } else {
-                    // Profile might not be created yet, especially during signup.
                     setCurrentUser(user);
                 }
                 setLoading(false);
@@ -66,15 +67,40 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
     const user = userCredential.user;
 
-    // Create a user profile document in Firestore
     const userProfile: UserProfile = {
       uid: user.uid,
       email: user.email!,
       username: username,
     };
     await setDoc(doc(db, 'users', user.uid), userProfile);
+    
+    // Send verification email on signup
+    await sendEmailVerification(user);
+
     return userCredential;
   };
+
+  const reauthenticate = async (password: string) => {
+    if (!auth.currentUser || !auth.currentUser.email) {
+        throw new Error("No user is currently signed in.");
+    }
+    const credential = EmailAuthProvider.credential(auth.currentUser.email, password);
+    await reauthenticateWithCredential(auth.currentUser, credential);
+  };
+
+  const updateUserPassword = async (password: string) => {
+     if (!auth.currentUser) {
+        throw new Error("No user is currently signed in.");
+    }
+    await updatePassword(auth.currentUser, password);
+  }
+  
+  const sendVerificationEmailHandler = async () => {
+    if (!auth.currentUser) {
+        throw new Error("No user is currently signed in.");
+    }
+    await sendEmailVerification(auth.currentUser);
+  }
 
 
   const value = {
@@ -83,6 +109,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     signup,
     login: (email, password) => signInWithEmailAndPassword(auth, email, password),
     logout: () => signOut(auth),
+    reauthenticate,
+    updateUserPassword,
+    sendVerificationEmail: sendVerificationEmailHandler,
   };
   
   return (

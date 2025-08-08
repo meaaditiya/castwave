@@ -14,6 +14,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { Mic, Loader2, UserPlus } from 'lucide-react';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 const formSchema = z.object({
   username: z.string().min(3, { message: 'Username must be at least 3 characters.' }).max(20, { message: "Username can't be longer than 20 characters."}),
@@ -30,6 +31,7 @@ export default function SignupPage() {
   const router = useRouter();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
+  const [signupSuccess, setSignupSuccess] = useState(false);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -45,7 +47,7 @@ export default function SignupPage() {
     setIsLoading(true);
     try {
       await signup(values.email, values.password, values.username);
-      router.push('/');
+      setSignupSuccess(true);
     } catch (error: any) {
         let errorMessage = "An unexpected error occurred.";
         if (error.code === 'auth/email-already-in-use') {
@@ -59,6 +61,34 @@ export default function SignupPage() {
     } finally {
       setIsLoading(false);
     }
+  }
+
+  if (signupSuccess) {
+    return (
+       <div className="min-h-screen flex flex-col items-center justify-center bg-background p-4">
+          <Link href="/" className="flex items-center space-x-2 mb-8">
+            <Mic className="h-8 w-8 text-primary" />
+            <span className="font-bold text-2xl font-headline">CastWave</span>
+          </Link>
+          <Card className="w-full max-w-sm">
+            <CardHeader>
+                <CardTitle>Check Your Email</CardTitle>
+                <CardDescription>We've sent a verification link to your email address.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <Alert>
+                    <AlertTitle>Verification Required</AlertTitle>
+                    <AlertDescription>
+                        Please click the link in the email to verify your account before logging in.
+                    </AlertDescription>
+                </Alert>
+                <Button asChild className="w-full mt-4">
+                  <Link href="/login">Go to Login</Link>
+                </Button>
+            </CardContent>
+          </Card>
+       </div>
+    );
   }
 
   return (
