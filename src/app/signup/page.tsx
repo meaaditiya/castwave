@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState } from 'react';
@@ -15,7 +14,7 @@ import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { Waves, Loader2, UserPlus } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { isUsernameTaken } from '@/services/userService';
+import { isUsernameTaken } from '@/ai/flows/is-username-taken';
 
 const formSchema = z.object({
   username: z.string().min(3, { message: 'Username must be at least 3 characters.' }).max(20, { message: "Username can't be longer than 20 characters."}),
@@ -47,8 +46,8 @@ export default function SignupPage() {
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true);
     try {
-      const usernameIsTaken = await isUsernameTaken(values.username);
-      if (usernameIsTaken) {
+      const { isTaken } = await isUsernameTaken({ username: values.username });
+      if (isTaken) {
         form.setError('username', { type: 'manual', message: 'This username is already taken.' });
         setIsLoading(false);
         return;

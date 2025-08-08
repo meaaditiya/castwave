@@ -44,7 +44,6 @@ export default function Home() {
     setLoading(true);
 
     const unsubscribe = getChatRooms(
-      currentUser?.uid || null,
       (newChatRooms) => {
         setAllChatRooms(newChatRooms);
         setLoading(false);
@@ -59,14 +58,13 @@ export default function Home() {
         setLoading(false);
       }
     );
-    // This cleanup function is crucial. It runs when the component unmounts
-    // or when the dependencies (currentUser?.uid) change.
+    
     return () => {
         if (unsubscribe) {
             unsubscribe();
         }
     };
-  }, [currentUser?.uid, toast]); // Depend only on the UID
+  }, [currentUser?.uid, toast]);
 
   const filteredAndSortedRooms = useMemo(() => {
     // Filter based on search query first
@@ -204,5 +202,3 @@ export default function Home() {
     </div>
   );
 }
-
-    
