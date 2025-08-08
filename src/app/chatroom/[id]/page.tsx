@@ -105,7 +105,7 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
   // Step 2: Once chat room data is loaded, manage participants and permissions
   useEffect(() => {
     const chatRoomId = resolvedParams.id;
-    if (!chatRoomId || !currentUser || !chatRoom) return;
+    if (!chatRoomId || !currentUser || !chatRoom || !currentUser.profile) return;
 
     const unsubscribeParticipants = getParticipants(chatRoomId, async (newParticipants) => {
         setParticipants(newParticipants);
@@ -125,7 +125,7 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
              // If user is not in the list, add them with pending status for host approval.
              await addParticipant(chatRoomId, {
                 userId: currentUser.uid,
-                displayName: currentUser.email || 'Anonymous',
+                displayName: currentUser.profile.username,
                 status: 'pending',
                 requestCount: 1,
             });

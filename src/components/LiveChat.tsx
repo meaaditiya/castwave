@@ -95,23 +95,23 @@ export function LiveChat({ chatRoom, canChat, participant, isHost, messages }: L
 
 
   const debouncedTypingUpdate = useDebouncedCallback((isTyping: boolean) => {
-      if (!currentUser) return;
-      updateTypingStatus(chatRoom.id, currentUser.uid, currentUser.email || 'Anonymous', isTyping);
+      if (!currentUser || !currentUser.profile) return;
+      updateTypingStatus(chatRoom.id, currentUser.uid, currentUser.profile.username, isTyping);
   }, 3000);
 
   useEffect(() => {
     if (newMessage && canChat) {
-        if (!currentUser) return;
-        updateTypingStatus(chatRoom.id, currentUser.uid, currentUser.email || 'Anonymous', true);
+        if (!currentUser || !currentUser.profile) return;
+        updateTypingStatus(chatRoom.id, currentUser.uid, currentUser.profile.username, true);
         debouncedTypingUpdate(false);
     }
   }, [newMessage, canChat, chatRoom.id, currentUser, debouncedTypingUpdate]);
 
   const handleRequestJoin = async () => {
-    if (!currentUser) return;
+    if (!currentUser || !currentUser.profile) return;
     setIsRequesting(true);
     try {
-        await requestToJoinChat(chatRoom.id, currentUser.uid, currentUser.email || 'Anonymous');
+        await requestToJoinChat(chatRoom.id, currentUser.uid, currentUser.profile.username);
         toast({ title: "Request Sent", description: "The host has been notified." });
     } catch(e: any) {
         console.error(e);
@@ -123,13 +123,13 @@ export function LiveChat({ chatRoom, canChat, participant, isHost, messages }: L
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!currentUser || !newMessage.trim()) return;
+    if (!currentUser || !currentUser.profile || !newMessage.trim()) return;
 
     setIsSending(true);
 
     try {
         await sendMessage(chatRoom.id, {
-            user: currentUser.email || 'Anonymous',
+            user: currentUser.profile.username,
             userId: currentUser.uid,
             text: newMessage.trim(),
         });
@@ -141,8 +141,8 @@ export function LiveChat({ chatRoom, canChat, participant, isHost, messages }: L
       toast({ variant: 'destructive', title: 'Error', description: error.message || 'Could not send message.' });
     } finally {
         setIsSending(false);
-        if (currentUser) {
-            updateTypingStatus(chatRoom.id, currentUser.uid, currentUser.email || 'Anonymous', false);
+        if (currentUser && currentUser.profile) {
+            updateTypingStatus(chatRoom.id, currentUser.uid, currentUser.profile.username, false);
         }
     }
   };

@@ -32,9 +32,13 @@ export function Header() {
   };
 
 
-  const getInitials = (email: string | null | undefined) => {
-    if (!email) return '..';
-    return email.substring(0, 2).toUpperCase();
+  const getInitials = (usernameOrEmail: string | undefined | null) => {
+    if (!usernameOrEmail) return '..';
+    const username = usernameOrEmail.split('@')[0];
+    if (username.length > 2) {
+        return username.substring(0, 2).toUpperCase();
+    }
+    return username.toUpperCase();
   };
 
   return (
@@ -62,12 +66,12 @@ export function Header() {
                     <DropdownMenuTrigger asChild>
                         <Button variant="ghost" className="relative h-8 w-8 rounded-full">
                             <Avatar className="h-8 w-8">
-                                <AvatarFallback>{getInitials(currentUser.email)}</AvatarFallback>
+                                <AvatarFallback>{getInitials(currentUser.profile?.username || currentUser.email)}</AvatarFallback>
                             </Avatar>
                         </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                        <DropdownMenuLabel>My Account</DropdownMenuLabel>
+                        <DropdownMenuLabel>{currentUser.profile?.username || 'My Account'}</DropdownMenuLabel>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem asChild>
                            <Link href="/profile"><User className="mr-2 h-4 w-4"/>Profile</Link>
