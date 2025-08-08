@@ -59,30 +59,26 @@ export default function PublicProfilePage({ params }: { params: { id: string } }
     const userId = resolvedParams.id;
 
     useEffect(() => {
-        // Do not run any logic until authentication is resolved
         if (authLoading) {
             return;
         }
 
-        if (!userId) {
-            notFound();
-            return;
-        };
-
-        // If the authenticated user is viewing their own public page, redirect to their private one
-        if (currentUser && userId === currentUser.uid) {
-            router.replace('/profile');
-            return;
-        }
-
-        // If no user is logged in, they can't view profiles. Redirect to login.
         if (!currentUser) {
             router.push('/login');
             return;
         }
-
+        
+        if (userId === currentUser.uid) {
+            router.replace('/profile');
+            return;
+        }
 
         async function fetchProfileData() {
+            if (!userId) {
+                notFound();
+                return;
+            };
+
             setLoading(true);
             try {
                 const profile = await getUserProfile(userId);
