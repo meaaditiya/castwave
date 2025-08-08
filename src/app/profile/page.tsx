@@ -8,7 +8,7 @@ import { Header } from "@/components/Header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { LogOut, Loader2, Mail, User, Edit, Check, ShieldCheck, KeyRound, MailCheck, AlertTriangle } from "lucide-react";
+import { LogOut, Loader2, Mail, User, Edit, Check, ShieldCheck, KeyRound, MailCheck, AlertTriangle, CheckCircle, XCircle } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { doc, setDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
@@ -235,6 +235,11 @@ export default function ProfilePage() {
                                             <p className="text-sm font-medium leading-none">Email</p>
                                             <p className="text-sm text-muted-foreground">{currentUser.email}</p>
                                         </div>
+                                         {currentUser.emailVerified ? (
+                                            <CheckCircle className="h-5 w-5 text-green-500" />
+                                        ) : (
+                                            <XCircle className="h-5 w-5 text-red-500" />
+                                        )}
                                     </div>
                                 </div>
                             </div>
@@ -348,4 +353,5 @@ export default function ProfilePage() {
             </main>
         </div>
     )
-}
+
+    
