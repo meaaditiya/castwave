@@ -215,18 +215,6 @@ export const getParticipants = (chatRoomId: string, callback: (participants: Par
     return unsubscribe;
 }
 
-export const addParticipant = async (chatRoomId: string, participantData: Omit<Participant, 'id'>) => {
-    try {
-        const participantRef = doc(db, `chatRooms/${chatRoomId}/participants`, participantData.userId);
-        // Use set with merge to create or update, but not overwrite if it exists.
-        await setDoc(participantRef, participantData, { merge: true });
-    } catch (error) {
-        console.error("Error adding participant:", error);
-        // This can fail due to permissions, which is expected for non-hosts.
-        // The host is added via a secure flow. Let's not throw an error to the client.
-    }
-}
-
 export const removeParticipant = async (chatRoomId: string, userId: string) => {
     try {
         const participantRef = doc(db, `chatRooms/${chatRoomId}/participants`, userId);

@@ -13,7 +13,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { MicOff, Sparkles, Users, MessageSquare } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
-import { getChatRoomStream, ChatRoom, getMessages, Participant, getParticipants, addParticipant } from '@/services/chatRoomService';
+import { getChatRoomStream, ChatRoom, getMessages, Participant, getParticipants } from '@/services/chatRoomService';
 import { useToast } from '@/hooks/use-toast';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import Link from 'next/link';
@@ -102,25 +102,10 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
     return () => unsubscribeChatRoom();
   }, [resolvedParams.id, currentUser, router, toast]);
   
-  // Step 2: Once chat room is loaded, manage participants.
+  // Step 2: Once chat room is loaded, fetch participants.
   useEffect(() => {
     const chatRoomId = resolvedParams.id;
     if (!chatRoom || !currentUser || !currentUser.profile) return;
-
-    // A user is added to the participants list on viewing the room.
-    const ensureParticipant = async () => {
-        try {
-            await addParticipant(chatRoomId, {
-                userId: currentUser.uid,
-                displayName: currentUser.profile!.username,
-                photoURL: currentUser.profile!.photoURL,
-                emailVerified: currentUser.emailVerified,
-            });
-        } catch (error) {
-            console.error("Failed to add participant, this is okay if they already exist", error);
-        }
-    }
-    ensureParticipant();
 
     const unsubscribeParticipants = getParticipants(chatRoomId, (allParticipants) => {
         setParticipants(allParticipants);
