@@ -66,7 +66,11 @@ const signupUserFlow = ai.defineFlow(
         photoURL: '',
         avatarGenerationCount: 0,
       };
-      await setDoc(doc(db, 'users', userRecord.uid), userProfile);
+      // Use the admin 'db' instance to get the doc reference
+      const userDocRef = doc(db, 'users', userRecord.uid);
+      // Use the admin 'setDoc' function
+      await setDoc(userDocRef, userProfile);
+
 
       return { uid: userRecord.uid, isTaken: false };
 
