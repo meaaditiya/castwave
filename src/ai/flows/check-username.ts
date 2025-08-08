@@ -1,3 +1,4 @@
+
 'use server';
 /**
  * @fileOverview A flow for checking if a username is already taken by another user.
@@ -5,7 +6,7 @@
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
 import { db } from '@/lib/firebase';
-import { collection, query, where, getDocs } from 'firebase/firestore';
+import { collection, query, where, getDocs, documentId } from 'firebase/firestore';
 
 const CheckUsernameInputSchema = z.object({
   username: z.string().describe('The username to check for availability.'),
@@ -34,10 +35,10 @@ const checkUsernameFlow = ai.defineFlow(
     let q;
 
     if (currentUserId) {
-        // If a userId is provided, check for other users with the same username.
-        q = query(usersRef, where('username', '==', username), where('uid', '!=', currentUserId));
+        // Check for other users with the same username, excluding the current user.
+        q = query(usersRef, where('username', '==', username), where(documentId(), "!=", currentUserId));
     } else {
-        // If no userId is provided (e.g., during signup), check for any user.
+        // If no userId is provided (e.g., during signup), check against all users.
         q = query(usersRef, where('username', '==', username));
     }
     
