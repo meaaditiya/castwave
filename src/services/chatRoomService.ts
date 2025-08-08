@@ -262,6 +262,23 @@ export const getParticipants = (chatRoomId: string, callback: (participants: Par
     return unsubscribe;
 }
 
+export const getParticipantStream = (chatRoomId: string, userId: string, callback: (participant: Participant | null) => void, onError?: (error: Error) => void) => {
+    const participantRef = doc(db, `chatRooms/${chatRoomId}/participants`, userId);
+
+    const unsubscribe = onSnapshot(participantRef, (docSnap) => {
+        if (docSnap.exists()) {
+            callback({ id: docSnap.id, ...docSnap.data() } as Participant);
+        } else {
+            callback(null);
+        }
+    }, (error) => {
+        if (onError) {
+            onError(error);
+        }
+    });
+    return unsubscribe;
+};
+
 export const requestToJoinChat = async (chatRoomId: string, userId: string, displayName: string, emailVerified: boolean) => {
     const participantRef = doc(db, `chatRooms/${chatRoomId}/participants`, userId);
     try {
