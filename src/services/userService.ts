@@ -31,34 +31,8 @@ export const getUserProfile = async (userId: string): Promise<UserProfileData | 
         }
     } catch (error) {
         console.error("Error fetching user profile:", error);
-        throw new Error("Could not fetch user profile.");
-    }
-};
-
-export const isUsernameTaken = async (username: string, currentUserId?: string): Promise<boolean> => {
-    const usersRef = collection(db, 'users');
-    // This query now runs on the client and is only used for profile updates, not signup.
-    const q = query(usersRef, where('username', '==', username));
-
-    try {
-        const querySnapshot = await getDocs(q);
-
-        if (querySnapshot.empty) {
-            return false;
-        }
-        
-        if (currentUserId) {
-            const isTakenByAnotherUser = querySnapshot.docs.some(doc => doc.id !== currentUserId);
-            return isTakenByAnotherUser;
-        }
-
-        // For non-signup scenarios, if we find any user, it's taken.
-        return true;
-
-    } catch (error) {
-        console.error("Error checking username existence:", error);
-        // To be safe, if the query fails, prevent the username from being taken.
-        return true;
+        // Re-throw the original error to get more specific details in the console
+        throw error;
     }
 };
 
