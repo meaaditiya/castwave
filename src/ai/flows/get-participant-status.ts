@@ -3,11 +3,12 @@
 /**
  * @fileOverview A secure flow for a user to check their own participant status in a chat room.
  * This flow runs on the server and bypasses client-side permission issues.
+ * It will also create a 'pending' participant record if one does not exist for the user.
  */
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
 import { db } from '@/lib/firebase';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 import type { Participant } from '@/services/chatRoomService';
 
 const ParticipantSchemaForOutput = z.object({
@@ -24,6 +25,9 @@ const ParticipantSchemaForOutput = z.object({
 const GetParticipantStatusInputSchema = z.object({
   chatRoomId: z.string().describe('The ID of the chat room.'),
   userId: z.string().describe('The ID of the user whose status is being checked.'),
+  displayName: z.string().describe("The user's display name, used if creating the participant."),
+  photoURL: z.string().optional().describe("The user's photo URL, used if creating the participant."),
+  emailVerified: z.boolean().describe("The user's email verification status."),
 });
 export type GetParticipantStatusInput = z.infer<typeof GetParticipantStatusInputSchema>;
 
@@ -43,17 +47,33 @@ const getParticipantStatusFlow = ai.defineFlow(
     inputSchema: GetParticipantStatusInputSchema,
     outputSchema: GetParticipantStatusOutputSchema,
   },
-  async ({ chatRoomId, userId }) => {
+  async ({ chatRoomId, userId, displayName, photoURL, emailVerified }) => {
     try {
       const participantRef = doc(db, 'chatRooms', chatRoomId, 'participants', userId);
-      const docSnap = await getDoc(participantRef);
+      let docSnap = await getDoc(participantRef);
+
+      if (!docSnap.exists()) {
+        // Participant does not exist, create them with 'pending' status.
+        const newParticipant: Omit<Participant, 'id'> = {
+          userId: userId,
+          displayName: displayName,
+          status: 'pending',
+          requestCount: 1,
+          photoURL: photoURL || '',
+          emailVerified: emailVerified,
+        };
+        await setDoc(participantRef, newParticipant);
+        // Re-fetch the document to return it
+        docSnap = await getDoc(participantRef);
+      }
 
       if (docSnap.exists()) {
-        const participant = { id: docSnap.id, ...docSnap.data() } as Participant;
-        return { participant };
-      } else {
-        return { participant: null };
+         const participant = { id: docSnap.id, ...docSnap.data() } as Participant;
+         return { participant };
       }
+      
+      return { participant: null };
+
     } catch (error) {
       console.error("Error in getParticipantStatusFlow: ", error);
       // It's important not to leak detailed error messages to the client.

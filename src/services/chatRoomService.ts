@@ -52,46 +52,18 @@ export interface Participant {
 }
 
 export const createChatRoom = async (input: ChatRoomInput): Promise<{ chatRoomId: string }> => {
-    const chatRoomsCol = collection(db, 'chatRooms');
-    const newChatRoomRef = doc(chatRoomsCol);
-
-    try {
-        await runTransaction(db, async (transaction) => {
-            
-            transaction.set(newChatRoomRef, {
-                title: input.title,
-                description: input.description,
-                host: input.host,
-                hostId: input.hostId,
-                isLive: input.isLive,
-                isPrivate: input.isPrivate,
-                createdAt: serverTimestamp(),
-                scheduledAt: input.scheduledAt || null,
-                imageUrl: '',
-                imageHint: ''
-            });
-
-            const userProfileRef = doc(db, 'users', input.hostId);
-            const userProfileSnap = await transaction.get(userProfileRef);
-            const userProfile = userProfileSnap.data();
-
-            const participantRef = doc(db, 'chatRooms', newChatRoomRef.id, 'participants', input.hostId);
-            transaction.set(participantRef, {
-                userId: input.hostId,
-                displayName: input.host,
-                status: 'approved',
-                requestCount: 0,
-                emailVerified: userProfile?.emailVerified ?? false,
-                photoURL: userProfile?.photoURL || ''
-            });
-        });
-        
-        return { chatRoomId: newChatRoomRef.id };
-
-    } catch (error) {
-        console.error("Transaction failed: ", error);
-        throw new Error("Could not create chat room. Please try again.");
-    }
+    // This function is now a wrapper around the Genkit flow to ensure consistency.
+    // The core logic, including transaction, is handled in `create-chat-room.ts`.
+    const { createChatRoomFlow } = await import('@/ai/flows/create-chat-room');
+    return createChatRoomFlow({
+        title: input.title,
+        description: input.description,
+        host: input.host,
+        hostId: input.hostId,
+        isLive: input.isLive,
+        isPrivate: input.isPrivate,
+        scheduledAt: input.scheduledAt,
+    });
 };
 
 interface GetChatRoomsOptions {
@@ -190,7 +162,7 @@ export const endChatRoom = async (chatRoomId: string) => {
         await updateDoc(docRef, { isLive: false });
     } catch(e) {
         console.error("Error ending chat room: ", e);
-        throw new Error("Could not end chat room.");
+        throw new Error("Could not end the chat room.");
     }
 }
 
@@ -234,16 +206,6 @@ export const getMessages = (chatRoomId: string, callback: (messages: Message[]) 
     return unsubscribe;
 };
 
-export const addParticipant = async (chatRoomId: string, participant: Omit<Participant, 'id'>) => {
-    try {
-        const participantRef = doc(db, `chatRooms/${chatRoomId}/participants`, participant.userId);
-        await setDoc(participantRef, participant, { merge: true });
-    } catch (error) {
-        console.error("Error adding participant: ", error);
-        throw new Error("Could not add participant.");
-    }
-};
-
 export const getParticipants = (chatRoomId: string, callback: (participants: Participant[]) => void, onError?: (error: Error) => void) => {
     const participantsCol = collection(db, `chatRooms/${chatRoomId}/participants`);
     const q = query(participantsCol);
@@ -255,7 +217,7 @@ export const getParticipants = (chatRoomId: string, callback: (participants: Par
     return unsubscribe;
 }
 
-export const requestToJoinChat = async (chatRoomId: string, participantData: Omit<Participant, 'id' | 'status' | 'requestCount'>) => {
+export const requestToJoinChat = async (chatRoomId: string, participantData: {userId: string}) => {
     const participantRef = doc(db, `chatRooms/${chatRoomId}/participants`, participantData.userId);
     try {
         await runTransaction(db, async (transaction) => {
@@ -273,11 +235,9 @@ export const requestToJoinChat = async (chatRoomId: string, participantData: Omi
                     });
                 }
             } else {
-                 transaction.set(participantRef, {
-                    ...participantData,
-                    status: 'pending',
-                    requestCount: 1,
-                });
+                // Creation is now handled by the getParticipantStatus flow, so this branch should not be hit.
+                // If it is, it's an unexpected state.
+                throw new Error("User does not have a participant record. Cannot request to join.");
             }
         });
 

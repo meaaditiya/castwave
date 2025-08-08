@@ -13,7 +13,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Loader2, MessageSquare, MicOff, Sparkles, Users } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
-import { getChatRoomStream, ChatRoom, getMessages, Participant, getParticipants, addParticipant } from '@/services/chatRoomService';
+import { getChatRoomStream, ChatRoom, getMessages, Participant, getParticipants } from '@/services/chatRoomService';
 import { getParticipantStatus } from '@/ai/flows/get-participant-status';
 import { useToast } from '@/hooks/use-toast';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
@@ -124,28 +124,25 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
         });
         return unsubscribe;
     } else {
-        // Non-hosts use a secure flow to check their own status
+        // Non-hosts use a secure flow to check their own status.
+        // This flow also creates them as 'pending' if they don't exist.
         const checkStatus = async () => {
             try {
-                const result = await getParticipantStatus({ chatRoomId, userId: currentUser.uid });
+                const result = await getParticipantStatus({ 
+                    chatRoomId, 
+                    userId: currentUser.uid,
+                    displayName: currentUser.profile!.username,
+                    photoURL: currentUser.profile!.photoURL,
+                    emailVerified: currentUser.emailVerified,
+                });
+
                 if (result.participant) {
                     setCurrentParticipant(result.participant);
                 } else {
-                    // User is not in the list, add them with pending status
-                    if (currentUser.profile?.username) {
-                        await addParticipant(chatRoomId, {
-                            userId: currentUser.uid,
-                            displayName: currentUser.profile.username,
-                            status: 'pending',
-                            requestCount: 1,
-                            emailVerified: currentUser.emailVerified || false,
-                            photoURL: currentUser.profile.photoURL || '',
-                        });
-                        // After adding, re-check status to get the new document
-                        const newStatusResult = await getParticipantStatus({ chatRoomId, userId: currentUser.uid });
-                        setCurrentParticipant(newStatusResult.participant);
-                    }
+                    // This case should theoretically not be reached as the flow now handles creation
+                    throw new Error("Participant status could not be resolved.");
                 }
+
             } catch (error) {
                  console.error("Error fetching own participant data:", error);
                  toast({ variant: 'destructive', title: 'Error', description: 'Could not verify your status in the room.' });
@@ -154,8 +151,7 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
             }
         };
         checkStatus();
-        // Since this is a one-time check and not a stream, we don't return an unsubscribe function.
-        // We could poll for status changes, but that's more complex.
+        // This is a one-time check and not a stream. We could add a stream to participant status if needed later.
     }
   }, [chatRoom, currentUser, resolvedParams.id, toast]);
 

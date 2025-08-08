@@ -2,14 +2,13 @@
 'use server';
 /**
  * @fileOverview A flow for creating a new chat room.
- * This flow handles the creation of a chat room.
+ * This flow handles the creation of a chat room and adds the host as the first participant.
  */
 
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
 import { db } from '@/lib/firebase';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
-import { addParticipant } from '@/services/chatRoomService';
+import { collection, doc, runTransaction, serverTimestamp } from 'firebase/firestore';
 
 const CreateChatRoomFlowInputSchema = z.object({
   title: z.string().min(5),
@@ -17,6 +16,7 @@ const CreateChatRoomFlowInputSchema = z.object({
   host: z.string(),
   hostId: z.string(),
   isLive: z.boolean(),
+  isPrivate: z.boolean(),
   scheduledAt: z.date().optional(),
 });
 export type CreateChatRoomFlowInput = z.infer<typeof CreateChatRoomFlowInputSchema>;
@@ -32,26 +32,40 @@ const createChatRoomFlowFn = ai.defineFlow(
     outputSchema: z.object({ chatRoomId: z.string() }),
   },
   async (input) => {
+    const chatRoomRef = doc(collection(db, 'chatRooms'));
     
-    const docRef = await addDoc(collection(db, 'chatRooms'), {
+    await runTransaction(db, async (transaction) => {
+      // Create the chat room document
+      transaction.set(chatRoomRef, {
         title: input.title,
         description: input.description,
         host: input.host,
         hostId: input.hostId,
         isLive: input.isLive,
+        isPrivate: input.isPrivate,
         createdAt: serverTimestamp(),
         scheduledAt: input.scheduledAt || null,
         imageUrl: '',
         imageHint: ''
-    });
+      });
 
-    // Automatically add the host as an approved participant
-    await addParticipant(docRef.id, {
+      // Get user profile to fetch photoURL
+      const userProfileRef = doc(db, 'users', input.hostId);
+      const userProfileSnap = await transaction.get(userProfileRef);
+      const userProfile = userProfileSnap.data();
+      
+      // Automatically add the host as an approved participant
+      const participantRef = doc(db, 'chatRooms', chatRoomRef.id, 'participants', input.hostId);
+      transaction.set(participantRef, {
         userId: input.hostId,
         displayName: input.host,
-        status: 'approved'
+        status: 'approved',
+        requestCount: 0,
+        emailVerified: userProfile?.emailVerified ?? false,
+        photoURL: userProfile?.photoURL || ''
+      });
     });
-    
-    return { chatRoomId: docRef.id };
+
+    return { chatRoomId: chatRoomRef.id };
   }
 );
