@@ -2,15 +2,17 @@ rules_version = '2';
 
 service firebase.storage {
   match /b/{bucket}/o {
-    // Allow users to upload profile images to a folder named after their user ID.
-    // - The file must be an image.
-    // - The file size must be less than 5MB.
-    // - The user must be authenticated and can only write to their own folder.
+    // Rules for profile images
     match /profileImages/{userId}/{fileName} {
+      // Allow read access to anyone (for displaying profile pictures)
       allow read: if true;
-      allow write: if request.auth != null && request.auth.uid == userId
-                   && request.resource.size < 5 * 1024 * 1024
-                   && request.resource.contentType.matches('image/.*');
+      
+      // Allow write access (create, update) only if the user is authenticated,
+      // the file is being uploaded to their own folder, it's an image, and it's under 5MB.
+      allow write: if request.auth != null && 
+                      request.auth.uid == userId &&
+                      request.resource.size < 5 * 1024 * 1024 &&
+                      request.resource.contentType.matches('image/.*');
     }
   }
 }
