@@ -11,12 +11,13 @@ import { ai } from '@/ai/genkit';
 import { z } from 'zod';
 import { Storage } from '@google-cloud/storage';
 import { nanoid } from 'nanoid';
+import { firebaseConfig } from '@/lib/firebase';
 
 // Initialize Cloud Storage
 const storage = new Storage({
-    projectId: process.env.GCLOUD_PROJECT,
+    projectId: firebaseConfig.projectId,
 });
-const bucketName = process.env.GCLOUD_PROJECT ? `${process.env.GCLOUD_PROJECT}.appspot.com` : undefined;
+const bucketName = firebaseConfig.storageBucket;
 
 const UploadProfileImageInputSchema = z.object({
   userId: z.string().describe('The ID of the user uploading the image.'),
@@ -41,7 +42,7 @@ const uploadProfileImageFlowFn = ai.defineFlow(
   },
   async ({ userId, imageDataUri }) => {
     if (!bucketName) {
-        throw new Error('Firebase Storage bucket name is not configured. Set GCLOUD_PROJECT environment variable.');
+        throw new Error('Firebase Storage bucket name is not configured in your firebaseConfig. Please check `src/lib/firebase.ts`.');
     }
     const bucket = storage.bucket(bucketName);
 
@@ -76,7 +77,7 @@ const uploadProfileImageFlowFn = ai.defineFlow(
 
     } catch (error: any) {
         console.error('Error uploading to Cloud Storage:', error);
-        throw new Error('Failed to upload profile image.');
+        throw new Error(`Failed to upload profile image: ${error.message}`);
     }
   }
 );

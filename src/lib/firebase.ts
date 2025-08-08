@@ -3,7 +3,7 @@ import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 
-const firebaseConfig = {
+export const firebaseConfig = {
   "projectId": "castwave-axlgb",
   "appId": "1:1004745624362:web:cbd9c6ce9394e325ad6c53",
   "storageBucket": "castwave-axlgb.appspot.com",
