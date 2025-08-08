@@ -56,19 +56,18 @@ export default function PublicProfilePage({ params }: { params: { id: string } }
     const [userSessions, setUserSessions] = useState<ChatRoom[]>([]);
     const [loading, setLoading] = useState(true);
 
+    const userId = resolvedParams.id;
+
     useEffect(() => {
-        const userId = resolvedParams.id;
-        if (!userId) {
-            notFound();
-            return;
-        };
-        
-        // Don't run the rest of the effect until auth is resolved
         if (authLoading) {
             return;
         }
 
-        // If the user is viewing their own public profile link, redirect to their editable profile page
+        if (!userId) {
+            notFound();
+            return;
+        };
+
         if (currentUser && userId === currentUser.uid) {
             router.replace('/profile');
             return;
@@ -76,7 +75,6 @@ export default function PublicProfilePage({ params }: { params: { id: string } }
 
         async function fetchProfileData() {
             try {
-                setLoading(true);
                 const profile = await getUserProfile(userId);
                 if (!profile) {
                     notFound();
@@ -94,11 +92,10 @@ export default function PublicProfilePage({ params }: { params: { id: string } }
 
         fetchProfileData();
 
-    }, [resolvedParams.id, currentUser, authLoading, router]);
+    }, [userId, currentUser, authLoading, router]);
 
     useEffect(() => {
-        const userId = resolvedParams.id;
-        if (!userId || (currentUser && userId === currentUser.uid)) return;
+        if (!userId) return;
 
         const unsubscribe = getChatRooms(
             (allChatRooms) => {
@@ -116,7 +113,7 @@ export default function PublicProfilePage({ params }: { params: { id: string } }
             }
         };
 
-    }, [resolvedParams.id, currentUser]);
+    }, [userId]);
 
 
      if (authLoading || loading) {
@@ -124,8 +121,6 @@ export default function PublicProfilePage({ params }: { params: { id: string } }
     }
 
     if (!userProfile) {
-        // This case will be hit after loading is false and profile is still null
-        // which means the notFound() was called in the effect, but we can have it here as a fallback
         return notFound();
     }
 
