@@ -72,16 +72,11 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
   const currentParticipant = participants.find(p => p.userId === currentUser?.uid);
   const canChat = isHost || currentParticipant?.status === 'approved';
 
-  useEffect(() => {
-    if (!authLoading && !currentUser) {
-      router.push('/login');
-    }
-  }, [currentUser, authLoading, router]);
 
   // Step 1: Fetch the main chat room data
   useEffect(() => {
     const chatRoomId = resolvedParams.id;
-    if (!chatRoomId || !currentUser) return;
+    if (authLoading || !currentUser) return; // Wait for auth to be ready
   
     setPageLoading(true);
   
@@ -100,7 +95,7 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
     });
   
     return () => unsubscribeChatRoom();
-  }, [resolvedParams.id, currentUser, router, toast]);
+  }, [resolvedParams.id, currentUser, authLoading, router, toast]);
 
   // Step 2: Once chat room data is loaded, manage participants and permissions
   useEffect(() => {
@@ -159,9 +154,21 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
     });
     return () => unsubscribeMessages();
   }, [resolvedParams.id, isHost, participants, currentUser, chatLog.length]);
+  
+  // This is the main loading gate. It waits for auth to finish before doing anything else.
+  if (authLoading) {
+    return <ChatRoomPageSkeleton />;
+  }
+  
+  // If auth is done, but user is not logged in, redirect.
+  if (!currentUser) {
+    router.push('/login');
+    return <ChatRoomPageSkeleton />;
+  }
 
-  if (authLoading || pageLoading || !currentUser || !chatRoom || !permissionsReady || (participants.length === 0 && !isHost)) {
-    if (!authLoading && !pageLoading && currentUser && chatRoom && !permissionsReady && currentParticipant?.status === 'pending') {
+  // If we have a user, but other data is still loading, show skeleton.
+  if (pageLoading || !chatRoom || !permissionsReady || (participants.length === 0 && !isHost)) {
+    if (!pageLoading && chatRoom && !permissionsReady && currentParticipant?.status === 'pending') {
          // Show a waiting screen for users pending approval
          return (
             <div className="min-h-screen flex flex-col">
@@ -250,5 +257,3 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
     </div>
   );
 }
-
-    
