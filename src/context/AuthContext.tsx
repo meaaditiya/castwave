@@ -22,6 +22,7 @@ export interface AppUser extends FirebaseAuthUser {
 interface AuthContextType {
   currentUser: AppUser | null;
   loading: boolean;
+  signup: typeof createUserWithEmailAndPassword;
   login: typeof signInWithEmailAndPassword;
   logout: () => Promise<void>;
   reauthenticate: (password: string) => Promise<void>;
@@ -144,6 +145,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const value = {
     currentUser,
     loading,
+    signup: (email, password) => createUserWithEmailAndPassword(auth, email, password),
     login: (email, password) => signInWithEmailAndPassword(auth, email, password),
     logout: logoutHandler,
     reauthenticate,
