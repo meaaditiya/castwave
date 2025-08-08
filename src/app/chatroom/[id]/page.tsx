@@ -17,6 +17,8 @@ import { useToast } from '@/hooks/use-toast';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
+import { HighlightTool } from '@/components/HighlightTool';
+
 
 function ChatRoomPageSkeleton() {
     return (
@@ -159,7 +161,6 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
         toast({ variant: 'destructive', title: 'Error', description: 'Chat Room not found.' });
         router.push('/');
       }
-      // Delay setting page loading to false until participant status is also checked
     }, (error) => {
         console.error("Error fetching chat room:", error);
         toast({ variant: 'destructive', title: 'Error', description: 'Could not load chat room. You may not have permission to view it.' });
@@ -177,12 +178,12 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
         return;
     };
     
-    // Subscribe to my own participant record to see status changes in real-time.
     const unsubscribeParticipant = getParticipantStream(chatRoomId, currentUser.uid, (participant) => {
       if (participant) {
         setMyParticipantRecord(participant);
       } else {
         // If I don't have a participant record yet, create one (request to join).
+        // This is allowed by the security rules.
         addParticipant(chatRoomId, {
             userId: currentUser.uid,
             displayName: currentUser.profile!.username,
@@ -201,9 +202,11 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
 
   }, [chatRoomId, currentUser, isHost, toast]);
 
-  // Step 3: If user is the host, fetch all participants for the management list.
+  // Step 3: Fetch all participants for the management list.
+  // This is used by the host to see the list of pending/approved users.
+  // It's also used by the client to get profile photos.
   useEffect(() => {
-    if (!isHost || !chatRoomId) return;
+    if (!chatRoomId) return;
 
     const unsubscribeParticipants = getParticipants(chatRoomId, (allParticipants) => {
         setParticipants(allParticipants);
@@ -213,7 +216,7 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
     });
 
     return () => unsubscribeParticipants();
-  }, [isHost, chatRoomId, toast]);
+  }, [chatRoomId, toast]);
 
 
   // Step 4: Fetch chat messages if approved.
@@ -242,7 +245,6 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
   }
   
   if (!currentUser) {
-    // This should be handled by the redirect at the top, but as a fallback.
     return <ChatRoomPageSkeleton />;
   }
 
@@ -257,10 +259,8 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
       if (myParticipantRecord.status === 'removed') {
           return <RemovedScreen onReRequest={handleReRequest} />;
       }
-      // If 'approved', continue to render the main page.
   }
 
-  // If the session has ended and the user is not the host, show a specific screen.
   if (!chatRoom.isLive && !isHost) {
       return (
           <div className="min-h-screen flex flex-col">
@@ -313,7 +313,7 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
               <LiveChat 
                   chatRoom={chatRoom}
                   messages={chatLog}
-                  participant={isHost ? undefined : myParticipantRecord}
+                  participant={myParticipantRecord}
               />
               <div className="mt-auto border-t">
                   <Accordion type="single" collapsible className="w-full">

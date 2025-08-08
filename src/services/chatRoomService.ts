@@ -1,7 +1,7 @@
 
 import { db } from '@/lib/firebase';
 import { collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, doc, getDoc, updateDoc, setDoc, getDocs, writeBatch, where, deleteDoc, Query, runTransaction } from 'firebase/firestore';
-import { createChatRoomFlow } from '@/ai/flows/create-chat-room';
+import { createSession as createSessionFlow } from '@/ai/flows/create-session';
 import { getAuth } from 'firebase/auth';
 
 export interface Message {
@@ -43,19 +43,20 @@ export interface ChatRoomInput {
 export interface Participant {
     userId: string;
     displayName: string;
-    status: 'pending' | 'approved' | 'denied' | 'removed';
+    status: 'pending' | 'approved' | 'denied' | 'removed' | 'speaker';
     requestCount: number;
     photoURL?: string;
 }
 
 
-export const createChatRoom = async (input: ChatRoomInput): Promise<{ chatRoomId: string }> => {
+export const createSession = async (input: ChatRoomInput): Promise<{ chatRoomId: string }> => {
     const auth = getAuth();
     const currentUser = auth.currentUser;
     if (!currentUser) {
-        throw new Error("User must be authenticated.");
+        throw new Error("User must be authenticated to create a session.");
     }
-    return createChatRoomFlow({
+    // The createSessionFlow will now handle the logic securely.
+    return createSessionFlow({
         ...input,
         hostId: currentUser.uid,
         hostEmail: currentUser.email!,
@@ -75,10 +76,11 @@ export const getChatRooms = (
     const chatRoomsRef = collection(db, 'chatRooms');
     let q: Query; 
 
+    // Construct the query to match the security rules
     if (options.hostId) {
         q = query(chatRoomsRef, where('hostId', '==', options.hostId));
     } else {
-         q = query(chatRoomsRef, where('isPrivate', '==', false));
+        q = query(chatRoomsRef, where('isPrivate', '==', false));
     }
    
     const unsubscribe = onSnapshot(q, 
@@ -197,6 +199,7 @@ export const getParticipantStream = (chatRoomId: string, userId: string, callbac
 
 export const addParticipant = async (chatRoomId: string, participant: Participant) => {
     const participantRef = doc(db, `chatRooms/${chatRoomId}/participants`, participant.userId);
+    // Use setDoc with merge:true to create or update. This is safe because the `create` rule allows self-add.
     await setDoc(participantRef, participant, { merge: true });
 }
 
@@ -229,7 +232,7 @@ export const getParticipants = (chatRoomId: string, callback: (participants: Par
     const q = query(participantsCol);
     
     const unsubscribe = onSnapshot(q, (snapshot) => {
-        const participants = snapshot.docs.map(doc => ({ ...doc.data() } as Participant));
+        const participants = snapshot.docs.map(doc => ({ userId: doc.id, ...doc.data() } as Participant));
         callback(participants);
     }, onError);
     return unsubscribe;
@@ -248,6 +251,7 @@ export const voteOnMessage = async (chatRoomId: string, messageId: string, userI
             const voters = data.voters || {};
 
             if (voters[userId]) {
+                // User has already voted, do nothing.
                 return;
             }
 
@@ -285,6 +289,7 @@ export const updateTypingStatus = async (chatRoomId: string, userId: string, dis
                 [`typingUsers.${userId}`]: displayName
             });
         } else {
+            // To remove a field, we need to read the document first.
             const roomSnap = await getDoc(chatRoomRef);
             if (roomSnap.exists()) {
                 const roomData = roomSnap.data() as ChatRoom;
@@ -295,7 +300,7 @@ export const updateTypingStatus = async (chatRoomId: string, userId: string, dis
         }
     } catch (e) {
         console.error("Error updating typing status: ", e);
-        // Don't throw, as this is not a critical operation
+        // Don't throw an error for this non-critical operation
     }
 };
 
@@ -315,7 +320,6 @@ const deleteSubcollection = async (chatRoomId: string, subcollectionName: string
 export const deleteChatRoomForHost = async (chatRoomId: string, hostId: string) => {
     const chatRoomRef = doc(db, 'chatRooms', chatRoomId);
     try {
-        // Use a transaction to verify the host and delete the main document atomically
         await runTransaction(db, async (transaction) => {
             const chatRoomSnap = await transaction.get(chatRoomRef);
             if (!chatRoomSnap.exists()) {
@@ -325,16 +329,14 @@ export const deleteChatRoomForHost = async (chatRoomId: string, hostId: string) 
             if (chatRoomData.hostId !== hostId) {
                 throw new Error("Only the host can delete this chat room.");
             }
-            // All checks passed, delete the main document within the transaction
             transaction.delete(chatRoomRef);
         });
 
-        // After the main document is successfully deleted, clean up sub-collections.
-        // This is done outside the transaction for performance reasons.
         await Promise.all([
             deleteSubcollection(chatRoomId, 'participants'),
             deleteSubcollection(chatRoomId, 'messages'),
             deleteSubcollection(chatRoomId, 'polls'),
+            deleteSubcollection(chatRoomId, 'webrtc_signals'),
         ]);
 
     } catch (error) {

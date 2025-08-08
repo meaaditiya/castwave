@@ -7,7 +7,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
-import { createChatRoom } from '@/services/chatRoomService';
+import { createSession } from '@/services/chatRoomService';
 import { Header } from '@/components/Header';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -78,7 +78,7 @@ export default function CreateChatRoomPage() {
 
     try {
         const isLive = values.scheduleOption === 'now';
-        const result = await createChatRoom({
+        const result = await createSession({
             title: values.title,
             description: values.description,
             isLive,
