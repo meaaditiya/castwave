@@ -32,9 +32,9 @@ export const getUserProfile = async (userId: string): Promise<UserProfileData | 
     }
 };
 
-export const isUsernameTaken = async (username: string): Promise<boolean> => {
+export const isUsernameTaken = async (username: string, currentUserId?: string): Promise<boolean> => {
     try {
-        const result = await checkUsername({ username });
+        const result = await checkUsername({ username, currentUserId });
         return result.isTaken;
     } catch (error) {
         console.error("Error checking if username is taken:", error);

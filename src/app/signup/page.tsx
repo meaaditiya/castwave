@@ -15,6 +15,7 @@ import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { Mic, Loader2, UserPlus } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { isUsernameTaken } from '@/services/userService';
 
 const formSchema = z.object({
   username: z.string().min(3, { message: 'Username must be at least 3 characters.' }).max(20, { message: "Username can't be longer than 20 characters."}),
@@ -46,6 +47,13 @@ export default function SignupPage() {
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true);
     try {
+      const usernameIsTaken = await isUsernameTaken(values.username);
+      if (usernameIsTaken) {
+        form.setError('username', { type: 'manual', message: 'This username is already taken.' });
+        setIsLoading(false);
+        return;
+      }
+      
       await signup(values.email, values.password, values.username);
       setSignupSuccess(true);
     } catch (error: any) {

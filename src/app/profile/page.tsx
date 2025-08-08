@@ -95,9 +95,11 @@ export default function ProfilePage() {
     
     const handleUpdateUsername = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (!currentUser) return;
+
         const trimmedUsername = newUsername.trim();
 
-        if (!currentUser || !trimmedUsername || trimmedUsername.length < 3) {
+        if (!trimmedUsername || trimmedUsername.length < 3) {
              toast({
                 variant: 'destructive',
                 title: 'Invalid Username',
@@ -113,7 +115,7 @@ export default function ProfilePage() {
 
         setIsSaving(true);
         try {
-            const usernameIsTaken = await isUsernameTaken(trimmedUsername);
+            const usernameIsTaken = await isUsernameTaken(trimmedUsername, currentUser.uid);
             if (usernameIsTaken) {
                 toast({
                     variant: 'destructive',
@@ -127,6 +129,7 @@ export default function ProfilePage() {
             const userDocRef = doc(db, 'users', currentUser.uid);
             await setDoc(userDocRef, {
                 username: trimmedUsername,
+                uid: currentUser.uid,
             }, { merge: true });
 
             toast({
@@ -382,5 +385,3 @@ export default function ProfilePage() {
 
     
 }
-
-    
