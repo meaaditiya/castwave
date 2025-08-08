@@ -4,11 +4,11 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Send, Loader2, Hand, ThumbsUp, ThumbsDown, Star, ArrowDown, CheckCircle, XCircle, Pencil, Save } from 'lucide-react';
+import { Send, Loader2, Hand, ThumbsUp, ThumbsDown, Star, ArrowDown, CheckCircle, XCircle } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback } from './ui/avatar';
 import { useAuth } from '@/context/AuthContext';
-import { sendMessage, requestToJoinChat, voteOnMessage, featureMessage, updateTypingStatus, ChatRoom, Participant, updateMessage } from '@/services/chatRoomService';
+import { sendMessage, requestToJoinChat, voteOnMessage, featureMessage, updateTypingStatus, ChatRoom, Participant } from '@/services/chatRoomService';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 import type { Message } from '@/services/chatRoomService';
@@ -53,8 +53,6 @@ export function LiveChat({ chatRoom, canChat, participant, isHost, messages, par
   const [messageToFeature, setMessageToFeature] = useState<Message | null>(null);
   const [hostReply, setHostReply] = useState('');
   const [isFeaturing, setIsFeaturing] = useState(false);
-  const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
-  const [editingText, setEditingText] = useState('');
 
   const participantsMap = useMemo(() => {
     return new Map(participants.map(p => [p.userId, p]));
@@ -180,30 +178,6 @@ export function LiveChat({ chatRoom, canChat, participant, isHost, messages, par
         setIsFeaturing(false);
     }
   }
-
-  const handleEditMessage = (message: Message) => {
-    setEditingMessageId(message.id!);
-    setEditingText(message.text || '');
-  }
-
-  const handleCancelEdit = () => {
-    setEditingMessageId(null);
-    setEditingText('');
-  }
-
-  const handleSaveEdit = async () => {
-    if (!editingMessageId || !currentUser) return;
-    setIsSending(true);
-    try {
-      await updateMessage(chatRoom.id, editingMessageId, editingText, currentUser.uid);
-      setEditingMessageId(null);
-      setEditingText('');
-    } catch (error: any) {
-      toast({ variant: 'destructive', title: 'Error', description: error.message || 'Could not update message.' });
-    } finally {
-      setIsSending(false);
-    }
-  }
   
   const formatTimestamp = (timestamp: any) => {
     if (!timestamp) return '';
@@ -285,9 +259,7 @@ export function LiveChat({ chatRoom, canChat, participant, isHost, messages, par
       <div className="flex-1 min-h-0 relative">
         <ScrollArea className="h-full pr-4" viewportRef={scrollViewportRef}>
             <div className="space-y-4">
-            {messages && messages.map((msg) => {
-                const isEditing = editingMessageId === msg.id;
-                return (
+            {messages && messages.map((msg) => (
                 <div key={msg.id} className="flex items-start space-x-3 group">
                     <Link href={`/profile/${msg.userId}`} passHref>
                         <Avatar className="h-8 w-8 cursor-pointer">
@@ -302,60 +274,32 @@ export function LiveChat({ chatRoom, canChat, participant, isHost, messages, par
                             <span className={`font-bold text-sm ${getUserColor(msg.user)} cursor-pointer hover:underline`}>{msg.user}</span>
                         </Link>
                         <span className="text-xs text-muted-foreground">{formatTimestamp(msg.timestamp)}</span>
-                         {msg.edited && <span className="text-xs text-muted-foreground">(edited)</span>}
-
-                        <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center">
+                         <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center">
                             {isHost && (
                                 <Button size="icon" variant="ghost" className="h-6 w-6 text-amber-500" onClick={() => setMessageToFeature(msg)}>
                                     <Star className="h-4 w-4" />
                                 </Button>
                             )}
-                             {currentUser?.uid === msg.userId && !isEditing && (
-                                <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => handleEditMessage(msg)}>
-                                    <Pencil className="h-4 w-4" />
-                                </Button>
-                            )}
                         </div>
                     </div>
-
-                    {isEditing ? (
-                        <div className="space-y-2 mt-1">
-                            <Textarea
-                                value={editingText}
-                                onChange={(e) => setEditingText(e.target.value)}
-                                className="text-sm"
-                                rows={2}
-                                disabled={isSending}
-                            />
-                            <div className="flex gap-2">
-                                <Button size="sm" onClick={handleSaveEdit} disabled={isSending}>
-                                    {isSending ? <Loader2 className="animate-spin h-4 w-4" /> : <Save className="h-4 w-4" />} Save
-                                </Button>
-                                <Button size="sm" variant="ghost" onClick={handleCancelEdit}>Cancel</Button>
-                            </div>
+                    {msg.text && <p className="text-sm text-foreground/90 whitespace-pre-wrap">{msg.text}</p>}
+                    <div className="flex items-center gap-4 mt-1 text-muted-foreground">
+                        <div className="flex items-center gap-1">
+                            <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => handleVote(msg.id!, 'upvotes')} disabled={!canChat || msg.voters?.[currentUser?.uid!]}>
+                                <ThumbsUp className={`h-4 w-4 ${msg.voters?.[currentUser?.uid!] === 'upvotes' ? 'text-primary' : ''}`} />
+                            </Button>
+                            <span className="text-xs">{msg.upvotes}</span>
                         </div>
-                    ) : (
-                        <>
-                        {msg.text && <p className="text-sm text-foreground/90 whitespace-pre-wrap">{msg.text}</p>}
-                        <div className="flex items-center gap-4 mt-1 text-muted-foreground">
-                            <div className="flex items-center gap-1">
-                                <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => handleVote(msg.id!, 'upvotes')} disabled={!canChat || msg.voters?.[currentUser?.uid!]}>
-                                    <ThumbsUp className={`h-4 w-4 ${msg.voters?.[currentUser?.uid!] === 'upvotes' ? 'text-primary' : ''}`} />
-                                </Button>
-                                <span className="text-xs">{msg.upvotes}</span>
-                            </div>
-                            <div className="flex items-center gap-1">
-                                <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => handleVote(msg.id!, 'downvotes')} disabled={!canChat || msg.voters?.[currentUser?.uid!]}>
-                                <ThumbsDown className={`h-4 w-4 ${msg.voters?.[currentUser?.uid!] === 'downvotes' ? 'text-destructive' : ''}`} />
-                                </Button>
-                                <span className="text-xs">{msg.downvotes}</span>
-                            </div>
+                         <div className="flex items-center gap-1">
+                             <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => handleVote(msg.id!, 'downvotes')} disabled={!canChat || msg.voters?.[currentUser?.uid!]}>
+                               <ThumbsDown className={`h-4 w-4 ${msg.voters?.[currentUser?.uid!] === 'downvotes' ? 'text-destructive' : ''}`} />
+                            </Button>
+                            <span className="text-xs">{msg.downvotes}</span>
                         </div>
-                        </>
-                    )}
+                    </div>
                 </div>
                 </div>
-            )})}
+            ))}
             {messages && messages.length === 0 && (
                     <div className="text-center text-muted-foreground pt-10">
                         <p>No messages yet. Be the first to start the conversation!</p>

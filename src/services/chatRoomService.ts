@@ -12,7 +12,6 @@ export interface Message {
   upvotes: number;
   downvotes: number;
   voters: { [userId: string]: 'upvotes' | 'downvotes' };
-  edited?: boolean;
 }
 
 export interface ChatRoom {
@@ -207,38 +206,13 @@ export const sendMessage = async (chatRoomId: string, message: Partial<Message>)
             upvotes: 0,
             downvotes: 0,
             voters: {},
-            timestamp: serverTimestamp(),
-            edited: false,
+            timestamp: serverTimestamp()
         };
 
         await addDoc(messagesCol, messageData);
     } catch (error) {
         console.error("Error sending message: ", error);
         throw new Error("Could not send message.");
-    }
-};
-
-export const updateMessage = async (chatRoomId: string, messageId: string, newText: string, userId: string) => {
-    const messageRef = doc(db, 'chatRooms', chatRoomId, 'messages', messageId);
-
-    try {
-        await runTransaction(db, async (transaction) => {
-            const messageDoc = await transaction.get(messageRef);
-            if (!messageDoc.exists()) {
-                throw new Error("Message does not exist.");
-            }
-            const messageData = messageDoc.data();
-            if (messageData.userId !== userId) {
-                throw new Error("You can only edit your own messages.");
-            }
-            transaction.update(messageRef, {
-                text: newText,
-                edited: true,
-            });
-        });
-    } catch (error: any) {
-        console.error("Error updating message: ", error);
-        throw new Error(error.message || "Could not update the message.");
     }
 };
 
@@ -428,5 +402,3 @@ export const deleteChatRoomForHost = async (chatRoomId: string, hostId: string) 
         console.error("Error deleting chat room:", error);
     }
 };
-
-    
