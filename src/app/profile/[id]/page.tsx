@@ -1,8 +1,7 @@
 
 "use client";
 
-import { useState, useEffect } from 'react';
-import { use } from 'react';
+import { useState, useEffect, use } from 'react';
 import { Header } from '@/components/Header';
 import { getUserProfile, UserProfileData } from '@/services/userService';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -59,56 +58,59 @@ export default function PublicProfilePage({ params }: { params: { id: string } }
     const userId = resolvedParams.id;
 
     useEffect(() => {
-        // This effect should only run when auth state is fully determined.
         if (authLoading) {
-            return;
+            return; // Wait until authentication state is resolved
         }
 
-        // If auth has loaded but there is no logged-in user, redirect them.
         if (!currentUser) {
-            router.push('/login');
+            router.push('/login'); // If not logged in after check, redirect
             return;
         }
         
-        // If the user is viewing their own profile, redirect to the main /profile page.
-        // This should happen *after* we know who the currentUser is.
         if (userId === currentUser.uid) {
-            router.replace('/profile');
+            router.replace('/profile'); // Redirect to own profile page if IDs match
             return;
         }
+
+        let isMounted = true;
 
         async function fetchProfileData() {
             setLoading(true);
             try {
                 const profile = await getUserProfile(userId);
                 if (!profile) {
-                    notFound(); // Use Next.js's 404 page if profile doesn't exist.
+                    if (isMounted) notFound();
                     return;
                 }
-                setUserProfile(profile);
+                if (isMounted) setUserProfile(profile);
 
-                // Fetch user's sessions after fetching their profile
+                // Fetch user's public sessions
                 const unsubscribe = getChatRooms(
                     (allChatRooms) => {
-                        const userPublicSessions = allChatRooms.filter(room => room.hostId === userId && !room.isPrivate);
-                        setUserSessions(userPublicSessions);
+                        if (isMounted) {
+                            const userPublicSessions = allChatRooms.filter(room => room.hostId === userId && !room.isPrivate);
+                            setUserSessions(userPublicSessions);
+                        }
                     },
                     (error) => {
                         console.error("Failed to get chat rooms for profile:", error);
                     }
                 );
-                // Note: In a real app, you might want to manage this unsubscribe differently,
-                // but for this page's lifecycle, it's okay.
-
+                // We don't return unsubscribe here because the page might unmount before the callback
+                // The isMounted check should handle most cases.
             } catch (err) {
                 console.error("Failed to fetch profile", err);
-                notFound();
+                if (isMounted) notFound();
             } finally {
-                setLoading(false);
+                if (isMounted) setLoading(false);
             }
         }
 
         fetchProfileData();
+        
+        return () => {
+            isMounted = false;
+        };
 
     }, [userId, currentUser, authLoading, router]);
 
@@ -116,8 +118,6 @@ export default function PublicProfilePage({ params }: { params: { id: string } }
         return <PublicProfileSkeleton />;
     }
     
-    // If auth has loaded and we are not loading data, but there's no profile, something is wrong.
-    // The fetchProfileData function should have already called notFound(), but this is a safeguard.
     if (!userProfile) {
         return notFound();
     }
