@@ -2,40 +2,33 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    // Users can only create and update their own profile.
-    // Anyone can read user profiles.
+    // Users can only read their own profile, but can create one for themselves.
     match /users/{userId} {
-      allow read: if true;
-      allow create, update: if request.auth != null && request.auth.uid == userId;
+      allow read, update, delete: if request.auth.uid == userId;
+      allow create: if request.auth.uid != null;
     }
 
-    // ChatRooms can be read by anyone if they are not private.
-    // Only authenticated users can create chat rooms.
-    // The host is the only one who can update or delete their chat room.
-    match /chatRooms/{roomId} {
+    // Chatrooms can be read by anyone if they are not private.
+    // Only the host can create, update, or delete their own chatrooms.
+    match /chatRooms/{chatRoomId} {
       allow read: if resource.data.isPrivate == false || request.auth.uid == resource.data.hostId;
-      allow create: if request.auth != null;
-      allow update, delete: if request.auth != null && request.auth.uid == resource.data.hostId;
-
-      // Rules for subcollections
+      allow create: if request.auth.uid != null;
+      allow update, delete: if request.auth.uid == resource.data.hostId;
+      
+      // Messages and participants can be read by anyone in a public room.
+      // In a private room, only approved participants can read.
+      // Writing messages requires being an approved participant.
       match /{subcollection}/{docId} {
-        // Anyone can read participants and messages in a public room.
-        // The host can read everything in their own room.
-        allow read: if get(/databases/$(database)/documents/chatRooms/$(roomId)).data.isPrivate == false || request.auth.uid == get(/databases/$(database)/documents/chatRooms/$(roomId)).data.hostId;
+        allow read: if get(/databases/$(database)/documents/chatRooms/$(chatRoomId)).data.isPrivate == false ||
+                      (request.auth.uid != null && exists(/databases/$(database)/documents/chatRooms/$(chatRoomId)/participants/$(request.auth.uid)) &&
+                       get(/databases/$(database)/documents/chatRooms/$(chatRoomId)/participants/$(request.auth.uid)).data.status == 'approved');
 
-        // Only authenticated users can create documents in subcollections (e.g., join requests, messages)
-        allow create: if request.auth != null;
-
-        // Specific update rules
-        // Participants can be updated by the host.
-        // Messages can be updated by the sender (for voting, etc.).
-        // Polls can be updated by the host.
-        allow update: if request.auth != null && (request.auth.uid == get(/databases/$(database)/documents/chatRooms/$(roomId)).data.hostId || request.auth.uid == resource.data.userId);
-
-        // Only the host can delete subcollection documents.
-        allow delete: if request.auth != null && request.auth.uid == get(/databases/$(database)/documents/chatRooms/$(roomId)).data.hostId;
+        allow create, update, delete: if request.auth.uid != null && exists(/databases/$(database)/documents/chatRooms/$(chatRoomId)/participants/$(request.auth.uid)) &&
+                               get(/databases/$(database)/documents/chatRooms/$(chatRoomId)/participants/$(request.auth.uid)).data.status == 'approved';
       }
+       match /polls/{pollId} {
+         allow read, write: if request.auth.uid != null && exists(/databases/$(database)/documents/chatRooms/$(chatRoomId)/participants/$(request.auth.uid));
+       }
     }
   }
 }

@@ -58,13 +58,10 @@ export default function PublicProfilePage({ params }: { params: { id: string } }
     const userId = resolvedParams.id;
 
     useEffect(() => {
-        // Do not proceed until authentication status is resolved
         if (authLoading) {
-            return;
+            return; 
         }
 
-        // If the user is logged in and trying to view their own public profile link,
-        // redirect them to their main profile page for editing etc.
         if (currentUser && userId === currentUser.uid) {
             router.replace('/profile');
             return;
@@ -74,15 +71,18 @@ export default function PublicProfilePage({ params }: { params: { id: string } }
         let unsubscribe: (() => void) | undefined;
 
         async function fetchProfileData() {
-            if (!isMounted) return;
             setLoading(true);
             try {
+                // Anyone can view a profile, so we don't need to be authed to fetch this
                 const profile = await getUserProfile(userId);
+
+                if (!isMounted) return;
+
                 if (!profile) {
-                    if (isMounted) notFound();
+                    notFound();
                     return;
                 }
-                if (isMounted) setUserProfile(profile);
+                setUserProfile(profile);
 
                 // Fetch user's public sessions
                 unsubscribe = getChatRooms(
@@ -115,7 +115,7 @@ export default function PublicProfilePage({ params }: { params: { id: string } }
 
     }, [userId, currentUser, authLoading, router]);
 
-     if (loading) {
+     if (loading || authLoading) {
         return <PublicProfileSkeleton />;
     }
     
