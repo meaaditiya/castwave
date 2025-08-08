@@ -52,16 +52,21 @@ export default function Home() {
       (error) => {
         console.error("Failed to get chat rooms:", error);
         // Do not toast on permission errors which can happen during logout
-        if (error.message.includes('permission-denied')) {
-          setAllChatRooms([]);
-        } else {
-            toast({ variant: 'destructive', title: 'Error', description: 'Could not load sessions. Check permissions or network.' });
+        if (error.code !== 'permission-denied') {
+           toast({ variant: 'destructive', title: 'Error', description: 'Could not load sessions. Check permissions or network.' });
         }
+        setAllChatRooms([]); // Clear rooms on error
         setLoading(false);
       }
     );
-    return () => unsubscribe();
-  }, [currentUser, toast]);
+    // This cleanup function is crucial. It runs when the component unmounts
+    // or when the dependencies (currentUser?.uid) change.
+    return () => {
+        if (unsubscribe) {
+            unsubscribe();
+        }
+    };
+  }, [currentUser?.uid, toast]); // Depend only on the UID
 
   const filteredAndSortedRooms = useMemo(() => {
     // Filter based on search query first
@@ -199,3 +204,5 @@ export default function Home() {
     </div>
   );
 }
+
+    

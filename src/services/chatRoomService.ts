@@ -1,6 +1,6 @@
 
 import { db } from '@/lib/firebase';
-import { collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, doc, getDoc, updateDoc, setDoc, getDocs, writeBatch, runTransaction, increment, where, deleteDoc, Query } from 'firebase/firestore';
+import { collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, doc, getDoc, updateDoc, setDoc, getDocs, writeBatch, runTransaction, increment, where, deleteDoc, Query, FirestoreError } from 'firebase/firestore';
 import { getUserProfile } from './userService';
 
 export interface Message {
@@ -77,7 +77,7 @@ export const createChatRoom = async (input: ChatRoomInput): Promise<{ chatRoomId
                 userId: input.hostId,
                 displayName: input.host,
                 photoURL: userProfile?.photoURL || '',
-                status: 'approved',
+                status: 'approved', // Host is always approved
                 requestCount: 0,
             });
         });
@@ -93,10 +93,12 @@ export const createChatRoom = async (input: ChatRoomInput): Promise<{ chatRoomId
 export const getChatRooms = (
     userId: string | null,
     callback: (chatRooms: ChatRoom[]) => void,
-    onError: (error: Error) => void
+    onError: (error: FirestoreError) => void
 ) => {
     const roomsCollection = collection(db, 'chatRooms');
     let allRooms = new Map<string, ChatRoom>();
+    let publicUnsubscribe: (() => void) | null = null;
+    let privateUnsubscribe: (() => void) | null = null;
 
     const processAndCallback = () => {
         const sortedRooms = Array.from(allRooms.values()).sort((a, b) => {
@@ -109,7 +111,7 @@ export const getChatRooms = (
 
     // Listener for public rooms
     const publicQuery = query(roomsCollection, where('isPrivate', '==', false));
-    const publicUnsubscribe = onSnapshot(publicQuery, (snapshot) => {
+    publicUnsubscribe = onSnapshot(publicQuery, (snapshot) => {
         snapshot.docChanges().forEach((change) => {
             if (change.type === 'removed') {
                 allRooms.delete(change.doc.id);
@@ -120,7 +122,6 @@ export const getChatRooms = (
         processAndCallback();
     }, onError);
 
-    let privateUnsubscribe: (() => void) | null = null;
     if (userId) {
         // Listener for user's own private rooms
         const privateQuery = query(roomsCollection, where('hostId', '==', userId), where('isPrivate', '==', true));
@@ -138,10 +139,8 @@ export const getChatRooms = (
     
     // Return a function that unsubscribes from both listeners
     return () => {
-        publicUnsubscribe();
-        if (privateUnsubscribe) {
-            privateUnsubscribe();
-        }
+        if (publicUnsubscribe) publicUnsubscribe();
+        if (privateUnsubscribe) privateUnsubscribe();
     };
 };
 
@@ -387,3 +386,5 @@ export const deleteChatRoomForHost = async (chatRoomId: string, hostId: string) 
         throw new Error("Could not delete chat room.");
     }
 };
+
+    
