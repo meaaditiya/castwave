@@ -35,7 +35,12 @@ const createChatRoomFlowFn = ai.defineFlow(
     const chatRoomRef = doc(collection(db, 'chatRooms'));
     
     await runTransaction(db, async (transaction) => {
-      // Create the chat room document
+      // READ FIRST: Get user profile to fetch photoURL
+      const userProfileRef = doc(db, 'users', input.hostId);
+      const userProfileSnap = await transaction.get(userProfileRef);
+      const userProfile = userProfileSnap.exists() ? userProfileSnap.data() : null;
+      
+      // WRITE SECOND: Create the chat room document
       transaction.set(chatRoomRef, {
         title: input.title,
         description: input.description,
@@ -48,13 +53,8 @@ const createChatRoomFlowFn = ai.defineFlow(
         imageUrl: '',
         imageHint: ''
       });
-
-      // Get user profile to fetch photoURL
-      const userProfileRef = doc(db, 'users', input.hostId);
-      const userProfileSnap = await transaction.get(userProfileRef);
-      const userProfile = userProfileSnap.exists() ? userProfileSnap.data() : null;
       
-      // Automatically add the host as a participant
+      // WRITE THIRD: Automatically add the host as a participant
       const participantRef = doc(db, 'chatRooms', chatRoomRef.id, 'participants', input.hostId);
       transaction.set(participantRef, {
         userId: input.hostId,
