@@ -276,7 +276,6 @@ export function LiveChat({ chatRoom, canChat, participant, isHost, messages, par
                         <Link href={`/profile/${msg.userId}`} passHref>
                             <span className={`font-bold text-sm ${getUserColor(msg.user)} cursor-pointer hover:underline`}>{msg.user}</span>
                         </Link>
-                        {isVerified ? <CheckCircle className="h-4 w-4 text-green-500" /> : <XCircle className="h-4 w-4 text-red-500" />}
                         <span className="text-xs text-muted-foreground">{formatTimestamp(msg.timestamp)}</span>
                         {isHost && (
                             <Button size="icon" variant="ghost" className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity text-amber-500" onClick={() => setMessageToFeature(msg)}>
@@ -375,5 +374,3 @@ export function LiveChat({ chatRoom, canChat, participant, isHost, messages, par
     </CardContent>
   );
 }
-
-    

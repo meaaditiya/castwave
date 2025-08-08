@@ -77,7 +77,6 @@ export function ParticipantsList({ chatRoomId, participants }: ParticipantsListP
                         <div className="flex-1">
                             <div className="flex items-center gap-1.5">
                                 <p className="font-medium text-sm truncate">{participant.displayName}</p>
-                                {participant.emailVerified ? <CheckCircle className="h-3 w-3 text-green-500" /> : <XCircle className="h-3 w-3 text-red-500" />}
                             </div>
                             <Badge variant={statusBadgeVariant[participant.status]} className="capitalize mt-1 text-xs px-1.5 py-0.5">
                                {participant.status}
