@@ -1,18 +1,21 @@
+
 rules_version = '2';
 
 service firebase.storage {
   match /b/{bucket}/o {
-    
-    // Rule for profile images
+    // Match any file in the profileImages directory
     match /profileImages/{userId}/{fileName} {
-      // Allow read access to anyone
-      allow read: if true;
-      
-      // Allow write (create, update, delete) only if the user is authenticated
-      // and the `userId` in the path matches their own UID.
-      // This ensures users can only manage their own profile pictures.
-      allow write: if request.auth != null && request.auth.uid == userId;
+      // Allow read access to anyone (for viewing profile pictures)
+      allow read;
+
+      // Allow write (create/update) access only if:
+      // 1. The user is authenticated.
+      // 2. The user's ID matches the {userId} in the path.
+      // 3. The uploaded file is an image.
+      // 4. The image size is less than 5MB.
+      allow write: if request.auth != null && request.auth.uid == userId
+                    && request.resource.contentType.matches('image/.*')
+                    && request.resource.size < 5 * 1024 * 1024;
     }
-    
   }
 }
