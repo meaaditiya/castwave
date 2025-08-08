@@ -72,6 +72,12 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
   const currentParticipant = participants.find(p => p.userId === currentUser?.uid);
   const canChat = isHost || currentParticipant?.status === 'approved';
 
+  // Redirect if not logged in
+  useEffect(() => {
+    if (!authLoading && !currentUser) {
+      router.push('/login');
+    }
+  }, [authLoading, currentUser, router]);
 
   // Step 1: Fetch the main chat room data
   useEffect(() => {
@@ -156,16 +162,10 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
   }, [resolvedParams.id, isHost, participants, currentUser, chatLog.length]);
   
   // This is the main loading gate. It waits for auth to finish before doing anything else.
-  if (authLoading) {
+  if (authLoading || !currentUser) {
     return <ChatRoomPageSkeleton />;
   }
   
-  // If auth is done, but user is not logged in, redirect.
-  if (!currentUser) {
-    router.push('/login');
-    return <ChatRoomPageSkeleton />;
-  }
-
   // If we have a user, but other data is still loading, show skeleton.
   if (pageLoading || !chatRoom || !permissionsReady || (participants.length === 0 && !isHost)) {
     if (!pageLoading && chatRoom && !permissionsReady && currentParticipant?.status === 'pending') {
