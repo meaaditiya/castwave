@@ -10,6 +10,7 @@ import { z } from 'zod';
 import { db } from '@/lib/firebase';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import type { Participant } from '@/services/chatRoomService';
+import { getUserProfile } from '@/services/userService';
 
 // This is the Zod schema for the participant data we expect to return to the client.
 // It's a subset of the full Participant interface.
@@ -59,13 +60,14 @@ const getParticipantStatusFlow = ai.defineFlow(
       // If the participant document does not exist, create it.
       // This is the crucial step that must happen on the server.
       if (!docSnap.exists()) {
+        const userProfile = await getUserProfile(userId);
         const newParticipant: Omit<Participant, 'id'> = {
           userId: userId,
-          displayName: displayName,
+          displayName: userProfile?.username || displayName,
           status: 'pending', // Default status is 'pending'
           requestCount: 1,
-          photoURL: photoURL || '',
-          emailVerified: emailVerified,
+          photoURL: userProfile?.photoURL || photoURL || '',
+          emailVerified: userProfile?.emailVerified || emailVerified,
         };
         // Securely set the new participant document from the server.
         await setDoc(participantRef, newParticipant);
