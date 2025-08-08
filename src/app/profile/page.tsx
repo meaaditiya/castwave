@@ -8,9 +8,9 @@ import { Header } from "@/components/Header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { LogOut, Loader2, Mail, User, Edit, Check, ShieldCheck, KeyRound, MailCheck, AlertTriangle, CheckCircle, XCircle, X, Sparkles } from "lucide-react";
+import { LogOut, Loader2, Mail, User, Edit, Check, ShieldCheck, KeyRound, MailCheck, AlertTriangle, CheckCircle, XCircle, X, Sparkles, Trash2 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
-import { doc, setDoc } from 'firebase/firestore';
+import { doc, setDoc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { Input } from "@/components/ui/input";
@@ -22,6 +22,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Separator } from "@/components/ui/separator";
 import { isUsernameTaken } from "@/services/userService";
 import { generateAvatar } from "@/ai/flows/generate-avatar";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 
 const passwordFormSchema = z.object({
@@ -200,7 +201,10 @@ export default function ProfilePage() {
             }
             
             const userDocRef = doc(db, 'users', currentUser.uid);
-            await setDoc(userDocRef, { photoURL: result.dataUri }, { merge: true });
+            await updateDoc(userDocRef, {
+                 photoURL: result.dataUri,
+                 avatarGenerationCount: (currentUser.profile.avatarGenerationCount || 0) + 1
+            });
             
             toast({
                 title: 'Avatar Generated!',
@@ -217,6 +221,24 @@ export default function ProfilePage() {
         }
     };
 
+     const handleRemoveAvatar = async () => {
+        if (!currentUser) return;
+        try {
+            const userDocRef = doc(db, 'users', currentUser.uid);
+            await updateDoc(userDocRef, { photoURL: '' });
+            toast({
+                title: 'Avatar Removed',
+                description: 'Your avatar has been reset to the default.',
+            });
+        } catch (error) {
+            toast({
+                variant: 'destructive',
+                title: 'Error',
+                description: 'Could not remove your avatar.',
+            });
+        }
+    };
+
 
     if (loading || !currentUser) {
         return <ProfilePageSkeleton />;
@@ -230,6 +252,9 @@ export default function ProfilePage() {
         }
         return username.toUpperCase();
     }
+
+    const avatarGenerationsUsed = currentUser.profile?.avatarGenerationCount || 0;
+    const canGenerateAvatar = avatarGenerationsUsed < 2;
     
     return (
         <div className="flex flex-col min-h-screen">
@@ -255,10 +280,30 @@ export default function ProfilePage() {
                                 </div>
                                 <CardDescription>Manage your account details and security settings.</CardDescription>
                             </div>
-                             <Button onClick={handleGenerateAvatar} disabled={isGeneratingAvatar}>
-                                {isGeneratingAvatar ? <Loader2 className="animate-spin" /> : <Sparkles />}
-                                Generate New Avatar
-                            </Button>
+                            <div className="flex flex-col sm:flex-row gap-2">
+                                {currentUser.profile?.photoURL && (
+                                    <Button onClick={handleRemoveAvatar} variant="outline">
+                                        <Trash2 /> Remove Avatar
+                                    </Button>
+                                )}
+                                <TooltipProvider>
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <div tabIndex={canGenerateAvatar ? -1 : 0}> 
+                                                <Button onClick={handleGenerateAvatar} disabled={isGeneratingAvatar || !canGenerateAvatar}>
+                                                    {isGeneratingAvatar ? <Loader2 className="animate-spin" /> : <Sparkles />}
+                                                    Generate New Avatar
+                                                </Button>
+                                            </div>
+                                        </TooltipTrigger>
+                                        {!canGenerateAvatar && (
+                                            <TooltipContent>
+                                                <p>You have used all of your free avatar generations.</p>
+                                            </TooltipContent>
+                                        )}
+                                    </Tooltip>
+                                </TooltipProvider>
+                            </div>
                         </CardHeader>
                         <CardContent className="pt-6 space-y-6">
                             <div>

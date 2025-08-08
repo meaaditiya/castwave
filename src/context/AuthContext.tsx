@@ -12,6 +12,7 @@ export interface UserProfile {
     username: string;
     emailVerified: boolean;
     photoURL?: string;
+    avatarGenerationCount?: number;
 }
 
 export interface AppUser extends FirebaseAuthUser {
@@ -120,6 +121,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       username: username,
       emailVerified: user.emailVerified,
       photoURL: '',
+      avatarGenerationCount: 0,
     };
     await setDoc(doc(db, 'users', user.uid), userProfile);
     
