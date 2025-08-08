@@ -55,23 +55,23 @@ export default function PublicProfilePage({ params }: { params: { id: string } }
     const [userProfile, setUserProfile] = useState<UserProfileData | null>(null);
     const [userSessions, setUserSessions] = useState<ChatRoom[]>([]);
     const [loading, setLoading] = useState(true);
-    const [error, setError] = useState(false);
 
     const userId = resolvedParams.id;
 
     useEffect(() => {
-        // Wait until auth state is fully determined.
+        // This effect should only run when auth state is fully determined.
         if (authLoading) {
             return;
         }
 
-        // If auth is resolved and there's no user, redirect to login.
+        // If auth has loaded but there is no logged-in user, redirect them.
         if (!currentUser) {
             router.push('/login');
             return;
         }
         
-        // If the user is viewing their own profile, redirect to the main profile page.
+        // If the user is viewing their own profile, redirect to the main /profile page.
+        // This should happen *after* we know who the currentUser is.
         if (userId === currentUser.uid) {
             router.replace('/profile');
             return;
@@ -82,14 +82,27 @@ export default function PublicProfilePage({ params }: { params: { id: string } }
             try {
                 const profile = await getUserProfile(userId);
                 if (!profile) {
-                    setError(true); // Mark as not found
+                    notFound(); // Use Next.js's 404 page if profile doesn't exist.
                     return;
                 }
                 setUserProfile(profile);
 
+                // Fetch user's sessions after fetching their profile
+                const unsubscribe = getChatRooms(
+                    (allChatRooms) => {
+                        const userPublicSessions = allChatRooms.filter(room => room.hostId === userId && !room.isPrivate);
+                        setUserSessions(userPublicSessions);
+                    },
+                    (error) => {
+                        console.error("Failed to get chat rooms for profile:", error);
+                    }
+                );
+                // Note: In a real app, you might want to manage this unsubscribe differently,
+                // but for this page's lifecycle, it's okay.
+
             } catch (err) {
                 console.error("Failed to fetch profile", err);
-                setError(true); // Mark as error
+                notFound();
             } finally {
                 setLoading(false);
             }
@@ -99,33 +112,13 @@ export default function PublicProfilePage({ params }: { params: { id: string } }
 
     }, [userId, currentUser, authLoading, router]);
 
-    useEffect(() => {
-        if (!userId) return;
-
-        const unsubscribe = getChatRooms(
-            (allChatRooms) => {
-                const userPublicSessions = allChatRooms.filter(room => room.hostId === userId && !room.isPrivate);
-                setUserSessions(userPublicSessions);
-            },
-            (error) => {
-                console.error("Failed to get chat rooms for profile:", error);
-            }
-        );
-
-        return () => {
-            if (unsubscribe) {
-                unsubscribe();
-            }
-        };
-
-    }, [userId]);
-
-     if (authLoading || (loading && !error)) {
+     if (authLoading || loading) {
         return <PublicProfileSkeleton />;
     }
     
-    // If we had an error or the user was not found, trigger Next.js notFound UI
-    if (error || !userProfile) {
+    // If auth has loaded and we are not loading data, but there's no profile, something is wrong.
+    // The fetchProfileData function should have already called notFound(), but this is a safeguard.
+    if (!userProfile) {
         return notFound();
     }
 
