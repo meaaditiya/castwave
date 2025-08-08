@@ -13,7 +13,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-import { Mic, Loader2, UserPlus } from 'lucide-react';
+import { Waves, Loader2, UserPlus } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { isUsernameTaken } from '@/services/userService';
 
@@ -75,7 +75,7 @@ export default function SignupPage() {
     return (
        <div className="min-h-screen flex flex-col items-center justify-center bg-background p-4">
           <Link href="/" className="flex items-center space-x-2 mb-8">
-            <Mic className="h-8 w-8 text-primary" />
+            <Waves className="h-8 w-8 text-primary" />
             <span className="font-bold text-2xl font-headline">CastWave</span>
           </Link>
           <Card className="w-full max-w-sm">
@@ -102,7 +102,7 @@ export default function SignupPage() {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-background p-4">
       <Link href="/" className="flex items-center space-x-2 mb-8">
-        <Mic className="h-8 w-8 text-primary" />
+        <Waves className="h-8 w-8 text-primary" />
         <span className="font-bold text-2xl font-headline">CastWave</span>
       </Link>
       <Card className="w-full max-w-sm">
