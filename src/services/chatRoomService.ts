@@ -96,23 +96,20 @@ export const getChatRooms = (
     onError: (error: Error) => void
 ) => {
     const roomsCollection = collection(db, 'chatRooms');
-    const allRooms = new Map<string, ChatRoom>();
-    let publicUnsubscribe: (() => void) | null = null;
-    let privateUnsubscribe: (() => void) | null = null;
+    let allRooms = new Map<string, ChatRoom>();
 
     const processAndCallback = () => {
         const sortedRooms = Array.from(allRooms.values()).sort((a, b) => {
             const dateA = a.createdAt?.toDate() || 0;
             const dateB = b.createdAt?.toDate() || 0;
-            if (dateA > dateB) return -1;
-            if (dateA < dateB) return 1;
-            return 0;
+            return dateB - dateA;
         });
         callback(sortedRooms);
     };
 
+    // Listener for public rooms
     const publicQuery = query(roomsCollection, where('isPrivate', '==', false));
-    publicUnsubscribe = onSnapshot(publicQuery, (snapshot) => {
+    const publicUnsubscribe = onSnapshot(publicQuery, (snapshot) => {
         snapshot.docChanges().forEach((change) => {
             if (change.type === 'removed') {
                 allRooms.delete(change.doc.id);
@@ -123,26 +120,28 @@ export const getChatRooms = (
         processAndCallback();
     }, onError);
 
+    let privateUnsubscribe: (() => void) | null = null;
     if (userId) {
-        const privateQuery = query(roomsCollection, where('hostId', '==', userId));
+        // Listener for user's own private rooms
+        const privateQuery = query(roomsCollection, where('hostId', '==', userId), where('isPrivate', '==', true));
         privateUnsubscribe = onSnapshot(privateQuery, (snapshot) => {
             snapshot.docChanges().forEach((change) => {
                 if (change.type === 'removed') {
                     allRooms.delete(change.doc.id);
                 } else {
-                    const roomData = { id: change.doc.id, ...change.doc.data() } as ChatRoom;
-                    if (roomData.isPrivate) { // Only add private rooms from this query
-                       allRooms.set(change.doc.id, roomData);
-                    }
+                    allRooms.set(change.doc.id, { id: change.doc.id, ...change.doc.data() } as ChatRoom);
                 }
             });
             processAndCallback();
         }, onError);
     }
-
+    
+    // Return a function that unsubscribes from both listeners
     return () => {
-        if (publicUnsubscribe) publicUnsubscribe();
-        if (privateUnsubscribe) privateUnsubscribe();
+        publicUnsubscribe();
+        if (privateUnsubscribe) {
+            privateUnsubscribe();
+        }
     };
 };
 
