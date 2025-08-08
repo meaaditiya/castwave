@@ -51,8 +51,12 @@ export default function Home() {
       },
       (error) => {
         console.error("Failed to get chat rooms:", error);
-        toast({ variant: 'destructive', title: 'Error', description: 'Could not load sessions. Check permissions or network.' });
-        setAllChatRooms([]);
+        // Do not toast on permission errors which can happen during logout
+        if (error.message.includes('permission-denied')) {
+          setAllChatRooms([]);
+        } else {
+            toast({ variant: 'destructive', title: 'Error', description: 'Could not load sessions. Check permissions or network.' });
+        }
         setLoading(false);
       }
     );
