@@ -80,7 +80,7 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
     }
   }, [authLoading, currentUser, router]);
 
-  // Step 1: Fetch the main chat room data
+  // Step 1: Fetch the main chat room data stream.
   useEffect(() => {
     const chatRoomId = resolvedParams.id;
     if (!chatRoomId || !currentUser) return; 
@@ -103,17 +103,19 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
     return () => unsubscribeChatRoom();
   }, [resolvedParams.id, currentUser, router, toast]);
   
-  // Step 2: Once chat room data is loaded, manage participants
+  // Step 2: Once chat room data is loaded, manage participants.
   useEffect(() => {
     const chatRoomId = resolvedParams.id;
     if (!chatRoom || !currentUser || !currentUser.profile) return;
 
+    // Determine if the current user is the host of this chat room.
     const localIsHost = chatRoom.hostId === currentUser.uid;
 
     if (localIsHost) {
-        // Host gets the full list of participants for the management UI
+        // If the user is the host, they get a stream of all participants for the management UI.
         const unsubscribe = getParticipants(chatRoomId, (allParticipants) => {
             setParticipants(allParticipants);
+            // Find the host in the list to set their own participant object.
             const hostParticipant = allParticipants.find(p => p.userId === currentUser.uid);
             if (hostParticipant) setCurrentParticipant(hostParticipant);
             setPageLoading(false);
@@ -122,10 +124,10 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
              toast({ variant: 'destructive', title: 'Error', description: 'Could not load participant list.' });
              setPageLoading(false);
         });
-        return unsubscribe;
+        return unsubscribe; // Clean up the listener when the component unmounts.
     } else {
-        // Non-hosts use a secure flow to check their own status.
-        // This flow also creates them as 'pending' if they don't exist.
+        // If the user is NOT the host, use the secure server-side flow to check their status.
+        // This is the critical change to prevent permission-denied errors.
         const checkStatus = async () => {
             try {
                 const result = await getParticipantStatus({ 
@@ -139,7 +141,7 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
                 if (result.participant) {
                     setCurrentParticipant(result.participant);
                 } else {
-                    // This case should theoretically not be reached as the flow now handles creation
+                    // This case should theoretically not be reached as the flow now handles creation.
                     throw new Error("Participant status could not be resolved.");
                 }
 
@@ -151,38 +153,42 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
             }
         };
         checkStatus();
-        // This is a one-time check and not a stream. We could add a stream to participant status if needed later.
+        // Note: This is a one-time check, not a stream. If a user's status changes while they are on this page (e.g., they get approved),
+        // they will need to refresh to see the change. A future improvement could be to implement a secure stream for individual status.
     }
   }, [chatRoom, currentUser, resolvedParams.id, toast]);
 
-  // Step 3: Once permissions are ready, fetch chat messages
+  // Step 3: Once permissions are ready (i.e., we have participant status), fetch chat messages.
   useEffect(() => {
     const chatRoomId = resolvedParams.id;
     if (!currentUser) return;
 
+    // User can chat if they are the host or if their status is 'approved'.
     const isApproved = isHost || currentParticipant?.status === 'approved';
 
+    // If not approved, don't attempt to fetch messages.
     if (!chatRoomId || !isApproved) {
-        if(chatLog.length > 0) setChatLog([]);
+        if(chatLog.length > 0) setChatLog([]); // Clear any old messages if permissions change.
         return;
     };
 
     const unsubscribeMessages = getMessages(chatRoomId, setChatLog, (error) => {
         console.error("Error fetching messages:", error);
+        toast({variant: 'destructive', title: 'Error', description: 'Could not load messages.'})
     });
     return () => unsubscribeMessages();
-  }, [resolvedParams.id, isHost, currentParticipant, currentUser, chatLog.length]);
+  }, [resolvedParams.id, isHost, currentParticipant, currentUser, chatLog.length, toast]);
   
   if (authLoading || pageLoading) {
     return <ChatRoomPageSkeleton />;
   }
   
-  // If auth is done, but still no user, something is wrong. Let context handle redirects.
   if (!currentUser) {
+    // This should be handled by the redirect at the top, but as a fallback.
     return <ChatRoomPageSkeleton />;
   }
 
-  // If chat room isn't live and user is not host, show session ended message.
+  // If the session has ended and the user is not the host, show a specific screen.
   if (chatRoom && !chatRoom.isLive && !isHost) {
       return (
           <div className="min-h-screen flex flex-col">
@@ -205,6 +211,7 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
       )
   }
 
+  // If the user's request is pending, show the "Awaiting Approval" screen.
   if (currentParticipant?.status === 'pending' && !isHost) {
        return (
           <div className="min-h-screen flex flex-col">
@@ -224,7 +231,6 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
       )
   }
 
-  // If we have a user, but other data is still loading, show skeleton.
   if (!chatRoom) {
       return <ChatRoomPageSkeleton />;
   }

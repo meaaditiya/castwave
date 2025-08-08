@@ -8,7 +8,7 @@
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
 import { db } from '@/lib/firebase';
-import { collection, doc, runTransaction, serverTimestamp } from 'firebase/firestore';
+import { collection, doc, runTransaction, serverTimestamp, getDoc } from 'firebase/firestore';
 
 const CreateChatRoomFlowInputSchema = z.object({
   title: z.string().min(5),
@@ -52,7 +52,7 @@ const createChatRoomFlowFn = ai.defineFlow(
       // Get user profile to fetch photoURL
       const userProfileRef = doc(db, 'users', input.hostId);
       const userProfileSnap = await transaction.get(userProfileRef);
-      const userProfile = userProfileSnap.data();
+      const userProfile = userProfileSnap.exists() ? userProfileSnap.data() : null;
       
       // Automatically add the host as an approved participant
       const participantRef = doc(db, 'chatRooms', chatRoomRef.id, 'participants', input.hostId);

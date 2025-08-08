@@ -11,6 +11,8 @@ import { db } from '@/lib/firebase';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import type { Participant } from '@/services/chatRoomService';
 
+// This is the Zod schema for the participant data we expect to return to the client.
+// It's a subset of the full Participant interface.
 const ParticipantSchemaForOutput = z.object({
   id: z.string(),
   userId: z.string(),
@@ -31,6 +33,7 @@ const GetParticipantStatusInputSchema = z.object({
 });
 export type GetParticipantStatusInput = z.infer<typeof GetParticipantStatusInputSchema>;
 
+// The output will be a participant object, or null if something went wrong.
 const GetParticipantStatusOutputSchema = z.object({
   participant: ParticipantSchemaForOutput.nullable().describe('The participant object, or null if not found.'),
 });
@@ -38,6 +41,7 @@ export type GetParticipantStatusOutput = z.infer<typeof GetParticipantStatusOutp
 
 
 export async function getParticipantStatus(input: GetParticipantStatusInput): Promise<GetParticipantStatusOutput> {
+  // We call the Genkit flow to execute the logic.
   return getParticipantStatusFlow(input);
 }
 
@@ -52,26 +56,31 @@ const getParticipantStatusFlow = ai.defineFlow(
       const participantRef = doc(db, 'chatRooms', chatRoomId, 'participants', userId);
       let docSnap = await getDoc(participantRef);
 
+      // If the participant document does not exist, create it.
+      // This is the crucial step that must happen on the server.
       if (!docSnap.exists()) {
-        // Participant does not exist, create them with 'pending' status.
         const newParticipant: Omit<Participant, 'id'> = {
           userId: userId,
           displayName: displayName,
-          status: 'pending',
+          status: 'pending', // Default status is 'pending'
           requestCount: 1,
           photoURL: photoURL || '',
           emailVerified: emailVerified,
         };
+        // Securely set the new participant document from the server.
         await setDoc(participantRef, newParticipant);
-        // Re-fetch the document to return it
+        // Re-fetch the document to get the data we just wrote.
         docSnap = await getDoc(participantRef);
       }
 
+      // If the document exists (either it was there before or we just created it),
+      // return its data.
       if (docSnap.exists()) {
          const participant = { id: docSnap.id, ...docSnap.data() } as Participant;
          return { participant };
       }
       
+      // If for some reason it still doesn't exist, return null.
       return { participant: null };
 
     } catch (error) {
