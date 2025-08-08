@@ -10,12 +10,14 @@ import { ParticipantsList } from '@/components/ParticipantsList';
 import type { Message } from '@/services/chatRoomService';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from '@/components/ui/skeleton';
-import { Loader2, MessageSquare, Sparkles, Users } from 'lucide-react';
+import { Loader2, MessageSquare, MicOff, Sparkles, Users } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
 import { getChatRoomStream, ChatRoom, getMessages, Participant, getParticipants, addParticipant } from '@/services/chatRoomService';
 import { useToast } from '@/hooks/use-toast';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import Link from 'next/link';
+import { Button } from '@/components/ui/button';
 
 function ChatRoomPageSkeleton() {
     return (
@@ -107,6 +109,12 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
     const chatRoomId = resolvedParams.id;
     if (!chatRoomId || !currentUser || !chatRoom) return;
 
+    // If the room isn't live and the user isn't the host, no need to manage participants.
+    if (!chatRoom.isLive && chatRoom.hostId !== currentUser.uid) {
+        setPermissionsReady(true); // Mark as ready to show the "ended" screen.
+        return;
+    }
+
     const unsubscribeParticipants = getParticipants(chatRoomId, async (newParticipants) => {
         setParticipants(newParticipants);
         const userInList = newParticipants.some(p => p.userId === currentUser.uid);
@@ -171,6 +179,29 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
   // The AuthProvider and other mechanisms should handle global state.
   if (!currentUser) {
     return <ChatRoomPageSkeleton />;
+  }
+  
+  // If chat room isn't live and user is not host, show session ended message.
+  if (chatRoom && !chatRoom.isLive && !isHost) {
+      return (
+          <div className="min-h-screen flex flex-col">
+              <Header />
+              <main className="flex-1 container py-8 flex items-center justify-center">
+                  <Card className="w-full max-w-md text-center p-8">
+                      <CardHeader>
+                          <MicOff className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
+                          <CardTitle>Session Has Ended</CardTitle>
+                          <CardDescription>This session is no longer live. Check the homepage for other active sessions.</CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                          <Button asChild>
+                              <Link href="/">Back to Homepage</Link>
+                          </Button>
+                      </CardContent>
+                  </Card>
+              </main>
+          </div>
+      )
   }
 
   // If we have a user, but other data is still loading, show skeleton.
