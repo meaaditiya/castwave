@@ -101,7 +101,14 @@ export const getChatRooms = (
     let privateUnsubscribe: (() => void) | null = null;
 
     const processAndCallback = () => {
-        callback(Array.from(allRooms.values()));
+        const sortedRooms = Array.from(allRooms.values()).sort((a, b) => {
+            const dateA = a.createdAt?.toDate() || 0;
+            const dateB = b.createdAt?.toDate() || 0;
+            if (dateA > dateB) return -1;
+            if (dateA < dateB) return 1;
+            return 0;
+        });
+        callback(sortedRooms);
     };
 
     const publicQuery = query(roomsCollection, where('isPrivate', '==', false));
@@ -117,13 +124,16 @@ export const getChatRooms = (
     }, onError);
 
     if (userId) {
-        const privateQuery = query(roomsCollection, where('hostId', '==', userId), where('isPrivate', '==', true));
+        const privateQuery = query(roomsCollection, where('hostId', '==', userId));
         privateUnsubscribe = onSnapshot(privateQuery, (snapshot) => {
             snapshot.docChanges().forEach((change) => {
                 if (change.type === 'removed') {
                     allRooms.delete(change.doc.id);
                 } else {
-                    allRooms.set(change.doc.id, { id: change.doc.id, ...change.doc.data() } as ChatRoom);
+                    const roomData = { id: change.doc.id, ...change.doc.data() } as ChatRoom;
+                    if (roomData.isPrivate) { // Only add private rooms from this query
+                       allRooms.set(change.doc.id, roomData);
+                    }
                 }
             });
             processAndCallback();
@@ -135,22 +145,6 @@ export const getChatRooms = (
         if (privateUnsubscribe) privateUnsubscribe();
     };
 };
-
-export const getPublicChatRoomsByHost = (
-    hostId: string,
-    callback: (chatRooms: ChatRoom[]) => void, 
-    onError?: (error: Error) => void
-) => {
-    const chatRoomsRef = collection(db, 'chatRooms');
-    const q = query(chatRoomsRef, where('hostId', '==', hostId), where('isPrivate', '==', false));
-
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-        const rooms = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ChatRoom));
-        callback(rooms);
-    }, onError);
-
-    return unsubscribe;
-}
 
 
 export const getChatRoomStream = (id: string, callback: (chatRoom: ChatRoom | null) => void, onError?: (error: Error) => void) => {

@@ -4,8 +4,6 @@
 import { useState, useEffect } from 'react';
 import { use } from 'react';
 import { Header } from '@/components/Header';
-import { ChatRoomCard } from '@/components/ChatRoomCard';
-import { getPublicChatRoomsByHost, ChatRoom } from '@/services/chatRoomService';
 import { getUserProfile, UserProfileData } from '@/services/userService';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/context/AuthContext';
@@ -29,16 +27,8 @@ function PublicProfileSkeleton() {
                             </div>
                         </CardHeader>
                     </Card>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {Array.from({ length: 3 }).map((_, i) => (
-                            <div key={i} className="flex flex-col space-y-3">
-                                <Skeleton className="h-[170px] w-full rounded-xl" />
-                                <div className="space-y-2">
-                                    <Skeleton className="h-4 w-3/4" />
-                                    <Skeleton className="h-4 w-1/2" />
-                                </div>
-                            </div>
-                        ))}
+                    <div className="text-center py-16 text-muted-foreground border-2 border-dashed rounded-lg">
+                        <Skeleton className="h-8 w-1/2 mx-auto" />
                     </div>
                 </div>
             </main>
@@ -53,7 +43,6 @@ export default function PublicProfilePage({ params }: { params: { id: string } }
     const router = useRouter();
 
     const [userProfile, setUserProfile] = useState<UserProfileData | null>(null);
-    const [publicRooms, setPublicRooms] = useState<ChatRoom[]>([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -66,8 +55,6 @@ export default function PublicProfilePage({ params }: { params: { id: string } }
             return;
         }
 
-        let unsubscribe: (() => void) | undefined;
-
         async function fetchProfileData() {
             try {
                 setLoading(true);
@@ -78,14 +65,6 @@ export default function PublicProfilePage({ params }: { params: { id: string } }
                 }
                 setUserProfile(profile);
 
-                unsubscribe = getPublicChatRoomsByHost(
-                    userId,
-                    (rooms) => setPublicRooms(rooms),
-                    (error) => {
-                        console.error("Failed to get public rooms for host:", error);
-                    }
-                );
-
             } catch (error) {
                 console.error("Failed to fetch profile", error);
                 notFound();
@@ -95,12 +74,6 @@ export default function PublicProfilePage({ params }: { params: { id: string } }
         }
 
         fetchProfileData();
-
-        return () => {
-            if (unsubscribe) {
-                unsubscribe();
-            }
-        }
 
     }, [resolvedParams.id, currentUser, router]);
 
@@ -146,26 +119,13 @@ export default function PublicProfilePage({ params }: { params: { id: string } }
                         </CardHeader>
                     </Card>
 
-                    <h2 className="text-2xl font-bold tracking-tight mb-6">Public Sessions by {userProfile.username}</h2>
+                    <h2 className="text-2xl font-bold tracking-tight mb-6">Public Sessions</h2>
                     
-                    {publicRooms.length > 0 ? (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                            {publicRooms.map(chatRoom => (
-                                <ChatRoomCard 
-                                    key={chatRoom.id} 
-                                    {...chatRoom} 
-                                    isOwner={currentUser?.uid === chatRoom.hostId}
-                                    onDelete={() => { /* No delete on public page */ }}
-                                    onStartSession={() => { /* No start on public page */ }}
-                                />
-                            ))}
-                        </div>
-                    ) : (
-                        <div className="text-center py-16 text-muted-foreground border-2 border-dashed rounded-lg">
-                           <Mic className="mx-auto h-12 w-12 text-muted-foreground/50 mb-4" />
-                           <p className="font-semibold">{userProfile.username} hasn't hosted any public sessions yet.</p>
-                        </div>
-                    )}
+                    <div className="text-center py-16 text-muted-foreground border-2 border-dashed rounded-lg">
+                       <Mic className="mx-auto h-12 w-12 text-muted-foreground/50 mb-4" />
+                       <p className="font-semibold">Public sessions hosted by {userProfile.username} will appear here.</p>
+                       <p className="text-sm">This feature is currently under construction.</p>
+                    </div>
                 </div>
             </main>
         </div>
