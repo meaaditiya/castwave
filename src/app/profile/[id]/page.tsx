@@ -58,8 +58,12 @@ export default function PublicProfilePage({ params }: { params: { id: string } }
 
     useEffect(() => {
         const userId = resolvedParams.id;
-        if (!userId) return;
+        if (!userId) {
+            notFound();
+            return;
+        };
 
+        // If the user is viewing their own public profile link, redirect to their editable profile page
         if (currentUser && userId === currentUser.uid) {
             router.replace('/profile');
             return;
@@ -89,7 +93,7 @@ export default function PublicProfilePage({ params }: { params: { id: string } }
 
     useEffect(() => {
         const userId = resolvedParams.id;
-        if (!userId) return;
+        if (!userId || (currentUser && userId === currentUser.uid)) return;
 
         const unsubscribe = getChatRooms(
             (allChatRooms) => {
@@ -107,7 +111,7 @@ export default function PublicProfilePage({ params }: { params: { id: string } }
             }
         };
 
-    }, [resolvedParams.id]);
+    }, [resolvedParams.id, currentUser]);
 
 
      if (loading) {
