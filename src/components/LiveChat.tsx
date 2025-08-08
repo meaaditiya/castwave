@@ -207,33 +207,54 @@ export function LiveChat({ chatRoom, canChat, participant, isHost, messages, par
   const renderChatOverlay = () => {
     if (canChat || isHost || !currentUser || !participant) return null;
 
-    let alertContent;
+    const requestsLeft = 3 - (participant.requestCount || 0);
+
+    const renderRequestButton = () => {
+        if (requestsLeft <= 0) {
+            return (
+                <Alert variant="default" className="max-w-sm">
+                    <Hand className="h-4 w-4" />
+                    <AlertTitle>Request Limit Reached</AlertTitle>
+                    <AlertDescription>You have reached the maximum number of requests to join.</AlertDescription>
+                </Alert>
+            );
+        }
+
+        return (
+            <div className="text-center space-y-4">
+                <p className='font-semibold'>
+                    {participant.status === 'removed' 
+                        ? "You were removed from the chat." 
+                        : "The host denied your request."
+                    }
+                </p>
+                <p className='text-sm text-muted-foreground'>You can request to join {requestsLeft} more {requestsLeft === 1 ? 'time' : 'times'}.</p>
+                <Button onClick={handleRequestJoin} disabled={isRequesting}>
+                   {isRequesting ? <Loader2 className="animate-spin" /> : <Hand />}
+                   Request to Join Again
+                </Button>
+            </div>
+        );
+    };
+
     switch (participant.status) {
         case 'pending':
-            alertContent = { title: "Request Pending", description: "Your request to join the chat is awaiting host approval." };
-            break;
+            return (
+                 <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-10 p-4">
+                    <Alert variant="default" className="max-w-sm">
+                        <Hand className="h-4 w-4" />
+                        <AlertTitle>Request Pending</AlertTitle>
+                        <AlertDescription>Your request to join the chat is awaiting host approval.</AlertDescription>
+                    </Alert>
+                </div>
+            );
         case 'denied':
-            const requestsLeft = 3 - (participant.requestCount || 0);
-            if (requestsLeft > 0) {
-                 return (
-                    <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex flex-col items-center justify-center z-10 p-4">
-                        <div className="text-center space-y-4">
-                            <p className='font-semibold'>The host denied your request.</p>
-                            <p className='text-sm text-muted-foreground'>You can request to join {requestsLeft} more {requestsLeft === 1 ? 'time' : 'times'}.</p>
-                            <Button onClick={handleRequestJoin} disabled={isRequesting}>
-                               {isRequesting ? <Loader2 className="animate-spin" /> : <Hand />}
-                               Request to Join Again
-                            </Button>
-                        </div>
-                    </div>
-                )
-            } else {
-                 alertContent = { title: "Request Denied", description: "You have reached the maximum number of requests to join." };
-            }
-            break;
         case 'removed':
-             alertContent = { title: "Removed from Chat", description: "The host has removed you from the chat." };
-             break;
+            return (
+                <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex flex-col items-center justify-center z-10 p-4">
+                    {renderRequestButton()}
+                </div>
+            );
         default:
             return (
                 <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex flex-col items-center justify-center z-10 p-4">
@@ -245,18 +266,8 @@ export function LiveChat({ chatRoom, canChat, participant, isHost, messages, par
                         </Button>
                     </div>
                 </div>
-            )
+            );
     }
-
-    return (
-        <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-10 p-4">
-            <Alert variant="default" className="max-w-sm">
-                <Hand className="h-4 w-4" />
-                <AlertTitle>{alertContent.title}</AlertTitle>
-                <AlertDescription>{alertContent.description}</AlertDescription>
-            </Alert>
-        </div>
-    );
   }
 
   return (

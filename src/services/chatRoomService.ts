@@ -277,7 +277,7 @@ export const requestToJoinChat = async (chatRoomId: string, userId: string, disp
                 if ((participant.requestCount || 0) >= 3) {
                     throw new Error("You have reached the maximum number of requests to join.");
                 }
-                if (participant.status === 'denied') {
+                if (participant.status === 'denied' || participant.status === 'removed') {
                      transaction.update(participantRef, {
                         status: 'pending',
                         requestCount: increment(1)
