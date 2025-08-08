@@ -49,7 +49,7 @@ function PublicProfileSkeleton() {
 
 export default function PublicProfilePage({ params }: { params: { id: string } }) {
     const resolvedParams = use(params);
-    const { currentUser } = useAuth();
+    const { currentUser, loading: authLoading } = useAuth();
     const router = useRouter();
 
     const [userProfile, setUserProfile] = useState<UserProfileData | null>(null);
@@ -62,6 +62,11 @@ export default function PublicProfilePage({ params }: { params: { id: string } }
             notFound();
             return;
         };
+        
+        // Don't run the rest of the effect until auth is resolved
+        if (authLoading) {
+            return;
+        }
 
         // If the user is viewing their own public profile link, redirect to their editable profile page
         if (currentUser && userId === currentUser.uid) {
@@ -89,7 +94,7 @@ export default function PublicProfilePage({ params }: { params: { id: string } }
 
         fetchProfileData();
 
-    }, [resolvedParams.id, currentUser, router]);
+    }, [resolvedParams.id, currentUser, authLoading, router]);
 
     useEffect(() => {
         const userId = resolvedParams.id;
@@ -114,11 +119,13 @@ export default function PublicProfilePage({ params }: { params: { id: string } }
     }, [resolvedParams.id, currentUser]);
 
 
-     if (loading) {
+     if (authLoading || loading) {
         return <PublicProfileSkeleton />;
     }
 
     if (!userProfile) {
+        // This case will be hit after loading is false and profile is still null
+        // which means the notFound() was called in the effect, but we can have it here as a fallback
         return notFound();
     }
 
