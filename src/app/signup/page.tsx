@@ -17,6 +17,7 @@ import { Waves, Loader2, UserPlus } from 'lucide-react';
 import { db } from '@/lib/firebase';
 import { doc, setDoc } from 'firebase/firestore';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { sendEmailVerification } from 'firebase/auth';
 
 
 const formSchema = z.object({
@@ -52,6 +53,9 @@ export default function SignupPage() {
 
       // Generate a default username from the email address
       const defaultUsername = values.email.split('@')[0];
+      
+      // Send verification email
+      await sendEmailVerification(user);
 
       await setDoc(doc(db, 'users', user.uid), {
         uid: user.uid,
