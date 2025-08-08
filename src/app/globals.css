@@ -3,7 +3,7 @@
 @tailwind utilities;
 
 @layer base {
-  :root, .theme-default {
+  :root {
     --background: 0 0% 100%;
     --foreground: 222.2 84% 4.9%;
     --card: 0 0% 100%;
@@ -58,7 +58,7 @@
     --chart-5: 340 75% 55%;
   }
 
-  .theme-rose {
+  .rose {
     --background: 350 100% 99%;
     --foreground: 351 96% 15%;
     --card: 350 100% 99%;
@@ -78,9 +78,14 @@
     --border: 350 80% 94%;
     --input: 350 80% 94%;
     --ring: 346.8 77.2% 49.8%;
+    --chart-1: 345 80% 55%;
+    --chart-2: 335 75% 60%;
+    --chart-3: 325 70% 50%;
+    --chart-4: 10 80% 60%;
+    --chart-5: 20 85% 65%;
   }
 
-  .theme-green {
+  .green {
     --background: 140 80% 98%;
     --foreground: 142.1 70.6% 15.1%;
     --card: 140 80% 98%;
@@ -100,9 +105,14 @@
     --border: 140 60% 91.4%;
     --input: 140 60% 91.4%;
     --ring: 142.1 76.2% 41.2%;
+    --chart-1: 145 65% 45%;
+    --chart-2: 155 60% 40%;
+    --chart-3: 165 70% 50%;
+    --chart-4: 135 55% 55%;
+    --chart-5: 125 50% 50%;
   }
 
-  .theme-orange {
+  .orange {
     --background: 24 90% 98%;
     --foreground: 24 9.8% 10%;
     --card: 24 90% 98%;
@@ -122,6 +132,11 @@
     --border: 30 80% 91.4%;
     --input: 30 80% 91.4%;
     --ring: 24.6 95% 53.1%;
+    --chart-1: 30 90% 50%;
+    --chart-2: 35 95% 55%;
+    --chart-3: 40 90% 60%;
+    --chart-4: 20 85% 55%;
+    --chart-5: 15 80% 50%;
   }
 }
 

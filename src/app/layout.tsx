@@ -11,7 +11,7 @@ export const metadata: Metadata = {
   title: 'CastWave - Live Audio Chat Rooms',
   description: 'A platform for real-time live audio conversations and podcasting.',
   icons: {
-    icon: '/favicon.ico', // Place your favicon.ico in the `public` directory
+    icon: '/favicon.ico', 
   },
 };
 
