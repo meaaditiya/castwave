@@ -20,9 +20,9 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from 'zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Separator } from "@/components/ui/separator";
-import { isUsernameTaken } from "@/services/userService";
 import { generateAvatar } from "@/ai/flows/generate-avatar";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { updateUsername } from '@/ai/flows/update-username';
 
 
 const passwordFormSchema = z.object({
@@ -99,11 +99,11 @@ export default function ProfilePage() {
     
     const handleUpdateUsername = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!currentUser) return;
+        if (!currentUser || !currentUser.profile) return;
 
         const trimmedUsername = newUsername.trim();
 
-        if (trimmedUsername === currentUser.profile?.username) {
+        if (trimmedUsername === currentUser.profile.username) {
             setIsEditing(false);
             return;
         }
@@ -119,27 +119,25 @@ export default function ProfilePage() {
 
         setIsSaving(true);
         try {
-            const usernameIsTaken = await isUsernameTaken(trimmedUsername, currentUser.uid);
-            if (usernameIsTaken) {
-                toast({
-                    variant: 'destructive',
-                    title: 'Username Taken',
-                    description: 'This username is already in use. Please choose another one.',
-                });
-                setIsSaving(false);
-                return;
-            }
-
-            const userDocRef = doc(db, 'users', currentUser.uid);
-            await setDoc(userDocRef, {
-                username: trimmedUsername,
-            }, { merge: true });
-
-            toast({
-                title: 'Success!',
-                description: 'Your username has been updated.',
+            const result = await updateUsername({ 
+                userId: currentUser.uid, 
+                newUsername: trimmedUsername,
+                currentUsername: currentUser.profile.username
             });
-            setIsEditing(false);
+
+            if (result.success) {
+                toast({
+                    title: 'Success!',
+                    description: 'Your username has been updated everywhere.',
+                });
+                setIsEditing(false);
+            } else {
+                 toast({
+                    variant: 'destructive',
+                    title: 'Update Failed',
+                    description: result.message,
+                });
+            }
         } catch (error) {
              toast({
                 variant: 'destructive',
