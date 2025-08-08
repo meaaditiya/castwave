@@ -14,7 +14,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { Waves, Loader2, UserPlus } from 'lucide-react';
-import { isUsernameTaken } from '@/services/userService';
+import { isUsernameTaken } from '@/ai/flows/is-username-taken';
 import { db } from '@/lib/firebase';
 import { doc, setDoc } from 'firebase/firestore';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -50,8 +50,8 @@ export default function SignupPage() {
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true);
     try {
-      const usernameIsTaken = await isUsernameTaken(values.username);
-      if (usernameIsTaken) {
+      const { isTaken } = await isUsernameTaken({ username: values.username });
+      if (isTaken) {
         form.setError('username', {
           type: 'manual',
           message: 'This username is already taken.',
