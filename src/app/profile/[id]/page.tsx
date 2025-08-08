@@ -5,7 +5,7 @@ import { useState, useEffect } from 'react';
 import { use } from 'react';
 import { Header } from '@/components/Header';
 import { ChatRoomCard } from '@/components/ChatRoomCard';
-import { getChatRooms, ChatRoom } from '@/services/chatRoomService';
+import { getChatRooms, ChatRoom, getPublicChatRoomsByHost } from '@/services/chatRoomService';
 import { getUserProfile, UserProfileData } from '@/services/userService';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/context/AuthContext';
@@ -66,6 +66,8 @@ export default function PublicProfilePage({ params }: { params: { id: string } }
             return;
         }
 
+        let unsubscribe: (() => void) | undefined;
+
         async function fetchProfileData() {
             try {
                 setLoading(true);
@@ -76,13 +78,13 @@ export default function PublicProfilePage({ params }: { params: { id: string } }
                 }
                 setUserProfile(profile);
 
-                const unsubscribe = getChatRooms(
+                unsubscribe = getPublicChatRoomsByHost(
+                    userId,
                     (rooms) => setPublicRooms(rooms),
-                    { hostId: userId, isPublic: true }
+                    (error) => {
+                        console.error("Failed to get public rooms for host:", error);
+                    }
                 );
-                
-                // This is a simple implementation. For a real app, you'd want to manage this unsubscribe more carefully.
-                // For now, we'll just let it run.
 
             } catch (error) {
                 console.error("Failed to fetch profile", error);
@@ -93,6 +95,12 @@ export default function PublicProfilePage({ params }: { params: { id: string } }
         }
 
         fetchProfileData();
+
+        return () => {
+            if (unsubscribe) {
+                unsubscribe();
+            }
+        }
 
     }, [resolvedParams.id, currentUser, router]);
 

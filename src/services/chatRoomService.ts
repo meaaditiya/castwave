@@ -65,48 +65,68 @@ export const createSession = async (input: ChatRoomInput): Promise<{ chatRoomId:
 
 export const getChatRooms = (
     userId: string | null,
+    callback: (chatRooms: ChatRoom[]) => void,
+    onError: (error: Error) => void
+) => {
+    const roomsCollection = collection(db, 'chatRooms');
+    const allRooms = new Map<string, ChatRoom>();
+    let publicUnsubscribe: (() => void) | null = null;
+    let privateUnsubscribe: (() => void) | null = null;
+
+    const processAndCallback = () => {
+        callback(Array.from(allRooms.values()));
+    };
+
+    // Listener for public rooms
+    const publicQuery = query(roomsCollection, where('isPrivate', '==', false));
+    publicUnsubscribe = onSnapshot(publicQuery, (snapshot) => {
+        snapshot.docChanges().forEach((change) => {
+            if (change.type === 'removed') {
+                allRooms.delete(change.doc.id);
+            } else {
+                allRooms.set(change.doc.id, { id: change.doc.id, ...change.doc.data() } as ChatRoom);
+            }
+        });
+        processAndCallback();
+    }, onError);
+
+    // Listener for user's private rooms (if logged in)
+    if (userId) {
+        const privateQuery = query(roomsCollection, where('hostId', '==', userId), where('isPrivate', '==', true));
+        privateUnsubscribe = onSnapshot(privateQuery, (snapshot) => {
+            snapshot.docChanges().forEach((change) => {
+                if (change.type === 'removed') {
+                    allRooms.delete(change.doc.id);
+                } else {
+                    allRooms.set(change.doc.id, { id: change.doc.id, ...change.doc.data() } as ChatRoom);
+                }
+            });
+            processAndCallback();
+        }, onError);
+    }
+
+    // Return a function that unsubscribes from both listeners
+    return () => {
+        if (publicUnsubscribe) publicUnsubscribe();
+        if (privateUnsubscribe) privateUnsubscribe();
+    };
+};
+
+export const getPublicChatRoomsByHost = (
+    hostId: string,
     callback: (chatRooms: ChatRoom[]) => void, 
     onError?: (error: Error) => void
 ) => {
     const chatRoomsRef = collection(db, 'chatRooms');
-    let combinedUnsubscribes: (() => void)[] = [];
-    const allRooms = new Map<string, ChatRoom>();
+    const q = query(chatRoomsRef, where('hostId', '==', hostId), where('isPrivate', '==', false));
 
-    const updateAndCallback = () => {
-        callback(Array.from(allRooms.values()));
-    };
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+        const rooms = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ChatRoom));
+        callback(rooms);
+    }, onError);
 
-    const handleError = (error: Error) => {
-        console.error("Error in getChatRooms snapshot listener:", error);
-        if (onError) {
-            onError(new Error("Could not load sessions. Check permissions or network."));
-        }
-    };
-
-    // Query for public rooms
-    const publicQuery = query(chatRoomsRef, where('isPrivate', '==', false));
-    const publicUnsubscribe = onSnapshot(publicQuery, (snapshot) => {
-        snapshot.docs.forEach((doc) => {
-            allRooms.set(doc.id, { id: doc.id, ...doc.data() } as ChatRoom);
-        });
-        updateAndCallback();
-    }, handleError);
-    combinedUnsubscribes.push(publicUnsubscribe);
-
-    // If user is logged in, also query for their private rooms
-    if (userId) {
-        const privateQuery = query(chatRoomsRef, where('hostId', '==', userId), where('isPrivate', '==', true));
-        const privateUnsubscribe = onSnapshot(privateQuery, (snapshot) => {
-             snapshot.docs.forEach((doc) => {
-                allRooms.set(doc.id, { id: doc.id, ...doc.data() } as ChatRoom);
-            });
-            updateAndCallback();
-        }, handleError);
-        combinedUnsubscribes.push(privateUnsubscribe);
-    }
-
-    return () => combinedUnsubscribes.forEach(unsub => unsub());
-};
+    return unsubscribe;
+}
 
 
 export const getChatRoomStream = (id: string, callback: (chatRoom: ChatRoom | null) => void, onError?: (error: Error) => void) => {
