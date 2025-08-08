@@ -1,6 +1,7 @@
 
 import { db } from '@/lib/firebase';
 import { collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, doc, getDoc, updateDoc, setDoc, getDocs, writeBatch, where, deleteDoc, Query, runTransaction } from 'firebase/firestore';
+import { createChatRoomFlow } from '@/ai/flows/create-chat-room';
 
 export interface Message {
   id?: string;
@@ -33,12 +34,9 @@ export interface ChatRoom {
 export interface ChatRoomInput {
     title: string;
     description: string;
-    host: string;
-    hostId: string;
     isLive: boolean;
     isPrivate: boolean;
     scheduledAt?: Date;
-    photoURL?: string;
 }
 
 export interface Participant {
@@ -51,18 +49,7 @@ export interface Participant {
 
 
 export const createChatRoom = async (input: ChatRoomInput): Promise<{ chatRoomId: string }> => {
-    // This function is now a wrapper around the Genkit flow to ensure consistency.
-    // The core logic, including transaction, is handled in `create-chat-room.ts`.
-    const { createChatRoomFlow } = await import('@/ai/flows/create-chat-room');
-    return createChatRoomFlow({
-        title: input.title,
-        description: input.description,
-        host: input.host,
-        hostId: input.hostId,
-        isLive: input.isLive,
-        isPrivate: input.isPrivate,
-        scheduledAt: input.scheduledAt,
-    });
+    return createChatRoomFlow(input);
 };
 
 interface GetChatRoomsOptions {
@@ -200,7 +187,7 @@ export const getParticipantStream = (chatRoomId: string, userId: string, callbac
 
 export const addParticipant = async (chatRoomId: string, participant: Participant) => {
     const participantRef = doc(db, `chatRooms/${chatRoomId}/participants`, participant.userId);
-    await setDoc(participantRef, participant);
+    await setDoc(participantRef, participant, { merge: true });
 }
 
 export const requestToJoinChat = async (chatRoomId: string, userId: string) => {

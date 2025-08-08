@@ -9,46 +9,54 @@ import { ai } from '@/ai/genkit';
 import { z } from 'zod';
 import { db } from '@/lib/firebase';
 import { collection, doc, runTransaction, serverTimestamp, getDoc } from 'firebase/firestore';
+import { onFlow, FlowAuth } from 'genkit/next';
 
 const CreateChatRoomFlowInputSchema = z.object({
   title: z.string().min(5),
   description: z.string().min(10),
-  host: z.string(),
-  hostId: z.string(),
   isLive: z.boolean(),
   isPrivate: z.boolean(),
   scheduledAt: z.date().optional(),
 });
 export type CreateChatRoomFlowInput = z.infer<typeof CreateChatRoomFlowInputSchema>;
 
-export async function createChatRoomFlow(input: CreateChatRoomFlowInput): Promise<{ chatRoomId: string }> {
-  return createChatRoomFlowFn(input);
-}
-
-const createChatRoomFlowFn = ai.defineFlow(
+export const createChatRoomFlow = onFlow(
   {
     name: 'createChatRoomFlow',
     inputSchema: CreateChatRoomFlowInputSchema,
     outputSchema: z.object({ chatRoomId: z.string() }),
+    authPolicy: (auth, input) => {
+        if (!auth) {
+            throw new Error('User must be authenticated.');
+        }
+    }
   },
-  async (input) => {
+  async (input, context) => {
+    const auth: FlowAuth = context.auth;
+    const hostId = auth.uid;
+
+    if (!hostId) {
+        throw new Error("Authentication failed, user ID not available.");
+    }
+    
     const chatRoomRef = doc(collection(db, 'chatRooms'));
     
     await runTransaction(db, async (transaction) => {
-      // READ FIRST: Get user profile to fetch photoURL
-      const userProfileRef = doc(db, 'users', input.hostId);
+      // READ FIRST: Get user profile to fetch photoURL and username
+      const userProfileRef = doc(db, 'users', hostId);
       const userProfileSnap = await transaction.get(userProfileRef);
       if (!userProfileSnap.exists()) {
         throw new Error("User profile not found.");
       }
       const userProfile = userProfileSnap.data();
+      const hostName = userProfile?.username || auth.email || 'Anonymous Host';
       
       // WRITE SECOND: Create the chat room document
       transaction.set(chatRoomRef, {
         title: input.title,
         description: input.description,
-        host: input.host,
-        hostId: input.hostId,
+        host: hostName,
+        hostId: hostId,
         isLive: input.isLive,
         isPrivate: input.isPrivate,
         createdAt: serverTimestamp(),
@@ -58,10 +66,10 @@ const createChatRoomFlowFn = ai.defineFlow(
       });
       
       // WRITE THIRD: Automatically add the host as a participant with 'approved' status
-      const participantRef = doc(db, 'chatRooms', chatRoomRef.id, 'participants', input.hostId);
+      const participantRef = doc(db, 'chatRooms', chatRoomRef.id, 'participants', hostId);
       transaction.set(participantRef, {
-        userId: input.hostId,
-        displayName: input.host,
+        userId: hostId,
+        displayName: hostName,
         photoURL: userProfile?.photoURL || '',
         status: 'approved',
         requestCount: 0,

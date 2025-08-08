@@ -81,8 +81,6 @@ export default function CreateChatRoomPage() {
         const result = await createChatRoom({
             title: values.title,
             description: values.description,
-            host: currentUser.profile?.username || currentUser.email || 'Anonymous',
-            hostId: currentUser.uid,
             isLive,
             scheduledAt: isLive ? undefined : values.scheduledAt,
             isPrivate: values.isPrivate,
