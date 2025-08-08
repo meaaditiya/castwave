@@ -72,6 +72,13 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
   const currentParticipant = participants.find(p => p.userId === currentUser?.uid);
   const canChat = isHost || currentParticipant?.status === 'approved';
 
+  useEffect(() => {
+    if (!authLoading && !currentUser) {
+      // No redirect here, let the main rendering logic handle it
+      // to avoid race conditions.
+    }
+  }, [authLoading, currentUser, router]);
+
   // Step 1: Fetch the main chat room data
   useEffect(() => {
     const chatRoomId = resolvedParams.id;
@@ -99,7 +106,7 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
   // Step 2: Once chat room data is loaded, manage participants and permissions
   useEffect(() => {
     const chatRoomId = resolvedParams.id;
-    if (!chatRoomId || !currentUser || !chatRoom || !currentUser.profile) return;
+    if (!chatRoomId || !currentUser || !chatRoom) return;
 
     const unsubscribeParticipants = getParticipants(chatRoomId, async (newParticipants) => {
         setParticipants(newParticipants);
@@ -119,7 +126,7 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
              // If user is not in the list, add them with pending status for host approval.
              await addParticipant(chatRoomId, {
                 userId: currentUser.uid,
-                displayName: currentUser.profile.username,
+                displayName: currentUser.profile?.username || currentUser.email || 'Anonymous',
                 status: 'pending',
                 requestCount: 1,
                 emailVerified: currentUser.emailVerified,
@@ -156,13 +163,19 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
     return () => unsubscribeMessages();
   }, [resolvedParams.id, isHost, participants, currentUser, chatLog.length]);
   
-  if (authLoading || !currentUser) {
+  if (authLoading) {
+    return <ChatRoomPageSkeleton />;
+  }
+  
+  // If auth is done, but still no user, then something is wrong, but don't redirect.
+  // The AuthProvider and other mechanisms should handle global state.
+  if (!currentUser) {
     return <ChatRoomPageSkeleton />;
   }
 
   // If we have a user, but other data is still loading, show skeleton.
   if (pageLoading || !chatRoom || !permissionsReady || (participants.length === 0 && !isHost)) {
-    if (!authLoading && !pageLoading && chatRoom && !permissionsReady && currentParticipant?.status === 'pending') {
+    if (!pageLoading && chatRoom && !permissionsReady && currentParticipant?.status === 'pending') {
          // Show a waiting screen for users pending approval
          return (
             <div className="min-h-screen flex flex-col">
