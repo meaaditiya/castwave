@@ -10,7 +10,7 @@ import { ai } from '@/ai/genkit';
 import { isUsernameTaken } from '@/services/userService';
 import { z } from 'zod';
 import { auth, db } from '@/lib/firebase-admin'; // Using Admin SDK for trusted operations
-import { doc, setDoc } from 'firebase/firestore';
+import { doc, setDoc } from 'firebase-admin/firestore'; // Correctly import from admin SDK
 
 
 const SignupUserInputSchema = z.object({
