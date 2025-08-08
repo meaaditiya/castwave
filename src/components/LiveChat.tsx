@@ -4,13 +4,12 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Send, Loader2, Hand, ThumbsUp, ThumbsDown, Star, ArrowDown, CheckCircle, XCircle } from 'lucide-react';
+import { Send, Loader2, ThumbsUp, ThumbsDown, Star, ArrowDown } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { useAuth } from '@/context/AuthContext';
-import { sendMessage, requestToJoinChat, voteOnMessage, featureMessage, updateTypingStatus, ChatRoom, Participant } from '@/services/chatRoomService';
+import { sendMessage, voteOnMessage, featureMessage, updateTypingStatus, ChatRoom, Participant } from '@/services/chatRoomService';
 import { useToast } from '@/hooks/use-toast';
-import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 import type { Message } from '@/services/chatRoomService';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from './ui/dialog';
 import { Textarea } from './ui/textarea';
@@ -22,10 +21,7 @@ import Link from 'next/link';
 
 interface LiveChatProps {
   chatRoom: ChatRoom;
-  canChat: boolean;
-  isHost: boolean;
   messages: Message[];
-  participant?: Participant;
   participants: Participant[];
 }
 
@@ -51,10 +47,9 @@ const getInitials = (name: string) => {
     return name.substring(0, 2).toUpperCase();
 }
 
-export function LiveChat({ chatRoom, canChat, participant, isHost, messages, participants }: LiveChatProps) {
+export function LiveChat({ chatRoom, messages, participants }: LiveChatProps) {
   const [newMessage, setNewMessage] = useState('');
   const [isSending, setIsSending] = useState(false);
-  const [isRequesting, setIsRequesting] = useState(false);
   const { currentUser } = useAuth();
   const { toast } = useToast();
   const scrollViewportRef = useRef<HTMLDivElement>(null);
@@ -62,6 +57,9 @@ export function LiveChat({ chatRoom, canChat, participant, isHost, messages, par
   const [messageToFeature, setMessageToFeature] = useState<Message | null>(null);
   const [hostReply, setHostReply] = useState('');
   const [isFeaturing, setIsFeaturing] = useState(false);
+  
+  const isHost = currentUser?.uid === chatRoom.hostId;
+  const canChat = !!currentUser;
 
   const participantMap = useMemo(() => {
     const map = new Map<string, Participant>();
@@ -124,24 +122,6 @@ export function LiveChat({ chatRoom, canChat, participant, isHost, messages, par
     }
   }, [newMessage, canChat, chatRoom.id, currentUser, debouncedTypingUpdate]);
 
-  const handleRequestJoin = async () => {
-    if (!currentUser || !currentUser.profile) return;
-    setIsRequesting(true);
-    try {
-        await requestToJoinChat(chatRoom.id, {
-            userId: currentUser.uid,
-            displayName: currentUser.profile.username,
-            emailVerified: currentUser.emailVerified,
-            photoURL: currentUser.profile.photoURL || ''
-        });
-        toast({ title: "Request Sent", description: "The host has been notified." });
-    } catch(e: any) {
-        console.error(e);
-        toast({ variant: 'destructive', title: 'Error', description: e.message || 'Could not send request.' });
-    } finally {
-        setIsRequesting(false);
-    }
-  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -208,76 +188,9 @@ export function LiveChat({ chatRoom, canChat, participant, isHost, messages, par
   const typingUsers = Object.entries(chatRoom.typingUsers || {})
     .filter(([id]) => id !== currentUser?.uid)
     .map(([, name]) => name);
-    
-  const renderChatOverlay = () => {
-    if (canChat || isHost || !currentUser || !participant) return null;
-
-    const requestsLeft = 3 - (participant.requestCount || 0);
-
-    const renderRequestButton = () => {
-        if (requestsLeft <= 0) {
-            return (
-                <Alert variant="default" className="max-w-sm">
-                    <Hand className="h-4 w-4" />
-                    <AlertTitle>Request Limit Reached</AlertTitle>
-                    <AlertDescription>You have reached the maximum number of requests to join.</AlertDescription>
-                </Alert>
-            );
-        }
-
-        return (
-            <div className="text-center space-y-4">
-                <p className='font-semibold'>
-                    {participant.status === 'removed' 
-                        ? "You were removed from the chat." 
-                        : "The host denied your request."
-                    }
-                </p>
-                <p className='text-sm text-muted-foreground'>You can request to join {requestsLeft} more {requestsLeft === 1 ? 'time' : 'times'}.</p>
-                <Button onClick={handleRequestJoin} disabled={isRequesting}>
-                   {isRequesting ? <Loader2 className="animate-spin" /> : <Hand />}
-                   Request to Join Again
-                </Button>
-            </div>
-        );
-    };
-
-    switch (participant.status) {
-        case 'pending':
-            return (
-                 <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-10 p-4">
-                    <Alert variant="default" className="max-w-sm">
-                        <Hand className="h-4 w-4" />
-                        <AlertTitle>Request Pending</AlertTitle>
-                        <AlertDescription>Your request to join the chat is awaiting host approval.</AlertDescription>
-                    </Alert>
-                </div>
-            );
-        case 'denied':
-        case 'removed':
-            return (
-                <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex flex-col items-center justify-center z-10 p-4">
-                    {renderRequestButton()}
-                </div>
-            );
-        default:
-            return (
-                <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex flex-col items-center justify-center z-10 p-4">
-                    <div className="text-center space-y-4">
-                        <p>You need permission to join the chat.</p>
-                        <Button onClick={handleRequestJoin} disabled={isRequesting}>
-                           {isRequesting ? <Loader2 className="animate-spin" /> : <Hand />}
-                           Request to Join Chat
-                        </Button>
-                    </div>
-                </div>
-            );
-    }
-  }
 
   return (
     <CardContent className="flex flex-col flex-1 p-2 sm:p-4 overflow-hidden relative">
-       {renderChatOverlay()}
        {!messages && (
         <div className="flex-1 flex items-center justify-center">
           <Loader2 className="h-6 w-6 animate-spin text-primary" />
@@ -362,7 +275,7 @@ export function LiveChat({ chatRoom, canChat, participant, isHost, messages, par
       <div className="border-t pt-2 mt-auto">
         <form onSubmit={handleSubmit} className="flex gap-2">
             <Input
-              placeholder={canChat ? "Join the conversation..." : "You must be approved to chat."}
+              placeholder={canChat ? "Join the conversation..." : "You must be logged in to chat."}
               value={newMessage}
               onChange={(e) => setNewMessage(e.target.value)}
               disabled={!canChat || isSending}

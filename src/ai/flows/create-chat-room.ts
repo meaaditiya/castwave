@@ -54,13 +54,11 @@ const createChatRoomFlowFn = ai.defineFlow(
       const userProfileSnap = await transaction.get(userProfileRef);
       const userProfile = userProfileSnap.exists() ? userProfileSnap.data() : null;
       
-      // Automatically add the host as an approved participant
+      // Automatically add the host as a participant
       const participantRef = doc(db, 'chatRooms', chatRoomRef.id, 'participants', input.hostId);
       transaction.set(participantRef, {
         userId: input.hostId,
         displayName: input.host,
-        status: 'approved',
-        requestCount: 0,
         emailVerified: userProfile?.emailVerified ?? false,
         photoURL: userProfile?.photoURL || ''
       });

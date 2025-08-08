@@ -1,56 +1,47 @@
 
 "use client";
 
-import { Participant, updateParticipantStatus } from "@/services/chatRoomService";
+import { Participant, removeParticipant } from "@/services/chatRoomService";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { Button } from "./ui/button";
 import { ScrollArea } from "./ui/scroll-area";
-import { Badge } from "./ui/badge";
-import { Check, Loader2, MinusCircle, User, X, CheckCircle, XCircle } from "lucide-react";
+import { Loader2, MinusCircle, User } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useState, useMemo } from "react";
+import { useAuth } from "@/context/AuthContext";
 
 interface ParticipantsListProps {
     chatRoomId: string;
     participants: Participant[];
+    isHost: boolean;
 }
 
-const statusBadgeVariant = {
-    pending: 'secondary',
-    approved: 'default',
-    denied: 'destructive',
-    removed: 'destructive',
-} as const;
-
-
-export function ParticipantsList({ chatRoomId, participants }: ParticipantsListProps) {
+export function ParticipantsList({ chatRoomId, participants, isHost }: ParticipantsListProps) {
     const { toast } = useToast();
+    const { currentUser } = useAuth();
     const [loadingStates, setLoadingStates] = useState<Record<string, boolean>>({});
 
-    const activeParticipants = useMemo(() => {
+    const sortedParticipants = useMemo(() => {
         return participants
-            .filter(p => p.status !== 'removed' && p.status !== 'denied')
             .sort((a, b) => {
-                // Pending first
-                if (a.status === 'pending' && b.status !== 'pending') return -1;
-                if (b.status === 'pending' && a.status !== 'pending') return 1;
-                // Then approved
-                if (a.status === 'approved' && b.status !== 'approved') return -1;
-                if (b.status === 'approved' && a.status !== 'approved') return 1;
+                // Host first
+                if (a.userId === chatRoomId) return -1;
+                if (b.userId === chatRoomId) return 1;
                 // Then alphabetical
                 if (a.displayName < b.displayName) return -1;
                 if (a.displayName > b.displayName) return 1;
                 return 0;
             });
-    }, [participants]);
+    }, [participants, chatRoomId]);
 
-    const handleUpdateStatus = async (userId: string, status: Participant['status']) => {
+    const handleRemoveParticipant = async (userId: string) => {
         setLoadingStates(prev => ({ ...prev, [userId]: true }));
         try {
-            await updateParticipantStatus(chatRoomId, userId, status);
+            await removeParticipant(chatRoomId, userId);
+            toast({ title: "Participant Removed" });
         } catch(e) {
             console.error(e);
-            toast({ variant: 'destructive', title: "Error", description: `Failed to update status for user ${userId}`});
+            toast({ variant: 'destructive', title: "Error", description: `Failed to remove participant.`});
         } finally {
             setLoadingStates(prev => ({ ...prev, [userId]: false }));
         }
@@ -65,7 +56,7 @@ export function ParticipantsList({ chatRoomId, participants }: ParticipantsListP
         return name.substring(0, 2).toUpperCase();
     }
 
-    if (activeParticipants.length === 0) {
+    if (sortedParticipants.length === 0) {
         return (
              <div className="text-center text-muted-foreground p-4 flex flex-col items-center justify-center h-full">
                 <User className="h-12 w-12 text-muted-foreground/50 mb-4" />
@@ -78,7 +69,7 @@ export function ParticipantsList({ chatRoomId, participants }: ParticipantsListP
     return (
         <ScrollArea className="h-48">
             <div className="space-y-0">
-                {activeParticipants.map(participant => (
+                {sortedParticipants.map(participant => (
                     <div key={participant.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 transition-colors">
                         <Avatar className="h-8 w-8">
                             <AvatarImage src={participant.photoURL} alt={participant.displayName} />
@@ -88,32 +79,17 @@ export function ParticipantsList({ chatRoomId, participants }: ParticipantsListP
                             <div className="flex items-center gap-1.5">
                                 <p className="font-medium text-sm truncate">{participant.displayName}</p>
                             </div>
-                            <Badge variant={statusBadgeVariant[participant.status]} className="capitalize mt-1 text-xs px-1.5 py-0.5">
-                               {participant.status}
-                            </Badge>
                         </div>
                         {loadingStates[participant.userId] ? (
                             <Loader2 className="animate-spin h-5 w-5 text-muted-foreground" />
                         ) : (
-                            <div className="flex gap-1">
-                                {participant.status === 'pending' && (
-                                    <>
-                                        <Button size="icon" variant="ghost" className="h-8 w-8 text-green-500 hover:text-green-500 hover:bg-green-500/10" onClick={() => handleUpdateStatus(participant.userId, 'approved')}>
-                                            <Check className="h-4 w-4"/>
-                                        </Button>
-                                        <Button size="icon" variant="ghost" className="h-8 w-8 text-red-500 hover:text-red-500 hover:bg-red-500/10" onClick={() => handleUpdateStatus(participant.userId, 'denied')}>
-                                            <X className="h-4 w-4"/>
-                                        </Button>
-                                    </>
-                                )}
-                                {participant.status === 'approved' && (
-                                    <>
-                                        <Button size="icon" variant="ghost" className="h-8 w-8 text-red-500 hover:text-red-500 hover:bg-red-500/10" onClick={() => handleUpdateStatus(participant.userId, 'removed')}>
-                                            <MinusCircle className="h-4 w-4" />
-                                        </Button>
-                                    </>
-                                )}
-                            </div>
+                            isHost && currentUser && currentUser.uid !== participant.userId && (
+                                <div className="flex gap-1">
+                                    <Button size="icon" variant="ghost" className="h-8 w-8 text-red-500 hover:text-red-500 hover:bg-red-500/10" onClick={() => handleRemoveParticipant(participant.userId)}>
+                                        <MinusCircle className="h-4 w-4" />
+                                    </Button>
+                                </div>
+                            )
                         )}
                     </div>
                 ))}

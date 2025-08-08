@@ -1,6 +1,6 @@
 
 import { db } from '@/lib/firebase';
-import { collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, doc, getDoc, updateDoc, setDoc, getDocs, writeBatch, runTransaction, increment, where, deleteDoc, Query } from 'firebase/firestore';
+import { collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, doc, getDoc, updateDoc, setDoc, getDocs, writeBatch, where, deleteDoc, Query } from 'firebase/firestore';
 
 export interface Message {
   id?: string;
@@ -45,8 +45,6 @@ export interface Participant {
     id?: string;
     userId: string;
     displayName: string;
-    status: 'pending' | 'approved' | 'removed' | 'denied';
-    requestCount?: number;
     emailVerified: boolean;
     photoURL?: string;
 }
@@ -217,45 +215,28 @@ export const getParticipants = (chatRoomId: string, callback: (participants: Par
     return unsubscribe;
 }
 
-export const requestToJoinChat = async (chatRoomId: string, participantData: {userId: string}) => {
-    const participantRef = doc(db, `chatRooms/${chatRoomId}/participants`, participantData.userId);
+export const addParticipant = async (chatRoomId: string, participantData: Omit<Participant, 'id'>) => {
     try {
-        await runTransaction(db, async (transaction) => {
-            const docSnap = await transaction.get(participantRef);
-
-            if (docSnap.exists()) {
-                const participant = docSnap.data() as Participant;
-                if ((participant.requestCount || 0) >= 3) {
-                    throw new Error("You have reached the maximum number of requests to join.");
-                }
-                if (participant.status === 'denied' || participant.status === 'removed') {
-                     transaction.update(participantRef, {
-                        status: 'pending',
-                        requestCount: increment(1)
-                    });
-                }
-            } else {
-                // Creation is now handled by the getParticipantStatus flow, so this branch should not be hit.
-                // If it is, it's an unexpected state.
-                throw new Error("User does not have a participant record. Cannot request to join.");
-            }
-        });
-
-    } catch (error: any) {
-        console.error("Error requesting to join chat: ", error);
-        throw new Error(error.message || "Could not send request.");
+        const participantRef = doc(db, `chatRooms/${chatRoomId}/participants`, participantData.userId);
+        // Use set with merge to create or update, but not overwrite if it exists.
+        await setDoc(participantRef, participantData, { merge: true });
+    } catch (error) {
+        console.error("Error adding participant:", error);
+        // This can fail due to permissions, which is expected for non-hosts.
+        // The host is added via a secure flow. Let's not throw an error to the client.
     }
 }
 
-export const updateParticipantStatus = async (chatRoomId: string, userId: string, status: Participant['status']) => {
+export const removeParticipant = async (chatRoomId: string, userId: string) => {
     try {
         const participantRef = doc(db, `chatRooms/${chatRoomId}/participants`, userId);
-        await updateDoc(participantRef, { status });
+        await deleteDoc(participantRef);
     } catch(e) {
-        console.error("Error updating participant status: ", e);
-        throw new Error("Could not update participant status.");
+        console.error("Error removing participant: ", e);
+        throw new Error("Could not remove participant.");
     }
 }
+
 
 export const voteOnMessage = async (chatRoomId: string, messageId: string, userId: string, voteType: 'upvotes' | 'downvotes') => {
     const messageRef = doc(db, 'chatRooms', chatRoomId, 'messages', messageId);

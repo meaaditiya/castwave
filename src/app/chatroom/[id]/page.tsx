@@ -10,11 +10,10 @@ import { ParticipantsList } from '@/components/ParticipantsList';
 import type { Message } from '@/services/chatRoomService';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from '@/components/ui/skeleton';
-import { Loader2, MessageSquare, MicOff, Sparkles, Users } from 'lucide-react';
+import { MicOff, Sparkles, Users, MessageSquare } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
-import { getChatRoomStream, ChatRoom, getMessages, Participant, getParticipants } from '@/services/chatRoomService';
-import { getParticipantStatus } from '@/ai/flows/get-participant-status';
+import { getChatRoomStream, ChatRoom, getMessages, Participant, getParticipants, addParticipant } from '@/services/chatRoomService';
 import { useToast } from '@/hooks/use-toast';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import Link from 'next/link';
@@ -65,14 +64,12 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
   const [chatRoom, setChatRoom] = useState<ChatRoom | null>(null);
   const [chatLog, setChatLog] = useState<Message[]>([]);
   const [participants, setParticipants] = useState<Participant[]>([]);
-  const [currentParticipant, setCurrentParticipant] = useState<Participant | null>(null);
   const { currentUser, loading: authLoading } = useAuth();
   const router = useRouter();
   const [pageLoading, setPageLoading] = useState(true);
   const { toast } = useToast();
   
   const isHost = currentUser && chatRoom && currentUser.uid === chatRoom.hostId;
-  const canChat = isHost || currentParticipant?.status === 'approved';
 
   useEffect(() => {
     if (!authLoading && !currentUser) {
@@ -94,92 +91,61 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
         toast({ variant: 'destructive', title: 'Error', description: 'Chat Room not found.' });
         router.push('/');
       }
+      setPageLoading(false);
     }, (error) => {
         console.error("Error fetching chat room:", error);
         toast({ variant: 'destructive', title: 'Error', description: 'Could not load chat room. You may not have permission to view it.' });
         router.push('/');
+        setPageLoading(false);
     });
   
     return () => unsubscribeChatRoom();
   }, [resolvedParams.id, currentUser, router, toast]);
   
-  // Step 2: Once chat room data is loaded, manage participants.
+  // Step 2: Once chat room is loaded, manage participants.
   useEffect(() => {
     const chatRoomId = resolvedParams.id;
     if (!chatRoom || !currentUser || !currentUser.profile) return;
 
-    // Determine if the current user is the host of this chat room.
-    const localIsHost = chatRoom.hostId === currentUser.uid;
-
-    if (localIsHost) {
-        // If the user is the host, they get a stream of all participants for the management UI.
-        const unsubscribe = getParticipants(chatRoomId, (allParticipants) => {
-            setParticipants(allParticipants);
-            // Find the host in the list to set their own participant object.
-            const hostParticipant = allParticipants.find(p => p.userId === currentUser.uid);
-            if (hostParticipant) setCurrentParticipant(hostParticipant);
-            setPageLoading(false);
-        }, (error) => {
-             console.error("Error fetching participants for host:", error);
-             toast({ variant: 'destructive', title: 'Error', description: 'Could not load participant list.' });
-             setPageLoading(false);
-        });
-        return unsubscribe; // Clean up the listener when the component unmounts.
-    } else {
-        // If the user is NOT the host, use the secure server-side flow to check their status.
-        // This is the critical change to prevent permission-denied errors.
-        const checkStatus = async () => {
-            try {
-                const result = await getParticipantStatus({ 
-                    chatRoomId, 
-                    userId: currentUser.uid,
-                    displayName: currentUser.profile!.username,
-                    photoURL: currentUser.profile!.photoURL,
-                    emailVerified: currentUser.emailVerified,
-                });
-
-                if (result.participant) {
-                    setCurrentParticipant(result.participant);
-                } else {
-                    // This case should theoretically not be reached as the flow now handles creation.
-                    throw new Error("Participant status could not be resolved.");
-                }
-
-            } catch (error) {
-                 console.error("Error fetching own participant data:", error);
-                 toast({ variant: 'destructive', title: 'Error', description: 'Could not verify your status in the room.' });
-            } finally {
-                setPageLoading(false);
-            }
-        };
-        checkStatus();
-        // Note: This is a one-time check, not a stream. If a user's status changes while they are on this page (e.g., they get approved),
-        // they will need to refresh to see the change. A future improvement could be to implement a secure stream for individual status.
+    // A user is added to the participants list on viewing the room.
+    const ensureParticipant = async () => {
+        try {
+            await addParticipant(chatRoomId, {
+                userId: currentUser.uid,
+                displayName: currentUser.profile!.username,
+                photoURL: currentUser.profile!.photoURL,
+                emailVerified: currentUser.emailVerified,
+            });
+        } catch (error) {
+            console.error("Failed to add participant, this is okay if they already exist", error);
+        }
     }
+    ensureParticipant();
+
+    const unsubscribeParticipants = getParticipants(chatRoomId, (allParticipants) => {
+        setParticipants(allParticipants);
+    }, (error) => {
+         console.error("Error fetching participants:", error);
+         toast({ variant: 'destructive', title: 'Error', description: 'Could not load participant list.' });
+    });
+
+    return () => unsubscribeParticipants();
   }, [chatRoom, currentUser, resolvedParams.id, toast]);
 
-  // Step 3: Once permissions are ready (i.e., we have participant status), fetch chat messages.
+
+  // Step 3: Fetch chat messages.
   useEffect(() => {
     const chatRoomId = resolvedParams.id;
-    if (!currentUser) return;
-
-    // User can chat if they are the host or if their status is 'approved'.
-    const isApproved = isHost || currentParticipant?.status === 'approved';
-
-    // If not approved, don't attempt to fetch messages.
-    if (!chatRoomId || !isApproved) {
-        if(chatLog.length > 0) setChatLog([]); // Clear any old messages if permissions change.
-        return;
-    };
+    if (!currentUser || !chatRoomId) return;
 
     const unsubscribeMessages = getMessages(chatRoomId, setChatLog, (error) => {
         console.error("Error fetching messages:", error);
         toast({variant: 'destructive', title: 'Error', description: 'Could not load messages.'})
     });
     return () => unsubscribeMessages();
-  }, [resolvedParams.id, isHost, currentParticipant, currentUser, chatLog.length, toast]);
+  }, [resolvedParams.id, currentUser, toast]);
   
-  if (authLoading || pageLoading) {
+  if (authLoading || pageLoading || !chatRoom) {
     return <ChatRoomPageSkeleton />;
   }
   
@@ -189,7 +155,7 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
   }
 
   // If the session has ended and the user is not the host, show a specific screen.
-  if (chatRoom && !chatRoom.isLive && !isHost) {
+  if (!chatRoom.isLive && !isHost) {
       return (
           <div className="min-h-screen flex flex-col">
               <Header />
@@ -210,31 +176,6 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
           </div>
       )
   }
-
-  // If the user's request is pending, show the "Awaiting Approval" screen.
-  if (currentParticipant?.status === 'pending' && !isHost) {
-       return (
-          <div className="min-h-screen flex flex-col">
-              <Header />
-               <main className="flex-1 container py-8 flex items-center justify-center">
-                  <Card className="w-full max-w-md text-center p-8">
-                      <CardHeader>
-                          <CardTitle>Awaiting Approval</CardTitle>
-                          <CardDescription>The host has been notified of your request to join. Please wait a moment.</CardDescription>
-                      </CardHeader>
-                      <CardContent>
-                          <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto" />
-                      </CardContent>
-                  </Card>
-              </main>
-          </div>
-      )
-  }
-
-  if (!chatRoom) {
-      return <ChatRoomPageSkeleton />;
-  }
-
 
   const fullChatLog = chatLog.map(msg => `${msg.user}: ${msg.text}`).join('\n');
   const chatRoomDetails = {
@@ -264,10 +205,7 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
                   <CardTitle className="flex items-center gap-2"><MessageSquare className="h-5 w-5"/> Live Chat</CardTitle>
               </CardHeader>
               <LiveChat 
-                  chatRoom={chatRoom} 
-                  canChat={canChat} 
-                  participant={currentParticipant ?? undefined}
-                  isHost={isHost}
+                  chatRoom={chatRoom}
                   messages={chatLog}
                   participants={participants}
               />
@@ -280,7 +218,7 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
                               </AccordionTrigger>
                               <AccordionContent>
                                 <div className="px-2">
-                                  <ParticipantsList chatRoomId={chatRoom.id} participants={participants} />
+                                  <ParticipantsList chatRoomId={chatRoom.id} participants={participants} isHost={isHost} />
                                 </div>
                               </AccordionContent>
                           </AccordionItem>
