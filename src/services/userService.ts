@@ -48,9 +48,11 @@ export const isUsernameTaken = async (username: string, currentUserId?: string):
             return false;
         }
         
-        // If a currentUserId is provided, we need to check if the found user is someone else.
+        // If a currentUserId is provided (e.g., when a user is updating their profile),
+        // we need to check if the found user is someone else.
         if (currentUserId) {
-            // Check if any of the documents found have a different ID.
+            // Check if any of the documents found have a different ID than the current user's.
+            // If there's a doc with a different ID, the username is taken by another user.
             const isTakenByAnotherUser = querySnapshot.docs.some(doc => doc.id !== currentUserId);
             return isTakenByAnotherUser;
         }

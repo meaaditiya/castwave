@@ -156,13 +156,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await sendPasswordResetEmail(auth, email);
   }
 
+  const logoutHandler = async () => {
+    await signOut(auth);
+  }
 
   const value = {
     currentUser,
     loading,
     signup,
     login: (email, password) => signInWithEmailAndPassword(auth, email, password),
-    logout: () => signOut(auth),
+    logout: logoutHandler,
     reauthenticate,
     updateUserPassword,
     sendVerificationEmail: sendVerificationEmailHandler,
