@@ -107,7 +107,8 @@ export default function ProfilePage() {
         try {
             await setDoc(userDocRef, {
                 username: newUsername.trim(),
-                email: currentUser.email
+                email: currentUser.email,
+                emailVerified: currentUser.emailVerified,
             }, { merge: true });
 
             toast({
@@ -191,7 +192,14 @@ export default function ProfilePage() {
                                 <AvatarFallback>{getInitials(currentUser.profile?.username || currentUser.email)}</AvatarFallback>
                             </Avatar>
                             <div className="flex-1">
-                                <CardTitle className="text-2xl">{currentUser.profile?.username || 'My Profile'}</CardTitle>
+                                <div className="flex items-center gap-2">
+                                    <CardTitle className="text-2xl">{currentUser.profile?.username || 'My Profile'}</CardTitle>
+                                    {currentUser.emailVerified ? (
+                                        <CheckCircle className="h-6 w-6 text-green-500" />
+                                    ) : (
+                                        <XCircle className="h-6 w-6 text-red-500" />
+                                    )}
+                                </div>
                                 <CardDescription>Manage your account details and security settings.</CardDescription>
                             </div>
                         </CardHeader>
@@ -355,3 +363,4 @@ export default function ProfilePage() {
     )
 
     
+}

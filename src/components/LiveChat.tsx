@@ -4,7 +4,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Send, Loader2, Hand, ThumbsUp, ThumbsDown, Star, ArrowDown } from 'lucide-react';
+import { Send, Loader2, Hand, ThumbsUp, ThumbsDown, Star, ArrowDown, CheckCircle, XCircle } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback } from './ui/avatar';
 import { useAuth } from '@/context/AuthContext';
@@ -111,7 +111,7 @@ export function LiveChat({ chatRoom, canChat, participant, isHost, messages }: L
     if (!currentUser || !currentUser.profile) return;
     setIsRequesting(true);
     try {
-        await requestToJoinChat(chatRoom.id, currentUser.uid, currentUser.profile.username);
+        await requestToJoinChat(chatRoom.id, currentUser.uid, currentUser.profile.username, currentUser.emailVerified);
         toast({ title: "Request Sent", description: "The host has been notified." });
     } catch(e: any) {
         console.error(e);
@@ -132,6 +132,7 @@ export function LiveChat({ chatRoom, canChat, participant, isHost, messages }: L
             user: currentUser.profile.username,
             userId: currentUser.uid,
             text: newMessage.trim(),
+            userEmailVerified: currentUser.emailVerified,
         });
         setNewMessage('');
         setShowNewMessageButton(false);
@@ -263,6 +264,7 @@ export function LiveChat({ chatRoom, canChat, participant, isHost, messages }: L
                 <div className="flex-1">
                     <div className="flex items-center gap-2">
                         <span className={`font-bold text-sm ${getUserColor(msg.user)}`}>{msg.user}</span>
+                        {msg.userEmailVerified ? <CheckCircle className="h-4 w-4 text-green-500" /> : <XCircle className="h-4 w-4 text-red-500" />}
                         <span className="text-xs text-muted-foreground">{formatTimestamp(msg.timestamp)}</span>
                         {isHost && (
                             <Button size="icon" variant="ghost" className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity text-amber-500" onClick={() => setMessageToFeature(msg)}>

@@ -11,6 +11,7 @@ export interface Message {
   upvotes: number;
   downvotes: number;
   voters: { [userId: string]: 'upvotes' | 'downvotes' };
+  userEmailVerified: boolean;
 }
 
 export interface ChatRoom {
@@ -46,6 +47,7 @@ export interface Participant {
     displayName: string;
     status: 'pending' | 'approved' | 'removed' | 'denied';
     requestCount?: number;
+    emailVerified: boolean;
 }
 
 export const createChatRoom = async (input: ChatRoomInput): Promise<{ chatRoomId: string }> => {
@@ -68,13 +70,17 @@ export const createChatRoom = async (input: ChatRoomInput): Promise<{ chatRoomId
                 imageHint: ''
             });
 
+            // The host is always approved and assumed to be verified at creation (or will be updated)
+             const userDoc = await getDoc(doc(db, 'users', input.hostId));
+             const userVerified = userDoc.exists() ? userDoc.data().emailVerified : false;
+
             const participantRef = doc(db, 'chatRooms', newChatRoomRef.id, 'participants', input.hostId);
-            // The host is always approved by default.
             transaction.set(participantRef, {
                 userId: input.hostId,
                 displayName: input.host,
                 status: 'approved',
-                requestCount: 0
+                requestCount: 0,
+                emailVerified: userVerified
             });
         });
         
@@ -202,6 +208,7 @@ export const sendMessage = async (chatRoomId: string, message: Partial<Message>)
             downvotes: 0,
             voters: {},
             timestamp: serverTimestamp(),
+            userEmailVerified: message.userEmailVerified || false
         };
 
         await addDoc(messagesCol, messageData);
@@ -247,7 +254,7 @@ export const getParticipants = (chatRoomId: string, callback: (participants: Par
     return unsubscribe;
 }
 
-export const requestToJoinChat = async (chatRoomId: string, userId: string, displayName: string) => {
+export const requestToJoinChat = async (chatRoomId: string, userId: string, displayName: string, emailVerified: boolean) => {
     const participantRef = doc(db, `chatRooms/${chatRoomId}/participants`, userId);
     try {
         await runTransaction(db, async (transaction) => {
@@ -269,7 +276,8 @@ export const requestToJoinChat = async (chatRoomId: string, userId: string, disp
                     userId,
                     displayName,
                     status: 'pending',
-                    requestCount: 1
+                    requestCount: 1,
+                    emailVerified,
                 });
             }
         });

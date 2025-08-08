@@ -10,6 +10,7 @@ export interface UserProfile {
     uid: string;
     email: string;
     username: string;
+    emailVerified: boolean;
 }
 
 export interface AppUser extends FirebaseAuthUser {
@@ -47,10 +48,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             const userProfileDocRef = doc(db, 'users', user.uid);
             const unsubProfile = onSnapshot(userProfileDocRef, (docSnap) => {
                  if (docSnap.exists()) {
-                    const profile = docSnap.data() as UserProfile;
+                    const profileData = docSnap.data();
+                    const profile: UserProfile = {
+                        uid: user.uid,
+                        email: user.email || '',
+                        username: profileData.username,
+                        emailVerified: user.emailVerified // Always take the latest from the auth object
+                    };
+
+                    // If the stored verified status is different from the live one, update it
+                    if(profileData.emailVerified !== user.emailVerified) {
+                        setDoc(userProfileDocRef, { emailVerified: user.emailVerified }, { merge: true });
+                    }
+
                     setCurrentUser({ ...user, profile });
                 } else {
-                    setCurrentUser(user);
+                    // This case is for users who might have been created before the profiles collection was a thing.
+                    setCurrentUser(user); 
                 }
                 setLoading(false);
             });
@@ -71,6 +85,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       uid: user.uid,
       email: user.email!,
       username: username,
+      emailVerified: user.emailVerified,
     };
     await setDoc(doc(db, 'users', user.uid), userProfile);
     

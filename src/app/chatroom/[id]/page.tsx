@@ -128,6 +128,7 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
                 displayName: currentUser.profile.username,
                 status: 'pending',
                 requestCount: 1,
+                emailVerified: currentUser.emailVerified,
             });
             setPermissionsReady(false);
         } else {

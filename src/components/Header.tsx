@@ -1,7 +1,7 @@
 
 "use client";
 
-import { Mic, LogOut, Loader2, PlusCircle, User } from 'lucide-react';
+import { Mic, LogOut, Loader2, PlusCircle, User, CheckCircle, XCircle } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from './ui/button';
 import { useAuth } from '@/context/AuthContext';
@@ -71,7 +71,14 @@ export function Header() {
                         </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                        <DropdownMenuLabel>{currentUser.profile?.username || 'My Account'}</DropdownMenuLabel>
+                        <DropdownMenuLabel className="flex items-center gap-2">
+                           {currentUser.profile?.username || 'My Account'}
+                           {currentUser.emailVerified ? (
+                                <CheckCircle className="h-4 w-4 text-green-500" />
+                            ) : (
+                                <XCircle className="h-4 w-4 text-red-500" />
+                           )}
+                        </DropdownMenuLabel>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem asChild>
                            <Link href="/profile"><User className="mr-2 h-4 w-4"/>Profile</Link>

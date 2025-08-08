@@ -6,7 +6,7 @@ import { Avatar, AvatarFallback } from "./ui/avatar";
 import { Button } from "./ui/button";
 import { ScrollArea } from "./ui/scroll-area";
 import { Badge } from "./ui/badge";
-import { Check, Loader2, MinusCircle, User, X } from "lucide-react";
+import { Check, Loader2, MinusCircle, User, X, CheckCircle, XCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useState, useMemo } from "react";
 
@@ -75,7 +75,10 @@ export function ParticipantsList({ chatRoomId, participants }: ParticipantsListP
                             <AvatarFallback>{participant.displayName.substring(0,1).toUpperCase()}</AvatarFallback>
                         </Avatar>
                         <div className="flex-1">
-                            <p className="font-medium text-sm truncate">{participant.displayName}</p>
+                            <div className="flex items-center gap-1.5">
+                                <p className="font-medium text-sm truncate">{participant.displayName}</p>
+                                {participant.emailVerified ? <CheckCircle className="h-3 w-3 text-green-500" /> : <XCircle className="h-3 w-3 text-red-500" />}
+                            </div>
                             <Badge variant={statusBadgeVariant[participant.status]} className="capitalize mt-1 text-xs px-1.5 py-0.5">
                                {participant.status}
                             </Badge>
