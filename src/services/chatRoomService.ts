@@ -1,8 +1,7 @@
 
 import { db } from '@/lib/firebase';
-import { collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, doc, getDoc, updateDoc, setDoc, getDocs, writeBatch, where, deleteDoc, Query, runTransaction } from 'firebase/firestore';
-import { createSession as createSessionFlow } from '@/ai/flows/create-session';
-import { getAuth } from 'firebase/auth';
+import { collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, doc, getDoc, updateDoc, setDoc, getDocs, writeBatch, runTransaction, increment, where, deleteDoc, Query } from 'firebase/firestore';
+import { getUserProfile } from './userService';
 
 export interface Message {
   id?: string;
@@ -35,32 +34,60 @@ export interface ChatRoom {
 export interface ChatRoomInput {
     title: string;
     description: string;
+    host: string;
+    hostId: string;
     isLive: boolean;
     isPrivate: boolean;
     scheduledAt?: Date;
 }
 
 export interface Participant {
+    id?: string;
     userId: string;
     displayName: string;
-    status: 'pending' | 'approved' | 'denied' | 'removed' | 'speaker';
-    requestCount: number;
+    status: 'pending' | 'approved' | 'removed' | 'denied';
+    requestCount?: number;
     photoURL?: string;
 }
 
+export const createChatRoom = async (input: ChatRoomInput): Promise<{ chatRoomId: string }> => {
+    const chatRoomsCol = collection(db, 'chatRooms');
+    const newChatRoomRef = doc(chatRoomsCol);
 
-export const createSession = async (input: ChatRoomInput): Promise<{ chatRoomId: string }> => {
-    const auth = getAuth();
-    const currentUser = auth.currentUser;
-    if (!currentUser) {
-        throw new Error("User must be authenticated to create a session.");
+    try {
+        await runTransaction(db, async (transaction) => {
+            
+            transaction.set(newChatRoomRef, {
+                title: input.title,
+                description: input.description,
+                host: input.host,
+                hostId: input.hostId,
+                isLive: input.isLive,
+                isPrivate: input.isPrivate,
+                createdAt: serverTimestamp(),
+                scheduledAt: input.scheduledAt || null,
+                imageUrl: '',
+                imageHint: ''
+            });
+
+            const userProfile = await getUserProfile(input.hostId);
+            
+            const participantRef = doc(db, 'chatRooms', newChatRoomRef.id, 'participants', input.hostId);
+            transaction.set(participantRef, {
+                userId: input.hostId,
+                displayName: input.host,
+                photoURL: userProfile?.photoURL || '',
+                status: 'approved',
+                requestCount: 0,
+            });
+        });
+        
+        return { chatRoomId: newChatRoomRef.id };
+
+    } catch (error) {
+        console.error("Transaction failed: ", error);
+        throw new Error("Could not create chat room. Please try again.");
     }
-    // The createSessionFlow will now handle the logic securely.
-    return createSessionFlow({
-        ...input,
-        hostId: currentUser.uid,
-        hostEmail: currentUser.email!,
-    });
 };
 
 export const getChatRooms = (
@@ -77,7 +104,6 @@ export const getChatRooms = (
         callback(Array.from(allRooms.values()));
     };
 
-    // Listener for public rooms
     const publicQuery = query(roomsCollection, where('isPrivate', '==', false));
     publicUnsubscribe = onSnapshot(publicQuery, (snapshot) => {
         snapshot.docChanges().forEach((change) => {
@@ -90,7 +116,6 @@ export const getChatRooms = (
         processAndCallback();
     }, onError);
 
-    // Listener for user's private rooms (if logged in)
     if (userId) {
         const privateQuery = query(roomsCollection, where('hostId', '==', userId), where('isPrivate', '==', true));
         privateUnsubscribe = onSnapshot(privateQuery, (snapshot) => {
@@ -105,7 +130,6 @@ export const getChatRooms = (
         }, onError);
     }
 
-    // Return a function that unsubscribes from both listeners
     return () => {
         if (publicUnsubscribe) publicUnsubscribe();
         if (privateUnsubscribe) privateUnsubscribe();
@@ -212,33 +236,39 @@ export const getMessages = (chatRoomId: string, callback: (messages: Message[]) 
 export const getParticipantStream = (chatRoomId: string, userId: string, callback: (participant: Participant | null) => void) => {
     const participantRef = doc(db, `chatRooms/${chatRoomId}/participants`, userId);
     const unsubscribe = onSnapshot(participantRef, (doc) => {
-        callback(doc.exists() ? doc.data() as Participant : null);
+        callback(doc.exists() ? { id: doc.id, ...doc.data() } as Participant : null);
     });
     return unsubscribe;
 };
 
-export const addParticipant = async (chatRoomId: string, participant: Participant) => {
-    const participantRef = doc(db, `chatRooms/${chatRoomId}/participants`, participant.userId);
-    // Use setDoc with merge:true to create or update. This is safe because the `create` rule allows self-add.
-    await setDoc(participantRef, participant, { merge: true });
-}
-
 export const requestToJoinChat = async (chatRoomId: string, userId: string) => {
     const participantRef = doc(db, `chatRooms/${chatRoomId}/participants`, userId);
-    const docSnap = await getDoc(participantRef);
+    const userProfile = await getUserProfile(userId);
+    
+    await runTransaction(db, async (transaction) => {
+        const participantDoc = await transaction.get(participantRef);
 
-    if (docSnap.exists()) {
-        const participant = docSnap.data() as Participant;
-        if (participant.requestCount >= 3) {
-            throw new Error("You have reached the maximum number of join requests.");
-        }
-        if (participant.status === 'denied' || participant.status === 'removed') {
-            await updateDoc(participantRef, {
+        if (participantDoc.exists()) {
+             const participant = participantDoc.data() as Participant;
+             if ((participant.requestCount || 0) >= 3) {
+                 throw new Error("You have reached the maximum number of join requests.");
+             }
+             if (participant.status === 'denied' || participant.status === 'removed') {
+                 transaction.update(participantRef, {
+                     status: 'pending',
+                     requestCount: increment(1)
+                 });
+             }
+        } else {
+            transaction.set(participantRef, {
+                userId: userId,
+                displayName: userProfile?.username || 'Anonymous',
+                photoURL: userProfile?.photoURL || '',
                 status: 'pending',
-                requestCount: (participant.requestCount || 1) + 1
+                requestCount: 1,
             });
         }
-    }
+    });
 };
 
 

@@ -9,10 +9,10 @@ import { ParticipantsList } from '@/components/ParticipantsList';
 import type { Message } from '@/services/chatRoomService';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from '@/components/ui/skeleton';
-import { MicOff, Sparkles, Users, MessageSquare, ShieldQuestion, UserCheck, UserX } from 'lucide-react';
+import { MicOff, Sparkles, Users, MessageSquare, ShieldQuestion, UserX } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
-import { getChatRoomStream, ChatRoom, getMessages, Participant, getParticipants, getParticipantStream, addParticipant, requestToJoinChat } from '@/services/chatRoomService';
+import { getChatRoomStream, ChatRoom, getMessages, Participant, getParticipants, getParticipantStream, requestToJoinChat } from '@/services/chatRoomService';
 import { useToast } from '@/hooks/use-toast';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import Link from 'next/link';
@@ -148,7 +148,6 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
     }
   }, [authLoading, currentUser, router]);
   
-  // Step 1: Fetch the main chat room data stream.
   useEffect(() => {
     if (!chatRoomId || !currentUser) return; 
   
@@ -171,26 +170,16 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
     return () => unsubscribeChatRoom();
   }, [chatRoomId, currentUser, router, toast]);
   
-  // Step 2: For the current user, manage their participant record and status.
   useEffect(() => {
-    if (!chatRoomId || !currentUser || !currentUser.profile || isHost) {
-        if (isHost) setPageLoading(false); // Host doesn't need a participant record check
+    if (!chatRoomId || !currentUser || isHost) {
+        if (isHost) setPageLoading(false);
         return;
     };
     
     const unsubscribeParticipant = getParticipantStream(chatRoomId, currentUser.uid, (participant) => {
-      if (participant) {
-        setMyParticipantRecord(participant);
-      } else {
-        // If I don't have a participant record yet, create one (request to join).
-        // This is allowed by the security rules.
-        addParticipant(chatRoomId, {
-            userId: currentUser.uid,
-            displayName: currentUser.profile!.username,
-            status: 'pending',
-            requestCount: 1,
-            photoURL: currentUser.profile?.photoURL || ''
-        }).catch(err => {
+      setMyParticipantRecord(participant);
+      if (!participant) {
+        requestToJoinChat(chatRoomId, currentUser.uid).catch(err => {
           console.error("Failed to add participant:", err);
           toast({ variant: 'destructive', title: 'Error', description: 'Could not send join request.' });
         });
@@ -202,9 +191,6 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
 
   }, [chatRoomId, currentUser, isHost, toast]);
 
-  // Step 3: Fetch all participants for the management list.
-  // This is used by the host to see the list of pending/approved users.
-  // It's also used by the client to get profile photos.
   useEffect(() => {
     if (!chatRoomId) return;
 
@@ -219,7 +205,6 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
   }, [chatRoomId, toast]);
 
 
-  // Step 4: Fetch chat messages if approved.
   useEffect(() => {
     if (!currentUser || !chatRoomId || (!isHost && myParticipantRecord?.status !== 'approved')) return;
 
@@ -285,7 +270,7 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
 
   const fullChatLog = chatLog.map(msg => `${msg.user}: ${msg.text}`).join('\n');
   const chatRoomDetails = {
-    id: chatRoom.id,
+    id: chatRoomId,
     title: chatRoom.title,
     host: chatRoom.host,
     hostId: chatRoom.hostId,
@@ -324,7 +309,7 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
                               </AccordionTrigger>
                               <AccordionContent>
                                 <div className="px-2">
-                                  <ParticipantsList chatRoomId={chatRoom.id} participants={participants} hostId={chatRoom.hostId} />
+                                  <ParticipantsList chatRoomId={chatRoomId} participants={participants} hostId={chatRoom.hostId} />
                                 </div>
                               </AccordionContent>
                           </AccordionItem>

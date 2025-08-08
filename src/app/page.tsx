@@ -97,6 +97,7 @@ export default function Home() {
         });
     } catch (error) {
         console.error('Failed to delete chat room', error);
+        toast({ variant: 'destructive', title: 'Error', description: 'Failed to delete chat room.' });
     } finally {
         setIsDeleting(false);
         setChatRoomToDelete(null);
@@ -185,7 +186,7 @@ export default function Home() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} disabled={isDeleting}>
+            <AlertDialogAction onClick={handleDelete} disabled={isDeleting} className="bg-destructive hover:bg-destructive/90">
               {isDeleting ? 'Deleting...' : 'Delete'}
             </AlertDialogAction>
           </AlertDialogFooter>

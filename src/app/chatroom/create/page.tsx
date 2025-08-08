@@ -7,7 +7,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
-import { createSession } from '@/services/chatRoomService';
+import { createChatRoom } from '@/services/chatRoomService';
 import { Header } from '@/components/Header';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -65,7 +65,7 @@ export default function CreateChatRoomPage() {
 
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
-    if (!currentUser) {
+    if (!currentUser || !currentUser.profile) {
         toast({
             variant: 'destructive',
             title: 'Not Authenticated',
@@ -78,10 +78,12 @@ export default function CreateChatRoomPage() {
 
     try {
         const isLive = values.scheduleOption === 'now';
-        const result = await createSession({
+        const result = await createChatRoom({
             title: values.title,
             description: values.description,
             isLive,
+            host: currentUser.profile.username,
+            hostId: currentUser.uid,
             scheduledAt: isLive ? undefined : values.scheduledAt,
             isPrivate: values.isPrivate,
         });

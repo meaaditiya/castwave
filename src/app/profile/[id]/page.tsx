@@ -5,7 +5,7 @@ import { useState, useEffect } from 'react';
 import { use } from 'react';
 import { Header } from '@/components/Header';
 import { ChatRoomCard } from '@/components/ChatRoomCard';
-import { getChatRooms, ChatRoom, getPublicChatRoomsByHost } from '@/services/chatRoomService';
+import { getPublicChatRoomsByHost, ChatRoom } from '@/services/chatRoomService';
 import { getUserProfile, UserProfileData } from '@/services/userService';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/context/AuthContext';
