@@ -63,49 +63,43 @@ export const createSession = async (input: ChatRoomInput): Promise<{ chatRoomId:
     });
 };
 
-interface GetChatRoomsOptions {
-    isPublic?: boolean;
-    hostId?: string;
-}
-
 export const getChatRooms = (
+    userId: string | null,
     callback: (chatRooms: ChatRoom[]) => void, 
-    options: GetChatRoomsOptions,
     onError?: (error: Error) => void
 ) => {
     const chatRoomsRef = collection(db, 'chatRooms');
-    let q: Query; 
+    let combinedUnsubscribes: (() => void)[] = [];
+    let allRooms = new Map<string, ChatRoom>();
 
-    // Construct the query to match the security rules
-    if (options.hostId) {
-        q = query(chatRoomsRef, where('hostId', '==', options.hostId));
-    } else {
-        q = query(chatRoomsRef, where('isPrivate', '==', false));
-    }
-   
-    const unsubscribe = onSnapshot(q, 
-        (querySnapshot) => {
-            const chatRooms = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ChatRoom));
-            
-            chatRooms.sort((a, b) => {
-                const dateA = a.createdAt?.toDate() || 0;
-                const dateB = b.createdAt?.toDate() || 0;
-                if (dateA > dateB) return -1;
-                if (dateA < dateB) return 1;
-                return 0;
-            });
+    const handleSnapshot = (snapshot: any) => {
+        snapshot.docs.forEach((doc: any) => {
+            allRooms.set(doc.id, { id: doc.id, ...doc.data() } as ChatRoom);
+        });
+        callback(Array.from(allRooms.values()));
+    };
 
-            callback(chatRooms);
-        }, 
-        (err) => {
-            console.error("Error in getChatRooms snapshot listener:", err);
-            if (onError) {
-                onError(new Error("Could not load sessions. Check permissions or network."));
-            }
+    const handleError = (error: Error) => {
+        console.error("Error in getChatRooms snapshot listener:", error);
+        if (onError) {
+            onError(new Error("Could not load sessions. Check permissions or network."));
         }
-    );
+    };
+    
+    // Query for public rooms
+    const publicQuery = query(chatRoomsRef, where('isPrivate', '==', false));
+    const publicUnsubscribe = onSnapshot(publicQuery, handleSnapshot, handleError);
+    combinedUnsubscribes.push(publicUnsubscribe);
 
-    return unsubscribe;
+    // If user is logged in, also query for rooms they host
+    if (userId) {
+        const privateQuery = query(chatRoomsRef, where('hostId', '==', userId));
+        const privateUnsubscribe = onSnapshot(privateQuery, handleSnapshot, handleError);
+        combinedUnsubscribes.push(privateUnsubscribe);
+    }
+
+    // Return a function that unsubscribes from all listeners
+    return () => combinedUnsubscribes.forEach(unsub => unsub());
 };
 
 

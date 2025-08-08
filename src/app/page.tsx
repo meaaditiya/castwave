@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Header } from '@/components/Header';
 import { ChatRoomCard } from '@/components/ChatRoomCard';
 import { getChatRooms, ChatRoom, deleteChatRoomForHost } from '@/services/chatRoomService';
@@ -32,7 +32,6 @@ function HomePageSkeleton() {
 
 export default function Home() {
   const [allChatRooms, setAllChatRooms] = useState<ChatRoom[]>([]);
-  const [filteredChatRooms, setFilteredChatRooms] = useState<ChatRoom[]>([]);
   const [loading, setLoading] = useState(true);
   const { currentUser, loading: authLoading } = useAuth();
   const [chatRoomToDelete, setChatRoomToDelete] = useState<string | null>(null);
@@ -45,15 +44,12 @@ export default function Home() {
     if (authLoading) return;
     setLoading(true);
 
-    const isPublic = currentTab === 'public';
-    const hostId = currentTab === 'my-sessions' ? currentUser?.uid : undefined;
-
     const unsubscribe = getChatRooms(
+      currentUser?.uid || null,
       (newChatRooms) => {
         setAllChatRooms(newChatRooms);
         setLoading(false);
       },
-      { isPublic, hostId },
       (error) => {
         console.error("Failed to get chat rooms:", error);
         toast({ variant: 'destructive', title: 'Error', description: 'Could not load sessions. Check permissions or network.' });
@@ -62,14 +58,33 @@ export default function Home() {
       }
     );
     return () => unsubscribe();
-  }, [currentTab, currentUser, authLoading, toast]);
+  }, [currentUser, authLoading, toast]);
 
-  useEffect(() => {
-    const results = allChatRooms.filter(room =>
+  const filteredAndSortedRooms = useMemo(() => {
+    // Filter based on search query first
+    const searchResults = allChatRooms.filter(room =>
       room.title.toLowerCase().includes(searchQuery.toLowerCase())
     );
-    setFilteredChatRooms(results);
-  }, [searchQuery, allChatRooms]);
+
+    // Then, filter based on the current tab
+    let tabResults;
+    if (currentTab === 'public') {
+      tabResults = searchResults.filter(room => !room.isPrivate);
+    } else { // 'my-sessions'
+      tabResults = searchResults.filter(room => room.hostId === currentUser?.uid);
+    }
+
+    // Finally, sort the results
+    return tabResults.sort((a, b) => {
+        const dateA = a.createdAt?.toDate() || 0;
+        const dateB = b.createdAt?.toDate() || 0;
+        if (dateA > dateB) return -1;
+        if (dateA < dateB) return 1;
+        return 0;
+    });
+
+  }, [searchQuery, allChatRooms, currentTab, currentUser]);
+
 
   const handleDelete = async () => {
     if (!chatRoomToDelete || !currentUser) return;
@@ -157,7 +172,7 @@ export default function Home() {
           </Tabs>
         </div>
 
-        {renderRoomList(filteredChatRooms)}
+        {renderRoomList(filteredAndSortedRooms)}
 
       </main>
 
