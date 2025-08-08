@@ -1,6 +1,7 @@
 
 import { db } from '@/lib/firebase';
 import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
+import { checkUsername } from '@/ai/flows/check-username';
 
 export interface UserProfileData {
     uid: string;
@@ -33,10 +34,8 @@ export const getUserProfile = async (userId: string): Promise<UserProfileData | 
 
 export const isUsernameTaken = async (username: string): Promise<boolean> => {
     try {
-        const usersRef = collection(db, 'users');
-        const q = query(usersRef, where('username', '==', username));
-        const querySnapshot = await getDocs(q);
-        return !querySnapshot.empty;
+        const result = await checkUsername({ username });
+        return result.isTaken;
     } catch (error) {
         console.error("Error checking if username is taken:", error);
         // Default to true to be safe and prevent accidental overwrites
