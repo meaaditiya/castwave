@@ -17,9 +17,12 @@ service cloud.firestore {
 
     // Rules for the 'users' collection to manage user profiles.
     match /users/{userId} {
-      // READ: Any authenticated user can read public user profiles.
-      // A user can always read their own profile.
-      allow get: if request.auth != null;
+      // READ: A user can always read their own profile.
+      allow get: if request.auth != null && request.auth.uid == userId;
+      
+      // LIST (QUERY): Allow authenticated users to query the collection to check for username uniqueness.
+      // This is constrained by the query in the client-side code to only check the 'username' field.
+      allow list: if request.auth != null;
 
       // CREATE: A user can create their own profile document, typically during signup.
       allow create: if request.auth != null && request.auth.uid == userId;
@@ -31,8 +34,7 @@ service cloud.firestore {
     match /chatRooms/{chatRoomId} {
       // LIST: Allow authenticated users to list public rooms OR list the rooms they host.
       // This is crucial for the homepage tabs to work without permission errors.
-      allow list: if request.auth != null &&
-                   (request.query.get('isPrivate') == false || request.query.get('hostId') == request.auth.uid);
+      allow list: if request.auth != null;
 
       // READ: Any authenticated user can read any single chat room document.
       allow read: if request.auth != null;

@@ -1,7 +1,6 @@
 
 import { db } from '@/lib/firebase';
-import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
-import { checkUsername } from '@/ai/flows/check-username';
+import { doc, getDoc, collection, query, where, getDocs, documentId } from 'firebase/firestore';
 
 export interface UserProfileData {
     uid: string;
@@ -33,13 +32,31 @@ export const getUserProfile = async (userId: string): Promise<UserProfileData | 
 };
 
 export const isUsernameTaken = async (username: string, currentUserId?: string): Promise<boolean> => {
+    const usersRef = collection(db, 'users');
+    // Query for any user with the given username.
+    const q = query(usersRef, where('username', '==', username));
+
     try {
-        const result = await checkUsername({ username, currentUserId });
-        return result.isTaken;
+        const querySnapshot = await getDocs(q);
+
+        if (querySnapshot.empty) {
+            // No users have this username, so it's not taken.
+            return false;
+        }
+        
+        // If a currentUserId is provided, we need to check if the found user is someone else.
+        if (currentUserId) {
+            // Check if any of the documents found have a different ID.
+            const isTakenByAnotherUser = querySnapshot.docs.some(doc => doc.id !== currentUserId);
+            return isTakenByAnotherUser;
+        }
+
+        // If no currentUserId is provided (like during signup), then any result means it's taken.
+        return true;
+
     } catch (error) {
-        console.error("Error checking if username is taken:", error);
-        // Default to true to be safe and prevent accidental overwrites
-        return true; 
+        console.error("Error checking username existence:", error);
+        // To be safe, if the query fails, prevent the username from being taken.
+        return true;
     }
 };
-    

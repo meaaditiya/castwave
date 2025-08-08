@@ -21,29 +21,25 @@ export type CheckUsernameOutput = z.infer<typeof CheckUsernameOutputSchema>;
 
 
 export async function checkUsername(input: CheckUsernameInput): Promise<CheckUsernameOutput> {
-  return checkUsernameFlow(input);
-}
+  // This check now runs directly on the client, leveraging Firestore rules.
+  // The Genkit flow is no longer required for this operation.
+  // This function is kept for structural consistency but the core logic is moved.
+  const { username, currentUserId } = input;
+  const usersRef = collection(db, 'users');
 
-const checkUsernameFlow = ai.defineFlow(
-  {
-    name: 'checkUsernameFlow',
-    inputSchema: CheckUsernameInputSchema,
-    outputSchema: CheckUsernameOutputSchema,
-  },
-  async ({ username, currentUserId }) => {
-    const usersRef = collection(db, 'users');
-    let q;
+  const q = query(usersRef, where('username', '==', username));
+  const querySnapshot = await getDocs(q);
 
-    if (currentUserId) {
-        // Check for other users with the same username, excluding the current user.
-        q = query(usersRef, where('username', '==', username), where(documentId(), "!=", currentUserId));
-    } else {
-        // If no userId is provided (e.g., during signup), check against all users.
-        q = query(usersRef, where('username', '==', username));
-    }
-    
-    const querySnapshot = await getDocs(q);
-    
-    return { isTaken: !querySnapshot.empty };
+  if (querySnapshot.empty) {
+    return { isTaken: false };
   }
-);
+
+  if (currentUserId) {
+    // If a user ID is provided, check if the found username belongs to a different user.
+    const isTakenByOther = querySnapshot.docs.some(doc => doc.id !== currentUserId);
+    return { isTaken: isTakenByOther };
+  }
+
+  // If no user ID is provided (e.g., signup), any match means it's taken.
+  return { isTaken: true };
+}
