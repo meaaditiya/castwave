@@ -13,14 +13,13 @@ import { useRouter } from 'next/navigation';
 import type { Message } from '@/services/chatRoomService';
 import { LivePoll } from './LivePoll';
 import { useAuth } from '@/context/AuthContext';
-import { getUserProfile, UserProfileData } from '@/services/userService';
 
 
 interface LiveScreenProps {
   id: string;
   title: string;
   host: string;
-  hostAvatar: string; // This will be deprecated
+  hostId: string;
   isLive: boolean;
   imageHint: string;
   isHost?: boolean;
@@ -29,24 +28,16 @@ interface LiveScreenProps {
   participants: Participant[];
 }
 
-export function LiveScreen({ id: chatRoomId, title, host, hostAvatar, isLive, imageHint, isHost = false, featuredMessage, hostReply, participants }: LiveScreenProps) {
+export function LiveScreen({ id: chatRoomId, title, host, hostId, isLive, imageHint, isHost = false, featuredMessage, hostReply, participants }: LiveScreenProps) {
   const [isEnding, setIsEnding] = useState(false);
   const [isStarting, setIsStarting] = useState(false);
   const { toast } = useToast();
   const router = useRouter();
   const { currentUser } = useAuth();
-  const [hostProfile, setHostProfile] = useState<UserProfileData | null>(null);
-
-  const hostParticipant = participants.find(p => p.userId === (currentUser?.uid));
+  
+  const hostProfile = participants.find(p => p.userId === hostId);
   const featuredParticipant = featuredMessage ? participants.find(p => p.userId === featuredMessage.userId) : null;
 
-  useEffect(() => {
-    const hostInfo = participants.find(p => p.status === 'approved');
-    if (hostInfo) {
-      getUserProfile(hostInfo.userId).then(setHostProfile);
-    }
-  }, [participants]);
-  
   const handleShare = () => {
     const url = window.location.href;
     navigator.clipboard.writeText(url).then(() => {
@@ -146,7 +137,7 @@ export function LiveScreen({ id: chatRoomId, title, host, hostAvatar, isLive, im
                           {hostReply && hostProfile && (
                               <div className="flex items-start space-x-3">
                                    <Avatar className="h-8 w-8 border-2 border-primary">
-                                      <AvatarImage src={hostProfile.photoURL} alt={hostProfile.username} />
+                                      <AvatarImage src={hostProfile.photoURL} alt={hostProfile.displayName} />
                                       <AvatarFallback className="text-primary font-bold">{getInitials(host)}</AvatarFallback>
                                   </Avatar>
                                   <div className="bg-primary/10 border border-primary/20 p-3 rounded-lg rounded-tl-none flex-1">

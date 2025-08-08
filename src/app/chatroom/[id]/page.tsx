@@ -129,6 +129,7 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
                 status: 'pending',
                 requestCount: 1,
                 emailVerified: currentUser.emailVerified,
+                photoURL: currentUser.profile?.photoURL,
             });
             setPermissionsReady(false);
         } else {
@@ -201,7 +202,7 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
     id: chatRoom.id,
     title: chatRoom.title,
     host: chatRoom.host,
-    hostAvatar: 'https://placehold.co/100x100.png',
+    hostId: chatRoom.hostId,
     isLive: chatRoom.isLive,
     imageHint: 'scientist portrait',
     isHost: isHost,

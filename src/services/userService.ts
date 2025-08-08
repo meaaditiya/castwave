@@ -1,6 +1,6 @@
 
 import { db } from '@/lib/firebase';
-import { doc, getDoc, collection, query, where, getDocs, documentId } from 'firebase/firestore';
+import { doc, getDoc, collection, query, where, getDocs, documentId, onSnapshot } from 'firebase/firestore';
 
 export interface UserProfileData {
     uid: string;
@@ -61,4 +61,23 @@ export const isUsernameTaken = async (username: string, currentUserId?: string):
         // To be safe, if the query fails, prevent the username from being taken.
         return true;
     }
+};
+
+export const getUserProfileStream = (userId: string, callback: (profile: UserProfileData | null) => void) => {
+    const userDocRef = doc(db, 'users', userId);
+    const unsubscribe = onSnapshot(userDocRef, (docSnap) => {
+        if (docSnap.exists()) {
+            const data = docSnap.data();
+            callback({
+                uid: userId,
+                username: data.username,
+                email: data.email,
+                emailVerified: data.emailVerified,
+                photoURL: data.photoURL,
+            });
+        } else {
+            callback(null);
+        }
+    });
+    return unsubscribe;
 };

@@ -1,7 +1,6 @@
 
 import { db } from '@/lib/firebase';
 import { collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, doc, getDoc, updateDoc, setDoc, getDocs, writeBatch, runTransaction, increment, where, deleteDoc, Query } from 'firebase/firestore';
-import { getUserProfile } from './userService';
 
 export interface Message {
   id?: string;
@@ -39,6 +38,7 @@ export interface ChatRoomInput {
     isLive: boolean;
     isPrivate: boolean;
     scheduledAt?: Date;
+    photoURL?: string;
 }
 
 export interface Participant {
@@ -71,7 +71,9 @@ export const createChatRoom = async (input: ChatRoomInput): Promise<{ chatRoomId
                 imageHint: ''
             });
 
-            const userProfile = await getUserProfile(input.hostId);
+            const userProfileRef = doc(db, 'users', input.hostId);
+            const userProfileSnap = await transaction.get(userProfileRef);
+            const userProfile = userProfileSnap.data();
 
             const participantRef = doc(db, 'chatRooms', newChatRoomRef.id, 'participants', input.hostId);
             transaction.set(participantRef, {
@@ -234,8 +236,11 @@ export const getMessages = (chatRoomId: string, callback: (messages: Message[]) 
 
 export const addParticipant = async (chatRoomId: string, participant: Omit<Participant, 'id'>) => {
     try {
-        const userProfile = await getUserProfile(participant.userId);
         const participantRef = doc(db, `chatRooms/${chatRoomId}/participants`, participant.userId);
+        const userProfileRef = doc(db, 'users', participant.userId);
+        const userProfileSnap = await getDoc(userProfileRef);
+        const userProfile = userProfileSnap.data();
+
         await setDoc(participantRef, {
             ...participant,
             photoURL: userProfile?.photoURL || ''
@@ -262,7 +267,10 @@ export const requestToJoinChat = async (chatRoomId: string, userId: string, disp
     try {
         await runTransaction(db, async (transaction) => {
             const docSnap = await transaction.get(participantRef);
-            const userProfile = await getUserProfile(userId);
+
+            const userProfileRef = doc(db, 'users', userId);
+            const userProfileSnap = await transaction.get(userProfileRef);
+            const userProfile = userProfileSnap.data();
 
             if (docSnap.exists()) {
                 const participant = docSnap.data() as Participant;

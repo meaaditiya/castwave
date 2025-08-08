@@ -33,7 +33,7 @@ const generateAvatarFlow = ai.defineFlow(
     
     const { media } = await ai.generate({
         model: 'googleai/gemini-2.0-flash-preview-image-generation',
-        prompt: `Generate an abstract, geometric, and colorful avatar inspired by the name: "${input.prompt}". The style should be modern, clean, and suitable for a profile picture. Avoid text and realistic images. Focus on a unique pattern of shapes and a harmonious color palette.`,
+        prompt: `Generate a unique and friendly cartoon avatar for a user named "${input.prompt}". The style should be modern, vibrant, and suitable for a profile picture. The avatar should be a character's face, expressive and colorful, against a simple, clean background. Avoid any text.`,
         config: {
             responseModalities: ['TEXT', 'IMAGE'],
         },
@@ -46,5 +46,3 @@ const generateAvatarFlow = ai.defineFlow(
     return { dataUri: media.url };
   }
 );
-
-    

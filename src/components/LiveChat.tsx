@@ -19,7 +19,6 @@ import { useDebouncedCallback } from 'use-debounce';
 import { TypingIndicator } from './TypingIndicator';
 import { CardContent } from './ui/card';
 import Link from 'next/link';
-import { getUserProfile, UserProfileData } from '@/services/userService';
 
 interface LiveChatProps {
   chatRoom: ChatRoom;
@@ -63,29 +62,11 @@ export function LiveChat({ chatRoom, canChat, participant, isHost, messages, par
   const [messageToFeature, setMessageToFeature] = useState<Message | null>(null);
   const [hostReply, setHostReply] = useState('');
   const [isFeaturing, setIsFeaturing] = useState(false);
-  const [participantProfiles, setParticipantProfiles] = useState<Map<string, UserProfileData>>(new Map());
 
-
-  useEffect(() => {
-    const fetchProfiles = async () => {
-        const profiles = new Map<string, UserProfileData>();
-        for (const p of participants) {
-            if (!participantProfiles.has(p.userId)) {
-                try {
-                    const profile = await getUserProfile(p.userId);
-                    if (profile) {
-                        profiles.set(p.userId, profile);
-                    }
-                } catch (error) {
-                    console.error(`Failed to fetch profile for ${p.userId}`, error);
-                }
-            }
-        }
-        setParticipantProfiles(prev => new Map([...prev, ...profiles]));
-    };
-    if (participants.length > 0) {
-        fetchProfiles();
-    }
+  const participantMap = useMemo(() => {
+    const map = new Map<string, Participant>();
+    participants.forEach(p => map.set(p.userId, p));
+    return map;
   }, [participants]);
 
   const scrollToBottom = useCallback((behavior: 'smooth' | 'auto' = 'smooth') => {
@@ -290,7 +271,7 @@ export function LiveChat({ chatRoom, canChat, participant, isHost, messages, par
         <ScrollArea className="h-full pr-4" viewportRef={scrollViewportRef}>
             <div className="space-y-4">
             {messages && messages.map((msg) => {
-                const userProfile = participantProfiles.get(msg.userId);
+                const userProfile = participantMap.get(msg.userId);
                 return (
                 <div key={msg.id} className="flex items-start space-x-3 group">
                     <Link href={`/profile/${msg.userId}`} passHref>
