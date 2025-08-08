@@ -38,7 +38,10 @@ const createChatRoomFlowFn = ai.defineFlow(
       // READ FIRST: Get user profile to fetch photoURL
       const userProfileRef = doc(db, 'users', input.hostId);
       const userProfileSnap = await transaction.get(userProfileRef);
-      const userProfile = userProfileSnap.exists() ? userProfileSnap.data() : null;
+      if (!userProfileSnap.exists()) {
+        throw new Error("User profile not found.");
+      }
+      const userProfile = userProfileSnap.data();
       
       // WRITE SECOND: Create the chat room document
       transaction.set(chatRoomRef, {
@@ -54,13 +57,14 @@ const createChatRoomFlowFn = ai.defineFlow(
         imageHint: ''
       });
       
-      // WRITE THIRD: Automatically add the host as a participant
+      // WRITE THIRD: Automatically add the host as a participant with 'approved' status
       const participantRef = doc(db, 'chatRooms', chatRoomRef.id, 'participants', input.hostId);
       transaction.set(participantRef, {
         userId: input.hostId,
         displayName: input.host,
-        emailVerified: userProfile?.emailVerified ?? false,
-        photoURL: userProfile?.photoURL || ''
+        photoURL: userProfile?.photoURL || '',
+        status: 'approved',
+        requestCount: 0,
       });
     });
 

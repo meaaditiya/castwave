@@ -42,12 +42,13 @@ export interface ChatRoomInput {
 }
 
 export interface Participant {
-    id?: string;
     userId: string;
     displayName: string;
-    emailVerified: boolean;
+    status: 'pending' | 'approved' | 'denied' | 'removed';
+    requestCount: number;
     photoURL?: string;
 }
+
 
 export const createChatRoom = async (input: ChatRoomInput): Promise<{ chatRoomId: string }> => {
     // This function is now a wrapper around the Genkit flow to ensure consistency.
@@ -127,23 +128,6 @@ export const getChatRoomStream = (id: string, callback: (chatRoom: ChatRoom | nu
     return unsubscribe;
 };
 
-export const getChatRoomById = async (id: string): Promise<ChatRoom | null> => {
-    try {
-        const docRef = doc(db, 'chatRooms', id);
-        const docSnap = await getDoc(docRef);
-
-        if (docSnap.exists()) {
-            return { id: docSnap.id, ...docSnap.data() } as ChatRoom;
-        } else {
-            console.log("No such document!");
-            return null;
-        }
-    } catch (error) {
-        console.error("Error getting chat room: ", error);
-        throw new Error("Could not retrieve chat room.");
-    }
-};
-
 export const startChatRoom = async (chatRoomId: string) => {
     try {
         const docRef = doc(db, 'chatRooms', chatRoomId);
@@ -204,27 +188,55 @@ export const getMessages = (chatRoomId: string, callback: (messages: Message[]) 
     return unsubscribe;
 };
 
+// --- Participant Management ---
+
+export const getParticipantStream = (chatRoomId: string, userId: string, callback: (participant: Participant | null) => void) => {
+    const participantRef = doc(db, `chatRooms/${chatRoomId}/participants`, userId);
+    const unsubscribe = onSnapshot(participantRef, (doc) => {
+        callback(doc.exists() ? doc.data() as Participant : null);
+    });
+    return unsubscribe;
+};
+
+export const addParticipant = async (chatRoomId: string, participant: Participant) => {
+    const participantRef = doc(db, `chatRooms/${chatRoomId}/participants`, participant.userId);
+    await setDoc(participantRef, participant);
+}
+
+export const requestToJoinChat = async (chatRoomId: string, userId: string) => {
+    const participantRef = doc(db, `chatRooms/${chatRoomId}/participants`, userId);
+    const docSnap = await getDoc(participantRef);
+
+    if (docSnap.exists()) {
+        const participant = docSnap.data() as Participant;
+        if (participant.requestCount >= 3) {
+            throw new Error("You have reached the maximum number of join requests.");
+        }
+        if (participant.status === 'denied' || participant.status === 'removed') {
+            await updateDoc(participantRef, {
+                status: 'pending',
+                requestCount: (participant.requestCount || 1) + 1
+            });
+        }
+    }
+};
+
+
+export const updateParticipantStatus = async (chatRoomId: string, userId: string, status: Participant['status']) => {
+    const participantRef = doc(db, `chatRooms/${chatRoomId}/participants`, userId);
+    await updateDoc(participantRef, { status });
+}
+
 export const getParticipants = (chatRoomId: string, callback: (participants: Participant[]) => void, onError?: (error: Error) => void) => {
     const participantsCol = collection(db, `chatRooms/${chatRoomId}/participants`);
     const q = query(participantsCol);
     
     const unsubscribe = onSnapshot(q, (snapshot) => {
-        const participants = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Participant));
+        const participants = snapshot.docs.map(doc => ({ ...doc.data() } as Participant));
         callback(participants);
     }, onError);
     return unsubscribe;
 }
-
-export const removeParticipant = async (chatRoomId: string, userId: string) => {
-    try {
-        const participantRef = doc(db, `chatRooms/${chatRoomId}/participants`, userId);
-        await deleteDoc(participantRef);
-    } catch(e) {
-        console.error("Error removing participant: ", e);
-        throw new Error("Could not remove participant.");
-    }
-}
-
 
 export const voteOnMessage = async (chatRoomId: string, messageId: string, userId: string, voteType: 'upvotes' | 'downvotes') => {
     const messageRef = doc(db, 'chatRooms', chatRoomId, 'messages', messageId);

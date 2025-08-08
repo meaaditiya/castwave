@@ -5,15 +5,14 @@ import { useState, useEffect, use } from 'react';
 import { Header } from '@/components/Header';
 import { LiveScreen } from '@/components/LiveScreen';
 import { LiveChat } from '@/components/LiveChat';
-import { HighlightTool } from '@/components/HighlightTool';
 import { ParticipantsList } from '@/components/ParticipantsList';
 import type { Message } from '@/services/chatRoomService';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from '@/components/ui/skeleton';
-import { MicOff, Sparkles, Users, MessageSquare } from 'lucide-react';
+import { MicOff, Sparkles, Users, MessageSquare, ShieldQuestion, UserCheck, UserX } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
-import { getChatRoomStream, ChatRoom, getMessages, Participant, getParticipants } from '@/services/chatRoomService';
+import { getChatRoomStream, ChatRoom, getMessages, Participant, getParticipants, getParticipantStream, addParticipant, requestToJoinChat } from '@/services/chatRoomService';
 import { useToast } from '@/hooks/use-toast';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import Link from 'next/link';
@@ -58,17 +57,87 @@ function ChatRoomPageSkeleton() {
     );
 }
 
+function AwaitingApprovalScreen() {
+    return (
+        <div className="min-h-screen flex flex-col">
+            <Header />
+            <main className="flex-1 container py-8 flex items-center justify-center">
+                <Card className="w-full max-w-md text-center p-8">
+                    <CardHeader>
+                        <ShieldQuestion className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
+                        <CardTitle>Awaiting Approval</CardTitle>
+                        <CardDescription>Your request to join has been sent to the host. Please wait for them to approve you.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <Button asChild variant="outline">
+                            <Link href="/">Back to Homepage</Link>
+                        </Button>
+                    </CardContent>
+                </Card>
+            </main>
+        </div>
+    )
+}
+
+function AccessDeniedScreen({ onReRequest }: { onReRequest: () => void }) {
+    return (
+        <div className="min-h-screen flex flex-col">
+            <Header />
+            <main className="flex-1 container py-8 flex items-center justify-center">
+                <Card className="w-full max-w-md text-center p-8">
+                    <CardHeader>
+                        <UserX className="h-16 w-16 text-destructive mx-auto mb-4" />
+                        <CardTitle>Access Denied</CardTitle>
+                        <CardDescription>The host has denied your request to join this session.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="flex flex-col gap-2">
+                         <Button onClick={onReRequest}>Request to Join Again</Button>
+                         <Button asChild variant="outline">
+                            <Link href="/">Back to Homepage</Link>
+                        </Button>
+                    </CardContent>
+                </Card>
+            </main>
+        </div>
+    )
+}
+
+function RemovedScreen({ onReRequest }: { onReRequest: () => void }) {
+     return (
+        <div className="min-h-screen flex flex-col">
+            <Header />
+            <main className="flex-1 container py-8 flex items-center justify-center">
+                <Card className="w-full max-w-md text-center p-8">
+                    <CardHeader>
+                        <UserX className="h-16 w-16 text-destructive mx-auto mb-4" />
+                        <CardTitle>You Have Been Removed</CardTitle>
+                        <CardDescription>The host has removed you from this session. You can request to join again.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="flex flex-col gap-2">
+                         <Button onClick={onReRequest}>Request to Join Again</Button>
+                         <Button asChild variant="outline">
+                            <Link href="/">Back to Homepage</Link>
+                        </Button>
+                    </CardContent>
+                </Card>
+            </main>
+        </div>
+    )
+}
+
 
 export default function ChatRoomPage({ params }: { params: { id: string } }) {
   const resolvedParams = use(params);
   const [chatRoom, setChatRoom] = useState<ChatRoom | null>(null);
   const [chatLog, setChatLog] = useState<Message[]>([]);
   const [participants, setParticipants] = useState<Participant[]>([]);
+  const [myParticipantRecord, setMyParticipantRecord] = useState<Participant | null>(null);
   const { currentUser, loading: authLoading } = useAuth();
   const router = useRouter();
   const [pageLoading, setPageLoading] = useState(true);
   const { toast } = useToast();
   
+  const chatRoomId = resolvedParams.id;
   const isHost = currentUser && chatRoom && currentUser.uid === chatRoom.hostId;
 
   useEffect(() => {
@@ -76,10 +145,9 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
       router.push('/login');
     }
   }, [authLoading, currentUser, router]);
-
+  
   // Step 1: Fetch the main chat room data stream.
   useEffect(() => {
-    const chatRoomId = resolvedParams.id;
     if (!chatRoomId || !currentUser) return; 
   
     setPageLoading(true);
@@ -91,7 +159,7 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
         toast({ variant: 'destructive', title: 'Error', description: 'Chat Room not found.' });
         router.push('/');
       }
-      setPageLoading(false);
+      // Delay setting page loading to false until participant status is also checked
     }, (error) => {
         console.error("Error fetching chat room:", error);
         toast({ variant: 'destructive', title: 'Error', description: 'Could not load chat room. You may not have permission to view it.' });
@@ -100,12 +168,42 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
     });
   
     return () => unsubscribeChatRoom();
-  }, [resolvedParams.id, currentUser, router, toast]);
+  }, [chatRoomId, currentUser, router, toast]);
   
-  // Step 2: Once chat room is loaded, fetch participants.
+  // Step 2: For the current user, manage their participant record and status.
   useEffect(() => {
-    const chatRoomId = resolvedParams.id;
-    if (!chatRoom || !currentUser || !currentUser.profile) return;
+    if (!chatRoomId || !currentUser || !currentUser.profile || isHost) {
+        if (isHost) setPageLoading(false); // Host doesn't need a participant record check
+        return;
+    };
+    
+    // Subscribe to my own participant record to see status changes in real-time.
+    const unsubscribeParticipant = getParticipantStream(chatRoomId, currentUser.uid, (participant) => {
+      if (participant) {
+        setMyParticipantRecord(participant);
+      } else {
+        // If I don't have a participant record yet, create one (request to join).
+        addParticipant(chatRoomId, {
+            userId: currentUser.uid,
+            displayName: currentUser.profile!.username,
+            status: 'pending',
+            requestCount: 1,
+            photoURL: currentUser.profile?.photoURL || ''
+        }).catch(err => {
+          console.error("Failed to add participant:", err);
+          toast({ variant: 'destructive', title: 'Error', description: 'Could not send join request.' });
+        });
+      }
+      setPageLoading(false);
+    });
+
+    return () => unsubscribeParticipant();
+
+  }, [chatRoomId, currentUser, isHost, toast]);
+
+  // Step 3: If user is the host, fetch all participants for the management list.
+  useEffect(() => {
+    if (!isHost || !chatRoomId) return;
 
     const unsubscribeParticipants = getParticipants(chatRoomId, (allParticipants) => {
         setParticipants(allParticipants);
@@ -115,28 +213,51 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
     });
 
     return () => unsubscribeParticipants();
-  }, [chatRoom, currentUser, resolvedParams.id, toast]);
+  }, [isHost, chatRoomId, toast]);
 
 
-  // Step 3: Fetch chat messages.
+  // Step 4: Fetch chat messages if approved.
   useEffect(() => {
-    const chatRoomId = resolvedParams.id;
-    if (!currentUser || !chatRoomId) return;
+    if (!currentUser || !chatRoomId || (!isHost && myParticipantRecord?.status !== 'approved')) return;
 
     const unsubscribeMessages = getMessages(chatRoomId, setChatLog, (error) => {
         console.error("Error fetching messages:", error);
         toast({variant: 'destructive', title: 'Error', description: 'Could not load messages.'})
     });
     return () => unsubscribeMessages();
-  }, [resolvedParams.id, currentUser, toast]);
+  }, [chatRoomId, currentUser, isHost, myParticipantRecord, toast]);
   
-  if (authLoading || pageLoading || !chatRoom) {
+  const handleReRequest = async () => {
+    if (!currentUser) return;
+    try {
+        await requestToJoinChat(chatRoomId, currentUser.uid);
+        toast({ title: 'Request Sent', description: 'Your request to join has been sent to the host.' });
+    } catch (e: any) {
+        toast({ variant: 'destructive', title: 'Error', description: e.message });
+    }
+  }
+
+  if (authLoading || pageLoading || !chatRoom || (!isHost && !myParticipantRecord)) {
     return <ChatRoomPageSkeleton />;
   }
   
   if (!currentUser) {
     // This should be handled by the redirect at the top, but as a fallback.
     return <ChatRoomPageSkeleton />;
+  }
+
+  // Handle different screens based on non-host participant status
+  if (!isHost && myParticipantRecord) {
+      if (myParticipantRecord.status === 'pending') {
+          return <AwaitingApprovalScreen />;
+      }
+      if (myParticipantRecord.status === 'denied') {
+          return <AccessDeniedScreen onReRequest={handleReRequest} />;
+      }
+      if (myParticipantRecord.status === 'removed') {
+          return <RemovedScreen onReRequest={handleReRequest} />;
+      }
+      // If 'approved', continue to render the main page.
   }
 
   // If the session has ended and the user is not the host, show a specific screen.
@@ -192,7 +313,7 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
               <LiveChat 
                   chatRoom={chatRoom}
                   messages={chatLog}
-                  participants={participants}
+                  participant={isHost ? undefined : myParticipantRecord}
               />
               <div className="mt-auto border-t">
                   <Accordion type="single" collapsible className="w-full">
@@ -203,7 +324,7 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
                               </AccordionTrigger>
                               <AccordionContent>
                                 <div className="px-2">
-                                  <ParticipantsList chatRoomId={chatRoom.id} participants={participants} isHost={isHost} />
+                                  <ParticipantsList chatRoomId={chatRoom.id} participants={participants} hostId={chatRoom.hostId} />
                                 </div>
                               </AccordionContent>
                           </AccordionItem>

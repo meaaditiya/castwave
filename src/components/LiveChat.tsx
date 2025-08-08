@@ -22,7 +22,7 @@ import Link from 'next/link';
 interface LiveChatProps {
   chatRoom: ChatRoom;
   messages: Message[];
-  participants: Participant[];
+  participant?: Participant | null; // The current user's participant record, if not host
 }
 
 const userColors = [
@@ -47,7 +47,7 @@ const getInitials = (name: string) => {
     return name.substring(0, 2).toUpperCase();
 }
 
-export function LiveChat({ chatRoom, messages, participants }: LiveChatProps) {
+export function LiveChat({ chatRoom, messages, participant }: LiveChatProps) {
   const [newMessage, setNewMessage] = useState('');
   const [isSending, setIsSending] = useState(false);
   const { currentUser } = useAuth();
@@ -59,13 +59,14 @@ export function LiveChat({ chatRoom, messages, participants }: LiveChatProps) {
   const [isFeaturing, setIsFeaturing] = useState(false);
   
   const isHost = currentUser?.uid === chatRoom.hostId;
-  const canChat = !!currentUser;
+  const canChat = isHost || participant?.status === 'approved';
 
   const participantMap = useMemo(() => {
     const map = new Map<string, Participant>();
-    participants.forEach(p => map.set(p.userId, p));
+    // Since non-hosts don't get the full list, we'll build what we can
+    if (participant) map.set(participant.userId, participant);
     return map;
-  }, [participants]);
+  }, [participant]);
 
   const scrollToBottom = useCallback((behavior: 'smooth' | 'auto' = 'smooth') => {
     const viewport = scrollViewportRef.current;
@@ -125,7 +126,7 @@ export function LiveChat({ chatRoom, messages, participants }: LiveChatProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!currentUser || !currentUser.profile || !newMessage.trim()) return;
+    if (!currentUser || !currentUser.profile || !newMessage.trim() || !canChat) return;
 
     setIsSending(true);
 
@@ -150,7 +151,7 @@ export function LiveChat({ chatRoom, messages, participants }: LiveChatProps) {
   };
 
   const handleVote = async (messageId: string, voteType: 'upvotes' | 'downvotes') => {
-    if (!currentUser) return;
+    if (!currentUser || !canChat) return;
     try {
         await voteOnMessage(chatRoom.id, messageId, currentUser.uid, voteType);
     } catch(e) {
@@ -243,11 +244,16 @@ export function LiveChat({ chatRoom, messages, participants }: LiveChatProps) {
                 </div>
                 </div>
             )})}
-            {messages && messages.length === 0 && (
+            {messages && messages.length === 0 && canChat && (
                     <div className="text-center text-muted-foreground pt-10">
                         <p>No messages yet. Be the first to start the conversation!</p>
                     </div>
                 )}
+             {!canChat && (
+                <div className="text-center text-muted-foreground pt-10">
+                    <p>You must be approved by the host to send messages.</p>
+                </div>
+             )}
             </div>
         </ScrollArea>
         {showNewMessageButton && (
@@ -275,7 +281,7 @@ export function LiveChat({ chatRoom, messages, participants }: LiveChatProps) {
       <div className="border-t pt-2 mt-auto">
         <form onSubmit={handleSubmit} className="flex gap-2">
             <Input
-              placeholder={canChat ? "Join the conversation..." : "You must be logged in to chat."}
+              placeholder={canChat ? "Join the conversation..." : "Waiting for host approval..."}
               value={newMessage}
               onChange={(e) => setNewMessage(e.target.value)}
               disabled={!canChat || isSending}
