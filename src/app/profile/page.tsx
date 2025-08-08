@@ -10,7 +10,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { LogOut, Loader2, Mail, User, Edit, Check } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
-import { doc, updateDoc } from 'firebase/firestore';
+import { doc, setDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { Input } from "@/components/ui/input";
@@ -80,9 +80,13 @@ export default function ProfilePage() {
         setIsSaving(true);
         const userDocRef = doc(db, 'users', currentUser.uid);
         try {
-            await updateDoc(userDocRef, {
-                username: newUsername.trim()
-            });
+            // Use setDoc with merge: true to create the document if it doesn't exist,
+            // or update it if it does. This handles users created before the profile feature.
+            await setDoc(userDocRef, {
+                username: newUsername.trim(),
+                email: currentUser.email // Also ensure email is present in the profile
+            }, { merge: true });
+
             toast({
                 title: 'Success!',
                 description: 'Your username has been updated.',
