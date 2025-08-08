@@ -58,23 +58,23 @@ export default function PublicProfilePage({ params }: { params: { id: string } }
     const userId = resolvedParams.id;
 
     useEffect(() => {
+        // Do not proceed until authentication status is resolved
         if (authLoading) {
-            return; // Wait until authentication state is resolved
-        }
-
-        if (!currentUser) {
-            router.push('/login'); // If not logged in after check, redirect
             return;
         }
-        
-        if (userId === currentUser.uid) {
-            router.replace('/profile'); // Redirect to own profile page if IDs match
+
+        // If the user is logged in and trying to view their own public profile link,
+        // redirect them to their main profile page for editing etc.
+        if (currentUser && userId === currentUser.uid) {
+            router.replace('/profile');
             return;
         }
 
         let isMounted = true;
+        let unsubscribe: (() => void) | undefined;
 
         async function fetchProfileData() {
+            if (!isMounted) return;
             setLoading(true);
             try {
                 const profile = await getUserProfile(userId);
@@ -85,7 +85,7 @@ export default function PublicProfilePage({ params }: { params: { id: string } }
                 if (isMounted) setUserProfile(profile);
 
                 // Fetch user's public sessions
-                const unsubscribe = getChatRooms(
+                unsubscribe = getChatRooms(
                     (allChatRooms) => {
                         if (isMounted) {
                             const userPublicSessions = allChatRooms.filter(room => room.hostId === userId && !room.isPrivate);
@@ -96,8 +96,6 @@ export default function PublicProfilePage({ params }: { params: { id: string } }
                         console.error("Failed to get chat rooms for profile:", error);
                     }
                 );
-                // We don't return unsubscribe here because the page might unmount before the callback
-                // The isMounted check should handle most cases.
             } catch (err) {
                 console.error("Failed to fetch profile", err);
                 if (isMounted) notFound();
@@ -110,11 +108,14 @@ export default function PublicProfilePage({ params }: { params: { id: string } }
         
         return () => {
             isMounted = false;
+            if (unsubscribe) {
+                unsubscribe();
+            }
         };
 
     }, [userId, currentUser, authLoading, router]);
 
-     if (authLoading || loading) {
+     if (loading) {
         return <PublicProfileSkeleton />;
     }
     
