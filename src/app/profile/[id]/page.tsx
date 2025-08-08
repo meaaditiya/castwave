@@ -11,6 +11,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { CheckCircle, XCircle, Mic } from 'lucide-react';
 import { notFound, useRouter } from 'next/navigation';
+import { getChatRooms, ChatRoom } from '@/services/chatRoomService';
+import { ChatRoomCard } from '@/components/ChatRoomCard';
 
 function PublicProfileSkeleton() {
     return (
@@ -27,8 +29,16 @@ function PublicProfileSkeleton() {
                             </div>
                         </CardHeader>
                     </Card>
-                    <div className="text-center py-16 text-muted-foreground border-2 border-dashed rounded-lg">
-                        <Skeleton className="h-8 w-1/2 mx-auto" />
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {Array.from({ length: 3 }).map((_, i) => (
+                             <div key={i} className="flex flex-col space-y-3">
+                                <Skeleton className="h-[225px] w-full rounded-xl" />
+                                <div className="space-y-2">
+                                    <Skeleton className="h-4 w-3/4" />
+                                    <Skeleton className="h-4 w-1/2" />
+                                </div>
+                            </div>
+                        ))}
                     </div>
                 </div>
             </main>
@@ -43,13 +53,13 @@ export default function PublicProfilePage({ params }: { params: { id: string } }
     const router = useRouter();
 
     const [userProfile, setUserProfile] = useState<UserProfileData | null>(null);
+    const [userSessions, setUserSessions] = useState<ChatRoom[]>([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         const userId = resolvedParams.id;
         if (!userId) return;
 
-        // Redirect to main profile page if viewing own profile
         if (currentUser && userId === currentUser.uid) {
             router.replace('/profile');
             return;
@@ -76,6 +86,29 @@ export default function PublicProfilePage({ params }: { params: { id: string } }
         fetchProfileData();
 
     }, [resolvedParams.id, currentUser, router]);
+
+    useEffect(() => {
+        const userId = resolvedParams.id;
+        if (!userId) return;
+
+        const unsubscribe = getChatRooms(
+            (allChatRooms) => {
+                const userPublicSessions = allChatRooms.filter(room => room.hostId === userId && !room.isPrivate);
+                setUserSessions(userPublicSessions);
+            },
+            (error) => {
+                console.error("Failed to get chat rooms for profile:", error);
+            }
+        );
+
+        return () => {
+            if (unsubscribe) {
+                unsubscribe();
+            }
+        };
+
+    }, [resolvedParams.id]);
+
 
      if (loading) {
         return <PublicProfileSkeleton />;
@@ -121,11 +154,24 @@ export default function PublicProfilePage({ params }: { params: { id: string } }
 
                     <h2 className="text-2xl font-bold tracking-tight mb-6">Public Sessions</h2>
                     
-                    <div className="text-center py-16 text-muted-foreground border-2 border-dashed rounded-lg">
-                       <Mic className="mx-auto h-12 w-12 text-muted-foreground/50 mb-4" />
-                       <p className="font-semibold">Public sessions hosted by {userProfile.username} will appear here.</p>
-                       <p className="text-sm">This feature is currently under construction.</p>
-                    </div>
+                    {userSessions.length > 0 ? (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                            {userSessions.map(chatRoom => (
+                                <ChatRoomCard 
+                                    key={chatRoom.id} 
+                                    {...chatRoom} 
+                                    isOwner={currentUser?.uid === chatRoom.hostId}
+                                    onDelete={() => {}} // Not needed on public profile
+                                    onStartSession={() => {}} // Not needed on public profile
+                                />
+                            ))}
+                        </div>
+                    ) : (
+                        <div className="text-center py-16 text-muted-foreground border-2 border-dashed rounded-lg">
+                            <Mic className="mx-auto h-12 w-12 text-muted-foreground/50 mb-4" />
+                            <p className="font-semibold">{userProfile.username} has no active public sessions.</p>
+                        </div>
+                    )}
                 </div>
             </main>
         </div>
