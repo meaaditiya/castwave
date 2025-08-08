@@ -14,14 +14,12 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { Waves, Loader2, UserPlus } from 'lucide-react';
-import { isUsernameTaken } from '@/ai/flows/is-username-taken';
 import { db } from '@/lib/firebase';
 import { doc, setDoc } from 'firebase/firestore';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 
 const formSchema = z.object({
-  username: z.string().min(3, { message: 'Username must be at least 3 characters.' }).max(20, { message: "Username can't be longer than 20 characters."}),
   email: z.string().email({ message: 'Invalid email address.' }),
   password: z.string().min(6, { message: 'Password must be at least 6 characters.' }),
   confirmPassword: z.string(),
@@ -40,7 +38,6 @@ export default function SignupPage() {
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      username: '',
       email: '',
       password: '',
       confirmPassword: '',
@@ -50,22 +47,15 @@ export default function SignupPage() {
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true);
     try {
-      const { isTaken } = await isUsernameTaken({ username: values.username });
-      if (isTaken) {
-        form.setError('username', {
-          type: 'manual',
-          message: 'This username is already taken.',
-        });
-        setIsLoading(false);
-        return;
-      }
-
       const userCredential = await signup(values.email, values.password);
       const user = userCredential.user;
 
+      // Generate a default username from the email address
+      const defaultUsername = values.email.split('@')[0];
+
       await setDoc(doc(db, 'users', user.uid), {
         uid: user.uid,
-        username: values.username,
+        username: defaultUsername,
         email: values.email,
         emailVerified: user.emailVerified,
         photoURL: '',
@@ -133,19 +123,6 @@ export default function SignupPage() {
         <CardContent>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-               <FormField
-                control={form.control}
-                name="username"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Username</FormLabel>
-                    <FormControl>
-                      <Input placeholder="e.g., CastWaveFan" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
               <FormField
                 control={form.control}
                 name="email"
