@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
@@ -161,7 +162,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     currentUser,
     loading,
     signup: signupWithEmail,
-    login: signInWithEmailAndPassword,
+    login: (email, password) => signInWithEmailAndPassword(auth, email, password),
     logout: logoutHandler,
     reauthenticate,
     updateUserPassword,
