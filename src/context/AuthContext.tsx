@@ -2,9 +2,9 @@
 "use client";
 
 import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
-import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, User as FirebaseAuthUser, EmailAuthProvider, reauthenticateWithCredential, updatePassword, sendEmailVerification, sendPasswordResetEmail, GoogleAuthProvider, signInWithRedirect, getRedirectResult, UserCredential } from 'firebase/auth';
+import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, User as FirebaseAuthUser, EmailAuthProvider, reauthenticateWithCredential, updatePassword, sendEmailVerification, sendPasswordResetEmail, UserCredential } from 'firebase/auth';
 import { auth, db } from '@/lib/firebase';
-import { doc, getDoc, setDoc, onSnapshot, writeBatch, updateDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, onSnapshot, updateDoc } from 'firebase/firestore';
 
 export interface UserProfile {
     uid: string;
@@ -24,7 +24,6 @@ interface AuthContextType {
   loading: boolean;
   signup: (email:string, password:string) => Promise<UserCredential>;
   login: typeof signInWithEmailAndPassword;
-  signInWithGoogle: () => Promise<void>;
   logout: () => Promise<void>;
   reauthenticate: (password: string) => Promise<void>;
   updateUserPassword: (password: string) => Promise<void>;
@@ -46,7 +45,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [currentUser, setCurrentUser] = useState<AppUser | null>(null);
   const [loading, setLoading] = useState(true);
   const verificationTimer = useRef<NodeJS.Timeout | null>(null);
-  const isProcessingRedirect = useRef(false);
 
   const stopVerificationCheck = () => {
     if (verificationTimer.current) {
@@ -68,75 +66,47 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-   useEffect(() => {
-    if (isProcessingRedirect.current) return;
-    
-    isProcessingRedirect.current = true;
-    
-    getRedirectResult(auth)
-        .then(async (result) => {
-            if (result && result.user) {
-                const user = result.user;
-                const userDocRef = doc(db, 'users', user.uid);
-                const docSnap = await getDoc(userDocRef);
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+        let profileUnsubscribe: (() => void) | undefined;
+        
+        if (user) {
+            const userProfileDocRef = doc(db, 'users', user.uid);
+            profileUnsubscribe = onSnapshot(userProfileDocRef, (docSnap) => {
+                const profileData = docSnap.exists() ? docSnap.data() as UserProfile : null;
+                const appUser: AppUser = { ...user, profile: profileData || undefined };
 
-                if (!docSnap.exists()) {
-                     await setDoc(userDocRef, {
-                        uid: user.uid,
-                        username: user.displayName || user.email?.split('@')[0] || `user_${user.uid.substring(0,5)}`,
-                        email: user.email,
-                        emailVerified: user.emailVerified,
-                        photoURL: user.photoURL || '',
-                        avatarGenerationCount: 0,
-                    });
+                if (profileData && profileData.emailVerified !== user.emailVerified) {
+                    updateDoc(userProfileDocRef, { emailVerified: user.emailVerified });
                 }
-            }
-        })
-        .catch((error) => {
-            console.error("Error processing redirect result:", error);
-        })
-        .finally(() => {
-            const unsubscribe = onAuthStateChanged(auth, (user) => {
-                let profileUnsubscribe: (() => void) | undefined;
+
+                setCurrentUser(appUser);
                 
-                if (user) {
-                    const userProfileDocRef = doc(db, 'users', user.uid);
-                    profileUnsubscribe = onSnapshot(userProfileDocRef, (docSnap) => {
-                        const profileData = docSnap.exists() ? docSnap.data() as UserProfile : null;
-                        const appUser: AppUser = { ...user, profile: profileData || undefined };
-
-                        if (profileData && profileData.emailVerified !== user.emailVerified) {
-                            updateDoc(userProfileDocRef, { emailVerified: user.emailVerified });
-                        }
-
-                        setCurrentUser(appUser);
-                        
-                        if (!user.emailVerified) {
-                            startVerificationCheck(user);
-                        } else {
-                            stopVerificationCheck();
-                        }
-                        setLoading(false);
-                    }, (error) => {
-                        console.error("Error with profile snapshot:", error);
-                        setCurrentUser(user);
-                        setLoading(false);
-                    });
+                if (!user.emailVerified) {
+                    startVerificationCheck(user);
                 } else {
-                    if (profileUnsubscribe) profileUnsubscribe();
-                    setCurrentUser(null);
-                    setLoading(false);
                     stopVerificationCheck();
                 }
-                
-                return () => {
-                    if (profileUnsubscribe) profileUnsubscribe();
-                    stopVerificationCheck();
-                }
+                setLoading(false);
+            }, (error) => {
+                console.error("Error with profile snapshot:", error);
+                setCurrentUser(user); // Set user even if profile fails to load
+                setLoading(false);
             });
+        } else {
+            if (profileUnsubscribe) profileUnsubscribe();
+            setCurrentUser(null);
+            setLoading(false);
+            stopVerificationCheck();
+        }
+        
+        return () => {
+            if (profileUnsubscribe) profileUnsubscribe();
+            stopVerificationCheck();
+        }
+    });
 
-            return () => unsubscribe();
-        });
+    return () => unsubscribe();
   }, [startVerificationCheck]);
 
   const reauthenticate = async (password: string) => {
@@ -168,18 +138,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const logoutHandler = async () => {
     await signOut(auth);
   }
-
-  const signInWithGoogle = async () => {
-    setLoading(true);
-    const provider = new GoogleAuthProvider();
-    await signInWithRedirect(auth, provider);
-  }
   
   const signupWithEmail = async (email:string, password:string): Promise<UserCredential> => {
     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
     const user = userCredential.user;
     
-    // Create Firestore document for the new user
     const defaultUsername = email.split('@')[0] || `user_${user.uid.substring(0,5)}`;
     await setDoc(doc(db, 'users', user.uid), {
         uid: user.uid,
@@ -200,7 +163,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     loading,
     signup: signupWithEmail,
     login: signInWithEmailAndPassword,
-    signInWithGoogle,
     logout: logoutHandler,
     reauthenticate,
     updateUserPassword,
