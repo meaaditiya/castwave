@@ -2,7 +2,7 @@
 "use client";
 
 import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
-import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, User as FirebaseAuthUser, EmailAuthProvider, reauthenticateWithCredential, updatePassword, sendEmailVerification, sendPasswordResetEmail, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
+import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, User as FirebaseAuthUser, EmailAuthProvider, reauthenticateWithCredential, updatePassword, sendEmailVerification, sendPasswordResetEmail, GoogleAuthProvider, signInWithRedirect, getRedirectResult } from 'firebase/auth';
 import { auth, db } from '@/lib/firebase';
 import { doc, getDoc, setDoc, onSnapshot } from 'firebase/firestore';
 
@@ -101,8 +101,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             });
             return () => unsubProfile();
         } else {
-            setCurrentUser(null);
-            setLoading(false);
+             // Handle the redirect result for Google Sign-In
+            getRedirectResult(auth)
+                .then(async (result) => {
+                    if (result) {
+                        const user = result.user;
+                        const userDocRef = doc(db, 'users', user.uid);
+                        const docSnap = await getDoc(userDocRef);
+
+                        if (!docSnap.exists()) {
+                            // Create a new profile for the new Google user
+                            await setDoc(userDocRef, {
+                                uid: user.uid,
+                                username: user.displayName || user.email?.split('@')[0] || 'User',
+                                email: user.email,
+                                emailVerified: user.emailVerified,
+                                photoURL: user.photoURL || '',
+                                avatarGenerationCount: 0,
+                            });
+                        }
+                    }
+                })
+                .catch((error) => {
+                    console.error("Error getting redirect result:", error);
+                })
+                .finally(() => {
+                    setCurrentUser(null);
+                    setLoading(false);
+                });
         }
     });
 
@@ -145,32 +171,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signInWithGoogle = async () => {
     const provider = new GoogleAuthProvider();
-    provider.setCustomParameters({
-      prompt: 'select_account'
-    });
-    try {
-      const userCredential = await signInWithPopup(auth, provider);
-      const user = userCredential.user;
-
-      // Check if user profile already exists
-      const userDocRef = doc(db, 'users', user.uid);
-      const docSnap = await getDoc(userDocRef);
-
-      if (!docSnap.exists()) {
-        // Create a new profile for the new Google user
-        await setDoc(userDocRef, {
-          uid: user.uid,
-          username: user.displayName || user.email?.split('@')[0] || 'User',
-          email: user.email,
-          emailVerified: user.emailVerified,
-          photoURL: user.photoURL || '',
-          avatarGenerationCount: 0,
-        });
-      }
-    } catch (error) {
-      console.error("Google Sign-In Error:", error);
-      throw error;
-    }
+    await signInWithRedirect(auth, provider);
   }
 
   const value = {

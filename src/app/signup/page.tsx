@@ -100,14 +100,13 @@ export default function SignupPage() {
     setIsGoogleLoading(true);
     try {
         await signInWithGoogle();
-        router.push('/');
+        // The redirect flow will handle navigation, so we don't need to push the router here.
     } catch (error: any) {
         toast({
             variant: 'destructive',
             title: 'Google Sign-In Failed',
             description: error.message || 'An unexpected error occurred.',
         });
-    } finally {
         setIsGoogleLoading(false);
     }
   };
