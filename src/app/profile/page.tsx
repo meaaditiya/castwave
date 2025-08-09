@@ -8,7 +8,7 @@ import { Header } from "@/components/Header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { LogOut, Loader2, Mail, User, Edit, Check, ShieldCheck, KeyRound, MailCheck, AlertTriangle, CheckCircle, XCircle, X, Sparkles, Trash2 } from "lucide-react";
+import { LogOut, Loader2, Mail, User, Edit, Check, ShieldCheck, KeyRound, MailCheck, AlertTriangle, CheckCircle, XCircle, X, Sparkles, Trash2, ArrowLeft } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { doc, setDoc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
@@ -251,6 +251,12 @@ export default function ProfilePage() {
             <Header />
             <main className="flex-1 bg-muted/40">
                 <div className="container max-w-2xl py-12">
+                    <div className="w-full max-w-2xl mb-4">
+                        <Button variant="outline" size="sm" onClick={() => router.back()} className="rounded-full">
+                            <ArrowLeft className="mr-2" />
+                            Back
+                        </Button>
+                    </div>
                     <Card className="shadow-lg">
                         <CardHeader className="flex flex-col sm:flex-row items-center gap-6 text-center sm:text-left">
                            <div className="relative group">
@@ -462,3 +468,5 @@ export default function ProfilePage() {
 
     
 }
+
+    
