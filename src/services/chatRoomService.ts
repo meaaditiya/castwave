@@ -20,6 +20,7 @@ export interface ChatRoom {
     description: string;
     host: string;
     hostId: string;
+    hostPhotoURL?: string;
     isLive: boolean;
     createdAt: any;
     isPrivate: boolean;
@@ -36,6 +37,7 @@ export interface ChatRoomInput {
     description: string;
     host: string;
     hostId: string;
+    hostPhotoURL?: string;
     isLive: boolean;
     isPrivate: boolean;
     scheduledAt?: Date;
@@ -57,11 +59,14 @@ export const createChatRoom = async (input: ChatRoomInput): Promise<{ chatRoomId
     try {
         await runTransaction(db, async (transaction) => {
             
+            const userProfile = await getUserProfile(input.hostId);
+
             transaction.set(newChatRoomRef, {
                 title: input.title,
                 description: input.description,
                 host: input.host,
                 hostId: input.hostId,
+                hostPhotoURL: userProfile?.photoURL || '',
                 isLive: input.isLive,
                 isPrivate: input.isPrivate,
                 createdAt: serverTimestamp(),
@@ -69,8 +74,6 @@ export const createChatRoom = async (input: ChatRoomInput): Promise<{ chatRoomId
                 imageUrl: '',
                 imageHint: ''
             });
-
-            const userProfile = await getUserProfile(input.hostId);
             
             const participantRef = doc(db, 'chatRooms', newChatRoomRef.id, 'participants', input.hostId);
             transaction.set(participantRef, {

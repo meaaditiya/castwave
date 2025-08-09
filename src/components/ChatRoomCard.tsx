@@ -10,6 +10,7 @@ import { Trash2, Calendar, Play, Loader2 } from 'lucide-react';
 import { ChatRoom } from '@/services/chatRoomService';
 import { format } from 'date-fns';
 import { useState } from 'react';
+import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 
 interface ChatRoomCardProps extends ChatRoom {
     isOwner: boolean;
@@ -17,7 +18,7 @@ interface ChatRoomCardProps extends ChatRoom {
     onStartSession: () => void;
 }
 
-export function ChatRoomCard({ id, title, host, imageUrl, isLive, imageHint, isOwner, onDelete, onStartSession, scheduledAt }: ChatRoomCardProps) {
+export function ChatRoomCard({ id, title, host, imageUrl, isLive, imageHint, isOwner, onDelete, onStartSession, scheduledAt, hostPhotoURL }: ChatRoomCardProps) {
   const [isJoining, setIsJoining] = useState(false);
   
   const handleDeleteClick = (e: React.MouseEvent) => {
@@ -35,6 +36,15 @@ export function ChatRoomCard({ id, title, host, imageUrl, isLive, imageHint, isO
   const handleJoinClick = () => {
     setIsJoining(true);
   };
+
+  const getInitials = (name: string) => {
+    if (!name) return "..";
+    const nameParts = name.split(' ');
+    if (nameParts.length > 1) {
+        return (nameParts[0][0] + nameParts[1][0]).toUpperCase();
+    }
+    return name.substring(0, 2).toUpperCase();
+  }
 
   const scheduledTime = scheduledAt?.toDate();
   const isScheduled = scheduledTime && new Date() < scheduledTime;
@@ -89,7 +99,13 @@ export function ChatRoomCard({ id, title, host, imageUrl, isLive, imageHint, isO
             </CardHeader>
             <CardContent className="p-4 flex-1 flex flex-col bg-card">
                 <CardTitle className="text-lg font-semibold tracking-tight truncate group-hover:text-primary text-card-foreground transition-colors duration-200">{title}</CardTitle>
-                <p className="text-muted-foreground text-sm mt-1 flex-1">By {host}</p>
+                <div className="flex items-center gap-2 mt-1 flex-1">
+                    <Avatar className="h-6 w-6">
+                      <AvatarImage src={hostPhotoURL} alt={host} />
+                      <AvatarFallback>{getInitials(host)}</AvatarFallback>
+                    </Avatar>
+                    <p className="text-muted-foreground text-sm">By {host}</p>
+                </div>
             </CardContent>
         </Link>
         <CardFooter className="p-2 border-t mt-auto bg-muted/50">

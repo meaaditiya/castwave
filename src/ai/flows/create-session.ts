@@ -61,6 +61,7 @@ const createSessionFlow = ai.defineFlow(
         ...chatRoomData,
         host: hostName,
         hostId: hostId,
+        hostPhotoURL: hostPhotoUrl,
         createdAt: serverTimestamp(),
         imageUrl: '', 
         imageHint: '' 
