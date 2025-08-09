@@ -65,7 +65,7 @@ export function ChatRoomCard({ id, title, host, imageUrl, isLive, imageHint, isO
 
   return (
     <Card className="relative hover:border-primary/50 hover:shadow-lg transition-all duration-300 overflow-hidden h-full flex flex-col group shadow-md border-border bg-card">
-       <Link href={`/chatroom/${id}`} className="flex flex-col h-full" onClick={handleJoinClick}>
+       <Link href={`/chatroom/${id}`} className="flex flex-col h-full flex-1" onClick={handleJoinClick}>
             <CardHeader className="p-0 relative">
                 <div className="w-full h-48 flex items-center justify-center bg-gradient-to-br from-primary/20 via-primary/10 to-background relative overflow-hidden group-hover:from-primary/30 transition-all duration-300">
                     <div className="absolute inset-0 bg-card/20"></div>
@@ -108,8 +108,8 @@ export function ChatRoomCard({ id, title, host, imageUrl, isLive, imageHint, isO
                 </div>
             </CardContent>
         </Link>
-        <CardFooter className="p-2 border-t mt-auto bg-muted/50">
-            <div className="flex items-center justify-between w-full">
+        <CardFooter className="p-2 border-t bg-muted/50 flex items-center min-h-[52px]">
+            <div className="flex items-center w-full">
                 <div className="flex-1">
                     {isOwner && isReadyToStart && (
                         <Button onClick={handleStartClick} size="sm" className="w-full bg-green-600 hover:bg-green-700 text-white border-none shadow-sm">
@@ -118,10 +118,12 @@ export function ChatRoomCard({ id, title, host, imageUrl, isLive, imageHint, isO
                     )}
                 </div>
                 {isOwner && (
-                    <Button variant="ghost" size="icon" onClick={handleDeleteClick} className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 ml-auto transition-colors duration-200">
-                        <Trash2 className="h-4 w-4"/>
-                        <span className="sr-only">Delete Chat Room</span>
-                    </Button>
+                    <div className="flex-shrink-0 ml-auto">
+                        <Button variant="ghost" size="icon" onClick={handleDeleteClick} className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors duration-200">
+                            <Trash2 className="h-4 w-4"/>
+                            <span className="sr-only">Delete Chat Room</span>
+                        </Button>
+                    </div>
                 )}
             </div>
         </CardFooter>
