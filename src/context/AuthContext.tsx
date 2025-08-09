@@ -2,7 +2,7 @@
 "use client";
 
 import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
-import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, User as FirebaseAuthUser, EmailAuthProvider, reauthenticateWithCredential, updatePassword, sendEmailVerification, sendPasswordResetEmail } from 'firebase/auth';
+import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, User as FirebaseAuthUser, EmailAuthProvider, reauthenticateWithCredential, updatePassword, sendEmailVerification, sendPasswordResetEmail, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
 import { auth, db } from '@/lib/firebase';
 import { doc, getDoc, setDoc, onSnapshot } from 'firebase/firestore';
 
@@ -24,6 +24,7 @@ interface AuthContextType {
   loading: boolean;
   signup: typeof createUserWithEmailAndPassword;
   login: typeof signInWithEmailAndPassword;
+  signInWithGoogle: () => Promise<void>;
   logout: () => Promise<void>;
   reauthenticate: (password: string) => Promise<void>;
   updateUserPassword: (password: string) => Promise<void>;
@@ -142,11 +143,39 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await signOut(auth);
   }
 
+  const signInWithGoogle = async () => {
+    const provider = new GoogleAuthProvider();
+    try {
+      const userCredential = await signInWithPopup(auth, provider);
+      const user = userCredential.user;
+
+      // Check if user profile already exists
+      const userDocRef = doc(db, 'users', user.uid);
+      const docSnap = await getDoc(userDocRef);
+
+      if (!docSnap.exists()) {
+        // Create a new profile for the new Google user
+        await setDoc(userDocRef, {
+          uid: user.uid,
+          username: user.displayName || user.email?.split('@')[0] || 'User',
+          email: user.email,
+          emailVerified: user.emailVerified,
+          photoURL: user.photoURL || '',
+          avatarGenerationCount: 0,
+        });
+      }
+    } catch (error) {
+      console.error("Google Sign-In Error:", error);
+      throw error;
+    }
+  }
+
   const value = {
     currentUser,
     loading,
     signup: (email, password) => createUserWithEmailAndPassword(auth, email, password),
     login: (email, password) => signInWithEmailAndPassword(auth, email, password),
+    signInWithGoogle,
     logout: logoutHandler,
     reauthenticate,
     updateUserPassword,
