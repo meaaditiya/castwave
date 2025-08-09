@@ -8,7 +8,6 @@ export interface UserProfileData {
     email: string;
     emailVerified: boolean;
     photoURL?: string;
-    avatarGenerationCount?: number;
 }
 
 export const getUserProfile = async (userId: string): Promise<UserProfileData | null> => {
@@ -24,7 +23,6 @@ export const getUserProfile = async (userId: string): Promise<UserProfileData | 
                 email: data.email,
                 emailVerified: data.emailVerified,
                 photoURL: data.photoURL,
-                avatarGenerationCount: data.avatarGenerationCount,
             };
         } else {
             return null;
