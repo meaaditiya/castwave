@@ -33,6 +33,14 @@ export function ThemeToggle() {
           <Moon className="mr-2 h-4 w-4" />
           Dark
         </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => setTheme("slate")}>
+          <Palette className="mr-2 h-4 w-4" />
+          Slate
+        </DropdownMenuItem>
+         <DropdownMenuItem onClick={() => setTheme("stone")}>
+          <Palette className="mr-2 h-4 w-4" />
+          Stone
+        </DropdownMenuItem>
         <DropdownMenuItem onClick={() => setTheme("rose")}>
           <Palette className="mr-2 h-4 w-4" />
           Rose
@@ -44,6 +52,18 @@ export function ThemeToggle() {
         <DropdownMenuItem onClick={() => setTheme("orange")}>
           <Palette className="mr-2 h-4 w-4" />
           Orange
+        </DropdownMenuItem>
+         <DropdownMenuItem onClick={() => setTheme("blue")}>
+          <Palette className="mr-2 h-4 w-4" />
+          Blue
+        </DropdownMenuItem>
+         <DropdownMenuItem onClick={() => setTheme("yellow")}>
+          <Palette className="mr-2 h-4 w-4" />
+          Yellow
+        </DropdownMenuItem>
+         <DropdownMenuItem onClick={() => setTheme("violet")}>
+          <Palette className="mr-2 h-4 w-4" />
+          Violet
         </DropdownMenuItem>
         <DropdownMenuItem onClick={() => setTheme("system")}>
           <Monitor className="mr-2 h-4 w-4" />
