@@ -24,7 +24,7 @@ function ChatRoomPageSkeleton() {
     return (
         <div className="min-h-screen flex flex-col">
             <Header />
-            <main className="flex-1 container py-4 md:py-8 grid lg:grid-cols-3 gap-4 md:gap-8">
+            <main className="flex-1 container py-4 md:py-8 grid lg:grid-cols-3 gap-4 md:gap-8 px-4 md:px-8">
                 <div className="lg:col-span-2 space-y-4">
                      <Card>
                         <CardHeader className="flex flex-row items-center gap-4 p-4 md:p-6">
@@ -63,7 +63,7 @@ function AwaitingApprovalScreen() {
     return (
         <div className="min-h-screen flex flex-col">
             <Header />
-            <main className="flex-1 container py-8 flex items-center justify-center">
+            <main className="flex-1 container py-8 flex items-center justify-center px-4 md:px-8">
                 <Card className="w-full max-w-md text-center p-8">
                     <CardHeader>
                         <ShieldQuestion className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
@@ -85,7 +85,7 @@ function AccessDeniedScreen({ onReRequest }: { onReRequest: () => void }) {
     return (
         <div className="min-h-screen flex flex-col">
             <Header />
-            <main className="flex-1 container py-8 flex items-center justify-center">
+            <main className="flex-1 container py-8 flex items-center justify-center px-4 md:px-8">
                 <Card className="w-full max-w-md text-center p-8">
                     <CardHeader>
                         <UserX className="h-16 w-16 text-destructive mx-auto mb-4" />
@@ -108,7 +108,7 @@ function RemovedScreen({ onReRequest }: { onReRequest: () => void }) {
      return (
         <div className="min-h-screen flex flex-col">
             <Header />
-            <main className="flex-1 container py-8 flex items-center justify-center">
+            <main className="flex-1 container py-8 flex items-center justify-center px-4 md:px-8">
                 <Card className="w-full max-w-md text-center p-8">
                     <CardHeader>
                         <UserX className="h-16 w-16 text-destructive mx-auto mb-4" />
@@ -250,7 +250,7 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
       return (
           <div className="min-h-screen flex flex-col">
               <Header />
-              <main className="flex-1 container py-8 flex items-center justify-center">
+              <main className="flex-1 container py-8 flex items-center justify-center px-4 md:px-8">
                   <Card className="w-full max-w-md text-center p-8">
                       <CardHeader>
                           <MicOff className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
@@ -286,7 +286,7 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
-      <main className="flex-1 container py-4 md:py-8 grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-8">
+      <main className="flex-1 container py-4 md:py-8 grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-8 px-4 md:px-8">
         <div className="lg:col-span-2 space-y-4">
           <LiveScreen {...chatRoomDetails} />
         </div>

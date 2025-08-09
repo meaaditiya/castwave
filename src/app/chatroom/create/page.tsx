@@ -117,7 +117,7 @@ export default function CreateChatRoomPage() {
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
-      <main className="flex-1 container py-8 flex flex-col items-center bg-muted/40">
+      <main className="flex-1 container py-8 flex flex-col items-center bg-muted/40 px-4 md:px-8">
         <div className="w-full max-w-2xl mb-4">
              <Button variant="outline" size="sm" onClick={() => router.back()} className="rounded-full">
                 <ArrowLeft className="mr-2" />

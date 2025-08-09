@@ -43,7 +43,7 @@ export function Header() {
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="container flex h-14 max-w-screen-2xl items-center">
+      <div className="container flex h-14 max-w-screen-2xl items-center px-4 md:px-8">
         <Link href="/" className="flex items-center space-x-2 mr-auto">
           <Waves className="h-6 w-6 text-primary" />
           <span className="font-bold text-lg">CastWave</span>
@@ -54,13 +54,13 @@ export function Header() {
               <Loader2 className="animate-spin" />
             ) : currentUser ? (
               <>
-                <Button variant="ghost" onClick={handleCreateSessionClick} disabled={isCreatingSession} className="flex">
+                <Button variant="ghost" onClick={handleCreateSessionClick} disabled={isCreatingSession} className="flex px-2 sm:px-3">
                     {isCreatingSession ? (
-                        <Loader2 className="mr-0 sm:mr-2 h-4 w-4 animate-spin" />
+                        <Loader2 className="h-4 w-4 animate-spin" />
                     ) : (
-                        <PlusCircle className="mr-0 sm:mr-2 h-4 w-4" />
+                        <PlusCircle className="h-4 w-4" />
                     )}
-                    <span className="hidden sm:inline">Create Session</span>
+                    <span className="hidden sm:inline ml-2">Create Session</span>
                 </Button>
                  <DropdownMenu>
                     <DropdownMenuTrigger asChild>
