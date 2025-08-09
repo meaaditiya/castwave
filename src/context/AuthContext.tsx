@@ -46,6 +46,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [currentUser, setCurrentUser] = useState<AppUser | null>(null);
   const [loading, setLoading] = useState(true);
   const verificationTimer = useRef<NodeJS.Timeout | null>(null);
+  // This ref helps prevent running the redirect check multiple times
+  const isProcessingRedirect = useRef(false);
 
   const stopVerificationCheck = () => {
     if (verificationTimer.current) {
@@ -68,8 +70,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
-    // This ref helps prevent running the redirect check multiple times
-    const isProcessingRedirect = useRef(false);
     let profileUnsubscribe: (() => void) | undefined;
 
     const handleUser = (user: FirebaseAuthUser | null) => {
