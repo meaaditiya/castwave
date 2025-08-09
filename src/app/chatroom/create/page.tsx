@@ -15,7 +15,7 @@ import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, For
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Mic, Calendar as CalendarIcon, Clock, Lock } from 'lucide-react';
+import { Loader2, Mic, Calendar as CalendarIcon, Clock, Lock, ArrowLeft } from 'lucide-react';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
@@ -117,11 +117,15 @@ export default function CreateChatRoomPage() {
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
-      <main className="flex-1 container py-8 flex items-center justify-center bg-muted/40">
+      <main className="flex-1 container py-8 flex flex-col items-center justify-center bg-muted/40">
         <Card className="w-full max-w-2xl shadow-xl">
-          <CardHeader>
-            <CardTitle className="text-2xl font-bold tracking-tight">Create a New Session</CardTitle>
-            <CardDescription>Fill out the details below to start your new podcast session.</CardDescription>
+           <CardHeader className="relative">
+            <Button variant="ghost" size="icon" className="absolute top-3 left-3" onClick={() => router.back()}>
+                <ArrowLeft />
+                <span className="sr-only">Back</span>
+            </Button>
+            <CardTitle className="text-2xl font-bold tracking-tight text-center">Create a New Session</CardTitle>
+            <CardDescription className="text-center">Fill out the details below to start your new podcast session.</CardDescription>
           </CardHeader>
           <CardContent>
             <Form {...form}>

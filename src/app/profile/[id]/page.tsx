@@ -8,10 +8,11 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/context/AuthContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { CheckCircle, XCircle, Mic } from 'lucide-react';
+import { CheckCircle, XCircle, Mic, ArrowLeft } from 'lucide-react';
 import { notFound, useRouter } from 'next/navigation';
 import { getChatRooms, ChatRoom } from '@/services/chatRoomService';
 import { ChatRoomCard } from '@/components/ChatRoomCard';
+import { Button } from '@/components/ui/button';
 
 function PublicProfileSkeleton() {
     return (
@@ -137,25 +138,32 @@ export default function PublicProfilePage({ params }: { params: { id: string } }
             <Header />
             <main className="flex-1 bg-muted/40">
                 <div className="container max-w-4xl py-12">
-                     <Card className="mb-8 shadow-md">
-                        <CardHeader className="flex flex-col sm:flex-row items-center gap-6 text-center sm:text-left">
-                            <Avatar className="h-24 w-24 text-3xl border-2 border-primary">
-                                <AvatarImage src={userProfile.photoURL} alt={userProfile.username} />
-                                <AvatarFallback>{getInitials(userProfile.username)}</AvatarFallback>
-                            </Avatar>
-                            <div className="flex-1">
-                                <div className="flex items-center justify-center sm:justify-start gap-2">
-                                    <CardTitle className="text-2xl">{userProfile.username}</CardTitle>
-                                    {userProfile.emailVerified ? (
-                                        <CheckCircle className="h-6 w-6 text-green-500" />
-                                    ) : (
-                                        <XCircle className="h-6 w-6 text-red-500" />
-                                    )}
+                     <div className="relative mb-8">
+                         <Button variant="outline" size="sm" className="absolute -top-6 left-0 flex items-center gap-2" onClick={() => router.back()}>
+                             <ArrowLeft />
+                             Back
+                         </Button>
+                         <Card className="shadow-md">
+                            <CardHeader className="flex flex-col sm:flex-row items-center gap-6 text-center sm:text-left">
+                                <Avatar className="h-24 w-24 text-3xl border-2 border-primary">
+                                    <AvatarImage src={userProfile.photoURL} alt={userProfile.username} />
+                                    <AvatarFallback>{getInitials(userProfile.username)}</AvatarFallback>
+                                </Avatar>
+                                <div className="flex-1">
+                                    <div className="flex items-center justify-center sm:justify-start gap-2">
+                                        <CardTitle className="text-2xl">{userProfile.username}</CardTitle>
+                                        {userProfile.emailVerified ? (
+                                            <CheckCircle className="h-6 w-6 text-green-500" />
+                                        ) : (
+                                            <XCircle className="h-6 w-6 text-red-500" />
+                                        )}
+                                    </div>
+                                    <CardDescription>{userProfile.email}</CardDescription>
                                 </div>
-                                <CardDescription>{userProfile.email}</CardDescription>
-                            </div>
-                        </CardHeader>
-                    </Card>
+                            </CardHeader>
+                        </Card>
+                     </div>
+
 
                     <h2 className="text-2xl font-bold tracking-tight mb-6">Public Sessions</h2>
                     

@@ -291,7 +291,7 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
           <LiveScreen {...chatRoomDetails} />
         </div>
         <div className="lg:col-span-1 flex flex-col gap-4">
-          <Card className="flex flex-col h-[80vh] max-h-[80vh]">
+           <Card className="flex flex-col h-[calc(100vh-12rem)] md:h-[calc(100vh-10rem)] lg:h-auto lg:max-h-[calc(100vh-7rem)]">
               <CardHeader>
                   <CardTitle className="flex items-center gap-2"><MessageSquare className="h-5 w-5"/> Live Chat</CardTitle>
               </CardHeader>
