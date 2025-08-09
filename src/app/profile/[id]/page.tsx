@@ -138,34 +138,34 @@ export default function PublicProfilePage({ params }: { params: { id: string } }
             <Header />
             <main className="flex-1 bg-muted/40">
                 <div className="container max-w-4xl py-12">
-                     <div className="relative mb-8">
-                         <Button variant="outline" size="sm" className="absolute -top-6 left-0 flex items-center gap-2" onClick={() => router.back()}>
-                             <ArrowLeft />
-                             Back
+                     <div className="mb-8">
+                         <Button variant="outline" size="sm" onClick={() => router.back()} className="rounded-full">
+                            <ArrowLeft className="mr-2" />
+                            Back
                          </Button>
-                         <Card className="shadow-md">
-                            <CardHeader className="flex flex-col sm:flex-row items-center gap-6 text-center sm:text-left">
-                                <Avatar className="h-24 w-24 text-3xl border-2 border-primary">
-                                    <AvatarImage src={userProfile.photoURL} alt={userProfile.username} />
-                                    <AvatarFallback>{getInitials(userProfile.username)}</AvatarFallback>
-                                </Avatar>
-                                <div className="flex-1">
-                                    <div className="flex items-center justify-center sm:justify-start gap-2">
-                                        <CardTitle className="text-2xl">{userProfile.username}</CardTitle>
-                                        {userProfile.emailVerified ? (
-                                            <CheckCircle className="h-6 w-6 text-green-500" />
-                                        ) : (
-                                            <XCircle className="h-6 w-6 text-red-500" />
-                                        )}
-                                    </div>
-                                    <CardDescription>{userProfile.email}</CardDescription>
-                                </div>
-                            </CardHeader>
-                        </Card>
                      </div>
+                     <Card className="shadow-md">
+                        <CardHeader className="flex flex-col sm:flex-row items-center gap-6 text-center sm:text-left">
+                            <Avatar className="h-24 w-24 text-3xl border-2 border-primary">
+                                <AvatarImage src={userProfile.photoURL} alt={userProfile.username} />
+                                <AvatarFallback>{getInitials(userProfile.username)}</AvatarFallback>
+                            </Avatar>
+                            <div className="flex-1">
+                                <div className="flex items-center justify-center sm:justify-start gap-2">
+                                    <CardTitle className="text-2xl">{userProfile.username}</CardTitle>
+                                    {userProfile.emailVerified ? (
+                                        <CheckCircle className="h-6 w-6 text-green-500" />
+                                    ) : (
+                                        <XCircle className="h-6 w-6 text-red-500" />
+                                    )}
+                                </div>
+                                <CardDescription>{userProfile.email}</CardDescription>
+                            </div>
+                        </CardHeader>
+                    </Card>
 
 
-                    <h2 className="text-2xl font-bold tracking-tight mb-6">Public Sessions</h2>
+                    <h2 className="text-2xl font-bold tracking-tight my-6">Public Sessions</h2>
                     
                     {userSessions.length > 0 ? (
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">

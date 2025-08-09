@@ -117,13 +117,15 @@ export default function CreateChatRoomPage() {
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
-      <main className="flex-1 container py-8 flex flex-col items-center justify-center bg-muted/40">
-        <Card className="w-full max-w-2xl shadow-xl">
-           <CardHeader className="relative">
-            <Button variant="ghost" size="icon" className="absolute top-3 left-3" onClick={() => router.back()}>
-                <ArrowLeft />
-                <span className="sr-only">Back</span>
+      <main className="flex-1 container py-8 flex flex-col items-center bg-muted/40">
+        <div className="w-full max-w-2xl mb-4">
+             <Button variant="outline" size="sm" onClick={() => router.back()} className="rounded-full">
+                <ArrowLeft className="mr-2" />
+                Back
             </Button>
+        </div>
+        <Card className="w-full max-w-2xl shadow-xl">
+           <CardHeader>
             <CardTitle className="text-2xl font-bold tracking-tight text-center">Create a New Session</CardTitle>
             <CardDescription className="text-center">Fill out the details below to start your new podcast session.</CardDescription>
           </CardHeader>

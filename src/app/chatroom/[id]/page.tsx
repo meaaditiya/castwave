@@ -9,7 +9,7 @@ import { ParticipantsList } from '@/components/ParticipantsList';
 import type { Message } from '@/services/chatRoomService';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from '@/components/ui/skeleton';
-import { MicOff, Sparkles, Users, MessageSquare, ShieldQuestion, UserX } from 'lucide-react';
+import { MicOff, Sparkles, Users, MessageSquare, ShieldQuestion, UserX, ArrowLeft } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
 import { getChatRoomStream, ChatRoom, getMessages, Participant, getParticipants, getParticipantStream, requestToJoinChat } from '@/services/chatRoomService';
@@ -288,6 +288,12 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
       <Header />
       <main className="flex-1 container py-4 md:py-8 grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-8">
         <div className="lg:col-span-2 space-y-4">
+          <div className="mb-4">
+              <Button variant="outline" size="sm" onClick={() => router.back()} className="rounded-full">
+                  <ArrowLeft className="mr-2" />
+                  Back to Sessions
+              </Button>
+          </div>
           <LiveScreen {...chatRoomDetails} />
         </div>
         <div className="lg:col-span-1 flex flex-col gap-4">
