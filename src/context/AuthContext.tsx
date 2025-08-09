@@ -4,7 +4,7 @@
 import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
 import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, User as FirebaseAuthUser, EmailAuthProvider, reauthenticateWithCredential, updatePassword, sendEmailVerification, sendPasswordResetEmail, GoogleAuthProvider, signInWithRedirect, getRedirectResult, UserCredential } from 'firebase/auth';
 import { auth, db } from '@/lib/firebase';
-import { doc, getDoc, setDoc, onSnapshot, writeBatch } from 'firebase/firestore';
+import { doc, getDoc, setDoc, onSnapshot, writeBatch, updateDoc } from 'firebase/firestore';
 
 export interface UserProfile {
     uid: string;
@@ -67,56 +67,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  const handleUserWithProfile = (user: FirebaseAuthUser) => {
-    stopVerificationCheck();
-    const userProfileDocRef = doc(db, 'users', user.uid);
-
-    const unsubscribe = onSnapshot(userProfileDocRef, (docSnap) => {
-      const profileData = docSnap.exists() ? docSnap.data() as UserProfile : null;
-      
-      const freshUser = auth.currentUser;
-      if (freshUser) {
-        const appUser: AppUser = {
-          ...freshUser,
-          profile: profileData || undefined
-        };
-        
-        // Sync email verification status from auth to firestore
-        if (profileData && profileData.emailVerified !== freshUser.emailVerified) {
-            updateDoc(userProfileDocRef, { emailVerified: freshUser.emailVerified });
-        }
-        
-        setCurrentUser(appUser);
-        
-        if (!freshUser.emailVerified) {
-          startVerificationCheck(freshUser);
-        }
-      }
-      setLoading(false);
-    }, (error) => {
-        console.error("Error with profile snapshot:", error);
-        setCurrentUser(null);
-        setLoading(false);
-    });
-    return unsubscribe;
-  };
-
   useEffect(() => {
     let profileUnsubscribe: (() => void) | undefined;
   
-    // Define the function to create user profile after Google sign-in
-    const handleGoogleRedirectResult = async () => {
+    const handleRedirect = async () => {
       try {
         const result = await getRedirectResult(auth);
-        if (result) {
-          // User signed in with Google redirect. Create profile if it doesn't exist.
+        if (result && result.user) {
           const user = result.user;
           const userDocRef = doc(db, 'users', user.uid);
           const docSnap = await getDoc(userDocRef);
-  
+          
           if (!docSnap.exists()) {
-            const batch = writeBatch(db);
-            batch.set(userDocRef, {
+            await setDoc(userDocRef, {
               uid: user.uid,
               username: user.displayName || user.email?.split('@')[0] || 'User',
               email: user.email,
@@ -124,39 +87,67 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               photoURL: user.photoURL || '',
               avatarGenerationCount: 0,
             });
-            await batch.commit();
           }
         }
       } catch (error) {
         console.error("Error processing redirect result:", error);
       }
-      // After processing the redirect, set up the normal auth state listener.
-      // This ensures we have the profile before the listener might run.
+    };
+  
+    handleRedirect().finally(() => {
       const authUnsubscribe = onAuthStateChanged(auth, (user) => {
-        if (profileUnsubscribe) profileUnsubscribe();
+        if (profileUnsubscribe) {
+          profileUnsubscribe();
+        }
   
         if (user) {
-          profileUnsubscribe = handleUserWithProfile(user);
+          const userProfileDocRef = doc(db, 'users', user.uid);
+          profileUnsubscribe = onSnapshot(userProfileDocRef, (docSnap) => {
+            const profileData = docSnap.exists() ? docSnap.data() as UserProfile : null;
+            const freshUser = auth.currentUser;
+            
+            if (freshUser) {
+              const appUser: AppUser = { ...freshUser, profile: profileData || undefined };
+              
+              if (profileData && profileData.emailVerified !== freshUser.emailVerified) {
+                updateDoc(userProfileDocRef, { emailVerified: freshUser.emailVerified });
+              }
+              
+              setCurrentUser(appUser);
+              
+              if (!freshUser.emailVerified) {
+                startVerificationCheck(freshUser);
+              }
+            }
+            setLoading(false);
+          }, (error) => {
+            console.error("Error with profile snapshot:", error);
+            setCurrentUser(null);
+            setLoading(false);
+          });
         } else {
           setCurrentUser(null);
           setLoading(false);
+          stopVerificationCheck();
         }
       });
   
+      // This is the cleanup function for onAuthStateChanged
       return () => {
         authUnsubscribe();
-        if (profileUnsubscribe) profileUnsubscribe();
+        if (profileUnsubscribe) {
+          profileUnsubscribe();
+        }
         stopVerificationCheck();
       };
-    };
+    });
   
-    const unsubscribePromise = handleGoogleRedirectResult();
-  
-    // Cleanup function for the useEffect hook
+    // This is the cleanup for the useEffect hook itself
     return () => {
-      unsubscribePromise.then(cleanup => {
-        if (cleanup) cleanup();
-      });
+      if (profileUnsubscribe) {
+        profileUnsubscribe();
+      }
+      stopVerificationCheck();
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
