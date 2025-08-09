@@ -1,3 +1,4 @@
+
 import type {Metadata} from 'next';
 import { Inter } from 'next/font/google';
 import './globals.css';
@@ -8,8 +9,8 @@ import { ThemeProvider } from '@/context/ThemeContext';
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 
 export const metadata: Metadata = {
-  title: 'CastWave - Live Audio Chat Rooms',
-  description: 'A platform for real-time live audio conversations and podcasting.',
+  title: 'CastWave - Live Chat Rooms',
+  description: 'A platform for real-time live conversations and community engagement.',
   icons: {
     icon: '/favicon.ico', 
   },

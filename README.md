@@ -1,6 +1,7 @@
-# CastWave: Live Audio Chat Rooms
 
-CastWave is a modern, full-stack web application that allows users to create, manage, and participate in live audio chat rooms, referred to as "sessions." It's designed to be an interactive platform for live conversations, podcasts, and community engagement, complete with real-time features and host controls.
+# CastWave: Live Chat Rooms
+
+CastWave is a modern, full-stack web application that allows users to create, manage, and participate in live chat rooms, referred to as "sessions." It's designed to be an interactive platform for live conversations, discussions, and community engagement, complete with real-time features and host controls.
 
 ## Key Features
 
