@@ -193,7 +193,6 @@ export default function ProfilePage() {
             const userDocRef = doc(db, 'users', currentUser.uid);
             await updateDoc(userDocRef, {
                  photoURL: result.dataUri,
-                 avatarGenerationCount: (currentUser.profile.avatarGenerationCount || 0) + 1
             });
             
             toast({
@@ -243,9 +242,6 @@ export default function ProfilePage() {
         return username.toUpperCase();
     }
 
-    const avatarGenerationsUsed = currentUser.profile?.avatarGenerationCount || 0;
-    const canGenerateAvatar = avatarGenerationsUsed < 2;
-    
     return (
         <div className="flex flex-col min-h-screen">
             <Header />
@@ -286,23 +282,12 @@ export default function ProfilePage() {
                                             <Trash2 /> Remove Avatar
                                         </Button>
                                     )}
-                                    <TooltipProvider>
-                                        <Tooltip>
-                                            <TooltipTrigger asChild>
-                                                <div className="flex-1" tabIndex={canGenerateAvatar ? -1 : 0}> 
-                                                    <Button onClick={handleGenerateAvatar} disabled={isGeneratingAvatar || !canGenerateAvatar} className="w-full">
-                                                        {isGeneratingAvatar ? <Loader2 className="animate-spin" /> : <Sparkles />}
-                                                        Generate New Avatar
-                                                    </Button>
-                                                </div>
-                                            </TooltipTrigger>
-                                            {!canGenerateAvatar && (
-                                                <TooltipContent>
-                                                    <p>You have used all of your free avatar generations.</p>
-                                                </TooltipContent>
-                                            )}
-                                        </Tooltip>
-                                    </TooltipProvider>
+                                    <div className="flex-1"> 
+                                        <Button onClick={handleGenerateAvatar} disabled={isGeneratingAvatar} className="w-full">
+                                            {isGeneratingAvatar ? <Loader2 className="animate-spin" /> : <Sparkles />}
+                                            Generate New Avatar
+                                        </Button>
+                                    </div>
                                 </div>
                             </div>
                             
@@ -468,5 +453,3 @@ export default function ProfilePage() {
 
     
 }
-
-    
