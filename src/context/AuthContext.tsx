@@ -5,6 +5,7 @@ import React, { createContext, useContext, useEffect, useState, useCallback, use
 import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, User as FirebaseAuthUser, EmailAuthProvider, reauthenticateWithCredential, updatePassword, sendEmailVerification, sendPasswordResetEmail, UserCredential } from 'firebase/auth';
 import { auth, db } from '@/lib/firebase';
 import { doc, getDoc, setDoc, onSnapshot, updateDoc } from 'firebase/firestore';
+import { useRouter } from 'next/navigation';
 
 export interface UserProfile {
     uid: string;
@@ -44,6 +45,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [currentUser, setCurrentUser] = useState<AppUser | null>(null);
   const [loading, setLoading] = useState(true);
   const verificationTimer = useRef<NodeJS.Timeout | null>(null);
+  const router = useRouter();
+
 
   const stopVerificationCheck = () => {
     if (verificationTimer.current) {
@@ -106,7 +109,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
 
     return () => unsubscribe();
-  }, [startVerificationCheck]);
+  }, [startVerificationCheck, router]);
 
   const reauthenticate = async (password: string) => {
     if (!auth.currentUser || !auth.currentUser.email) {
@@ -136,6 +139,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logoutHandler = async () => {
     await signOut(auth);
+    router.push('/login');
   }
   
   const signupWithEmail = async (email:string, password:string): Promise<UserCredential> => {

@@ -84,7 +84,7 @@ export default function ProfilePage() {
 
     useEffect(() => {
         if (!loading && !currentUser) {
-            router.push('/login');
+            router.replace('/login');
         }
          if (currentUser?.profile?.username) {
             setNewUsername(currentUser.profile.username);
@@ -94,7 +94,6 @@ export default function ProfilePage() {
     const handleLogout = async () => {
         try {
           await logout();
-          router.push('/login');
         } catch (error) {
           console.error("Failed to log out", error);
         }

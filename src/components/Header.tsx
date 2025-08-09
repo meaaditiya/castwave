@@ -20,7 +20,6 @@ export function Header() {
   const handleLogout = async () => {
     try {
       await logout();
-      router.push('/login');
     } catch (error) {
       console.error("Failed to log out", error);
     }
