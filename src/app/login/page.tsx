@@ -58,7 +58,7 @@ export default function LoginPage() {
   async function onLoginSubmit(values: z.infer<typeof loginFormSchema>) {
     setIsLoggingIn(true);
     try {
-      await login(auth, values.email, values.password);
+      await login(values.email, values.password);
       router.push('/');
     } catch (error: any) {
       toast({
