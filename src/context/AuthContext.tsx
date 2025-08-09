@@ -45,9 +45,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [currentUser, setCurrentUser] = useState<AppUser | null>(null);
   const [loading, setLoading] = useState(true);
   const verificationTimer = useRef<NodeJS.Timeout | null>(null);
-  const router = useRouter();
-
-
+  
   const stopVerificationCheck = () => {
     if (verificationTimer.current) {
       clearInterval(verificationTimer.current);
@@ -109,7 +107,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
 
     return () => unsubscribe();
-  }, [startVerificationCheck, router]);
+  }, [startVerificationCheck]);
 
   const reauthenticate = async (password: string) => {
     if (!auth.currentUser || !auth.currentUser.email) {
@@ -139,7 +137,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logoutHandler = async () => {
     await signOut(auth);
-    router.push('/login');
+    // Force a full page reload to the login page to clear all state.
+    window.location.href = '/login';
   }
   
   const signupWithEmail = async (email:string, password:string): Promise<UserCredential> => {
