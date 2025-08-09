@@ -2,6 +2,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 import { Header } from '@/components/Header';
 import { ChatRoomCard } from '@/components/ChatRoomCard';
 import { getChatRooms, ChatRoom, deleteChatRoomForHost } from '@/services/chatRoomService';
@@ -10,7 +11,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Input } from '@/components/ui/input';
-import { Search, Globe, Lock } from 'lucide-react';
+import { Search, Globe, Lock, Loader2 } from 'lucide-react';
 import { startChatRoom } from '@/services/chatRoomService';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
@@ -32,28 +33,35 @@ function HomePageSkeleton() {
 
 export default function Home() {
   const [allChatRooms, setAllChatRooms] = useState<ChatRoom[]>([]);
-  const [loading, setLoading] = useState(true);
-  const { currentUser } = useAuth();
+  const [loadingRooms, setLoadingRooms] = useState(true);
+  const { currentUser, loading: authLoading } = useAuth();
   const [chatRoomToDelete, setChatRoomToDelete] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState('');
   const [currentTab, setCurrentTab] = useState('public');
+  const router = useRouter();
 
   useEffect(() => {
-    setLoading(true);
+    if (authLoading) {
+      return; // Wait for authentication to resolve
+    }
+    if (!currentUser) {
+      router.push('/login');
+      return;
+    }
+
+    setLoadingRooms(true);
     const unsubscribe = getChatRooms(
       (newChatRooms) => {
         setAllChatRooms(newChatRooms);
-        setLoading(false);
+        setLoadingRooms(false);
       },
       (error) => {
         console.error("Failed to get chat rooms:", error);
-        if (error.code !== 'permission-denied') {
-           toast({ variant: 'destructive', title: 'Error', description: 'Could not load sessions. Check permissions or network.' });
-        }
+        toast({ variant: 'destructive', title: 'Error', description: 'Could not load sessions.' });
         setAllChatRooms([]);
-        setLoading(false);
+        setLoadingRooms(false);
       }
     );
     
@@ -62,7 +70,7 @@ export default function Home() {
             unsubscribe();
         }
     };
-  }, [currentUser, toast]);
+  }, [currentUser, authLoading, router, toast]);
 
 
   const filteredAndSortedRooms = useMemo(() => {
@@ -126,9 +134,17 @@ export default function Home() {
       });
     }
   };
+  
+  if (authLoading || !currentUser) {
+    return (
+        <div className="flex items-center justify-center h-screen bg-muted/40">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+    );
+  }
 
   const renderRoomList = (rooms: ChatRoom[]) => {
-    if (loading) return <HomePageSkeleton />;
+    if (loadingRooms) return <HomePageSkeleton />;
     if (rooms.length > 0) {
         return (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
