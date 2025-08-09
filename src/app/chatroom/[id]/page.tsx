@@ -288,12 +288,6 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
       <Header />
       <main className="flex-1 container py-4 md:py-8 grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-8">
         <div className="lg:col-span-2 space-y-4">
-          <div className="mb-4">
-              <Button variant="outline" size="sm" onClick={() => router.back()} className="rounded-full">
-                  <ArrowLeft className="mr-2" />
-                  Back to Sessions
-              </Button>
-          </div>
           <LiveScreen {...chatRoomDetails} />
         </div>
         <div className="lg:col-span-1 flex flex-col gap-4">

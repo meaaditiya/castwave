@@ -5,7 +5,7 @@ import Image from 'next/image';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Share2, MicOff, Loader2, Star, MessageSquare, Mic } from 'lucide-react';
+import { Share2, MicOff, Loader2, Star, MessageSquare, Mic, ArrowLeft } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { endChatRoom, Participant, startChatRoom } from '@/services/chatRoomService';
@@ -93,24 +93,30 @@ export function LiveScreen({ id: chatRoomId, title, host, hostId, isLive, imageH
 
   return (
     <Card className="overflow-hidden shadow-lg h-full flex flex-col">
-      <CardHeader className="flex flex-row items-center gap-4 p-4 md:p-6">
-        <Avatar className="h-16 w-16 border-2 border-primary">
-          <AvatarImage src={hostProfile?.photoURL} alt={host} />
-          <AvatarFallback>{getInitials(host)}</AvatarFallback>
-        </Avatar>
-        <div className="flex-1">
-          <CardTitle className="text-xl md:text-2xl font-headline">{title}</CardTitle>
-          <CardDescription>Hosted by {host}</CardDescription>
+       <CardHeader className="flex flex-row items-start justify-between gap-4 p-4 md:p-6">
+        <div className="flex flex-row items-center gap-4">
+            <Avatar className="h-16 w-16 border-2 border-primary">
+              <AvatarImage src={hostProfile?.photoURL} alt={host} />
+              <AvatarFallback>{getInitials(host)}</AvatarFallback>
+            </Avatar>
+            <div className="flex-1">
+              <CardTitle className="text-xl md:text-2xl font-headline">{title}</CardTitle>
+              <CardDescription>Hosted by {host}</CardDescription>
+            </div>
+            {isLive && (
+              <div className="items-center gap-2 text-primary font-semibold hidden sm:flex">
+                <span className="relative flex h-3 w-3">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-3 w-3 bg-primary"></span>
+                </span>
+                <span>LIVE</span>
+              </div>
+            )}
         </div>
-        {isLive && (
-          <div className="flex items-center gap-2 text-primary font-semibold">
-            <span className="relative flex h-3 w-3">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-3 w-3 bg-primary"></span>
-            </span>
-            <span className="hidden sm:block">LIVE</span>
-          </div>
-        )}
+         <Button variant="outline" size="sm" onClick={() => router.back()} className="rounded-full flex-shrink-0">
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Back
+        </Button>
       </CardHeader>
       <CardContent className="bg-card/50 p-4 md:p-6 flex flex-col justify-center space-y-4 border-t flex-1">
        {isLive ? (
