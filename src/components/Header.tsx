@@ -48,7 +48,7 @@ export function Header() {
           <Waves className="h-6 w-6 text-primary" />
           <span className="font-bold text-lg">CastWave</span>
         </Link>
-        <div className="flex items-center space-x-2">
+        <div className="flex items-center space-x-1 sm:space-x-2">
             <ThemeToggle />
             {loading ? (
               <Loader2 className="animate-spin" />
@@ -56,11 +56,11 @@ export function Header() {
               <>
                 <Button variant="ghost" onClick={handleCreateSessionClick} disabled={isCreatingSession} className="flex">
                     {isCreatingSession ? (
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        <Loader2 className="mr-0 sm:mr-2 h-4 w-4 animate-spin" />
                     ) : (
-                        <PlusCircle className="mr-2 h-4 w-4" />
+                        <PlusCircle className="mr-0 sm:mr-2 h-4 w-4" />
                     )}
-                    Create Session
+                    <span className="hidden sm:inline">Create Session</span>
                 </Button>
                  <DropdownMenu>
                     <DropdownMenuTrigger asChild>
@@ -83,6 +83,10 @@ export function Header() {
                         <DropdownMenuSeparator />
                         <DropdownMenuItem asChild>
                            <Link href="/profile"><User className="mr-2 h-4 w-4"/>Profile</Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={handleCreateSessionClick} className="sm:hidden">
+                            <PlusCircle className="mr-2 h-4 w-4" />
+                            Create Session
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={handleLogout}>
                             <LogOut className="mr-2 h-4 w-4" />
