@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -40,12 +40,20 @@ const GoogleIcon = (props: React.SVGProps<SVGSVGElement>) => (
 
 
 export default function SignupPage() {
-  const { signup, signInWithGoogle } = useAuth();
+  const { signup, signInWithGoogle, currentUser, loading } = useAuth();
   const router = useRouter();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [signupSuccess, setSignupSuccess] = useState(false);
+
+  useEffect(() => {
+    // If the user is logged in, redirect them to the home page.
+    if (!loading && currentUser) {
+      router.push('/');
+    }
+  }, [currentUser, loading, router]);
+
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -91,7 +99,6 @@ export default function SignupPage() {
         title: 'Sign Up Failed',
         description: errorMessage,
       });
-    } finally {
       setIsLoading(false);
     }
   }
@@ -100,7 +107,8 @@ export default function SignupPage() {
     setIsGoogleLoading(true);
     try {
         await signInWithGoogle();
-        // The redirect flow will handle navigation, so we don't need to push the router here.
+        // The page will redirect to Google and then back. 
+        // The redirect result will be handled by the AuthContext, and the useEffect will navigate.
     } catch (error: any) {
         toast({
             variant: 'destructive',
@@ -110,6 +118,15 @@ export default function SignupPage() {
         setIsGoogleLoading(false);
     }
   };
+
+  // If loading or we know we are logged in, show a spinner.
+  if (loading || currentUser) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    );
+  }
 
   if (signupSuccess) {
     return (
@@ -204,7 +221,7 @@ export default function SignupPage() {
                 )}
               />
               <Button type="submit" className="w-full" disabled={isLoading || isGoogleLoading}>
-                 {isLoading ? <Loader2 className="animate-spin" /> : <UserPlus />}
+                 {isLoading || isGoogleLoading ? <Loader2 className="animate-spin" /> : <UserPlus />}
                 Sign Up
               </Button>
             </form>

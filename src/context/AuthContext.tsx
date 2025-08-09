@@ -70,7 +70,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     let profileUnsubscribe: (() => void) | undefined;
   
-    const handleRedirect = async () => {
+    const processRedirectResult = async () => {
       try {
         const result = await getRedirectResult(auth);
         if (result && result.user) {
@@ -92,58 +92,58 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } catch (error) {
         console.error("Error processing redirect result:", error);
       }
+      // After processing, set loading to false to allow the main listener to take over.
+      // This is a key part of the fix to avoid race conditions.
+      setLoading(false);
     };
+
+    processRedirectResult();
   
-    handleRedirect().finally(() => {
-      const authUnsubscribe = onAuthStateChanged(auth, (user) => {
-        if (profileUnsubscribe) {
-          profileUnsubscribe();
-        }
-  
-        if (user) {
-          const userProfileDocRef = doc(db, 'users', user.uid);
-          profileUnsubscribe = onSnapshot(userProfileDocRef, (docSnap) => {
-            const profileData = docSnap.exists() ? docSnap.data() as UserProfile : null;
-            const freshUser = auth.currentUser;
+    const authUnsubscribe = onAuthStateChanged(auth, (user) => {
+      if (profileUnsubscribe) {
+        profileUnsubscribe();
+      }
+
+      if (user) {
+        const userProfileDocRef = doc(db, 'users', user.uid);
+        profileUnsubscribe = onSnapshot(userProfileDocRef, (docSnap) => {
+          const profileData = docSnap.exists() ? docSnap.data() as UserProfile : null;
+          const freshUser = auth.currentUser;
+          
+          if (freshUser) {
+            const appUser: AppUser = { ...freshUser, profile: profileData || undefined };
             
-            if (freshUser) {
-              const appUser: AppUser = { ...freshUser, profile: profileData || undefined };
-              
-              if (profileData && profileData.emailVerified !== freshUser.emailVerified) {
-                updateDoc(userProfileDocRef, { emailVerified: freshUser.emailVerified });
-              }
-              
-              setCurrentUser(appUser);
-              
-              if (!freshUser.emailVerified) {
-                startVerificationCheck(freshUser);
-              }
+            if (profileData && profileData.emailVerified !== freshUser.emailVerified) {
+              updateDoc(userProfileDocRef, { emailVerified: freshUser.emailVerified });
             }
-            setLoading(false);
-          }, (error) => {
-            console.error("Error with profile snapshot:", error);
-            setCurrentUser(null);
-            setLoading(false);
-          });
-        } else {
+            
+            setCurrentUser(appUser);
+            
+            if (!freshUser.emailVerified) {
+              startVerificationCheck(freshUser);
+            }
+          }
+          // The initial loading state is now handled by the redirect processor.
+          // Subsequent updates will also set loading to false.
+          setLoading(false);
+        }, (error) => {
+          console.error("Error with profile snapshot:", error);
           setCurrentUser(null);
           setLoading(false);
-          stopVerificationCheck();
-        }
-      });
-  
-      // This is the cleanup function for onAuthStateChanged
-      return () => {
-        authUnsubscribe();
-        if (profileUnsubscribe) {
-          profileUnsubscribe();
+        });
+      } else {
+        setCurrentUser(null);
+        // Only set loading to false if no user is found. If we are coming from a redirect,
+        // processRedirectResult will handle setting loading to false.
+        if (!auth.currentUser) {
+            setLoading(false);
         }
         stopVerificationCheck();
-      };
+      }
     });
-  
-    // This is the cleanup for the useEffect hook itself
+
     return () => {
+      authUnsubscribe();
       if (profileUnsubscribe) {
         profileUnsubscribe();
       }

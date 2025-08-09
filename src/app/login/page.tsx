@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -37,13 +37,21 @@ const GoogleIcon = (props: React.SVGProps<SVGSVGElement>) => (
 
 
 export default function LoginPage() {
-  const { login, signInWithGoogle, sendPasswordReset } = useAuth();
+  const { login, signInWithGoogle, sendPasswordReset, currentUser, loading } = useAuth();
   const router = useRouter();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
   const [isResetDialogOpen, setIsResetDialogOpen] = useState(false);
+
+  useEffect(() => {
+    // If the user is logged in, redirect them to the home page.
+    if (!loading && currentUser) {
+      router.push('/');
+    }
+  }, [currentUser, loading, router]);
+
 
   const loginForm = useForm<z.infer<typeof loginFormSchema>>({
     resolver: zodResolver(loginFormSchema),
@@ -64,14 +72,13 @@ export default function LoginPage() {
     setIsLoading(true);
     try {
       await login(values.email, values.password);
-      router.push('/');
+      // The useEffect will handle the redirect
     } catch (error: any) {
       toast({
         variant: 'destructive',
         title: 'Login Failed',
         description: error.message,
       });
-    } finally {
       setIsLoading(false);
     }
   }
@@ -100,8 +107,8 @@ export default function LoginPage() {
     setIsGoogleLoading(true);
     try {
         await signInWithGoogle();
-        // The redirect flow will handle navigation, so we don't need to push the router here.
-        // We just show a loading state until the page redirects.
+        // The page will redirect to Google and then back. 
+        // The redirect result will be handled by the AuthContext, and the useEffect will navigate.
     } catch (error: any) {
         toast({
             variant: 'destructive',
@@ -111,6 +118,15 @@ export default function LoginPage() {
         setIsGoogleLoading(false);
     }
   };
+
+  // If loading or we know we are logged in, show a spinner.
+  if (loading || currentUser) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-background p-4">
@@ -164,7 +180,7 @@ export default function LoginPage() {
                 )}
               />
               <Button type="submit" className="w-full" disabled={isLoading || isGoogleLoading}>
-                {isLoading ? <Loader2 className="animate-spin" /> : <LogInIcon />}
+                {isLoading || isGoogleLoading ? <Loader2 className="animate-spin" /> : <LogInIcon />}
                 Log In
               </Button>
             </form>
