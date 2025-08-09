@@ -14,10 +14,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { Waves, Loader2, UserPlus } from 'lucide-react';
-import { db } from '@/lib/firebase';
-import { doc, setDoc } from 'firebase/firestore';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { sendEmailVerification } from 'firebase/auth';
 import { Separator } from '@/components/ui/separator';
 
 const formSchema = z.object({
@@ -66,24 +63,8 @@ export default function SignupPage() {
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsSigningUp(true);
     try {
-      const userCredential = await signup(values.email, values.password);
-      const user = userCredential.user;
-
-      const defaultUsername = values.email.split('@')[0] || `user_${user.uid.substring(0,5)}`;
-      
-      await sendEmailVerification(user);
-
-      await setDoc(doc(db, 'users', user.uid), {
-        uid: user.uid,
-        username: defaultUsername,
-        email: values.email,
-        emailVerified: user.emailVerified,
-        photoURL: '',
-        avatarGenerationCount: 0,
-      });
-
+      await signup(values.email, values.password);
       setSignupSuccess(true);
-      
     } catch (error: any) {
         let errorMessage = "An unexpected error occurred.";
         if (error.code === 'auth/email-already-in-use') {
@@ -96,6 +77,7 @@ export default function SignupPage() {
         title: 'Sign Up Failed',
         description: errorMessage,
       });
+    } finally {
       setIsSigningUp(false);
     }
   }

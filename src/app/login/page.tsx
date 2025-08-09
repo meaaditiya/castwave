@@ -37,7 +37,7 @@ const GoogleIcon = (props: React.SVGProps<SVGSVGElement>) => (
 
 
 export default function LoginPage() {
-  const { login, signInWithGoogle, currentUser, loading } = useAuth();
+  const { login, signInWithGoogle, currentUser, loading, sendPasswordReset } = useAuth();
   const router = useRouter();
   const { toast } = useToast();
   const [isLoggingIn, setIsLoggingIn] = useState(false);
@@ -70,7 +70,7 @@ export default function LoginPage() {
   async function onLoginSubmit(values: z.infer<typeof loginFormSchema>) {
     setIsLoggingIn(true);
     try {
-      await login(values.email, values.password);
+      await login(auth, values.email, values.password);
       // The useEffect will handle the redirect
     } catch (error: any) {
       toast({
@@ -85,7 +85,7 @@ export default function LoginPage() {
   async function onPasswordResetSubmit(values: z.infer<typeof passwordResetFormSchema>) {
       setIsResetting(true);
       try {
-          // await sendPasswordReset(values.email);
+          await sendPasswordReset(values.email);
           toast({
               title: 'Password Reset Email Sent',
               description: 'Please check your inbox for a link to reset your password.',
