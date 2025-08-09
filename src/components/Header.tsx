@@ -54,7 +54,7 @@ export function Header() {
               <Loader2 className="animate-spin" />
             ) : currentUser ? (
               <>
-                <Button variant="ghost" onClick={handleCreateSessionClick} disabled={isCreatingSession} className="hidden sm:flex">
+                <Button variant="ghost" onClick={handleCreateSessionClick} disabled={isCreatingSession} className="hidden xs:flex sm:flex">
                     {isCreatingSession ? (
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     ) : (
@@ -81,13 +81,13 @@ export function Header() {
                            )}
                         </DropdownMenuLabel>
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem asChild className="sm:hidden">
+                        <DropdownMenuItem asChild className="xs:hidden">
                             <Link href="/chatroom/create"><PlusCircle className="mr-2 h-4 w-4" />Create Session</Link>
                         </DropdownMenuItem>
                         <DropdownMenuItem asChild>
                            <Link href="/profile"><User className="mr-2 h-4 w-4"/>Profile</Link>
                         </DropdownMenuItem>
-                         <DropdownMenuSeparator className="sm:hidden" />
+                         <DropdownMenuSeparator className="xs:hidden" />
                         <DropdownMenuItem onClick={handleLogout}>
                             <LogOut className="mr-2 h-4 w-4" />
                             Log out
