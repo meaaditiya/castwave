@@ -42,7 +42,7 @@ function ProfilePageSkeleton() {
         <div className="flex flex-col min-h-screen">
             <Header />
             <main className="flex-1 bg-muted/40">
-                <div className="container max-w-2xl py-12 px-4 md:px-8">
+                <div className="container max-w-2xl py-12 px-2 md:px-8">
                      <Card>
                         <CardHeader className="flex flex-row items-center gap-4">
                             <Skeleton className="h-20 w-20 rounded-full" />
@@ -250,7 +250,7 @@ export default function ProfilePage() {
         <div className="flex flex-col min-h-screen">
             <Header />
             <main className="flex-1 bg-muted/40">
-                <div className="container max-w-2xl py-12 px-4 md:px-8">
+                <div className="container max-w-2xl py-12 px-2 md:px-8">
                     <div className="w-full max-w-2xl mb-4">
                         <Button variant="outline" size="sm" onClick={() => router.back()} className="rounded-full">
                             <ArrowLeft className="mr-2" />

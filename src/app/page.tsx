@@ -154,7 +154,7 @@ export default function Home() {
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
-      <main className="flex-1 container py-8 px-4 md:px-8">
+      <main className="flex-1 container py-8 px-2 md:px-8">
         <div className="mb-8">
             <h1 className="text-4xl font-bold tracking-tighter mb-2">Explore Sessions</h1>
             <p className="text-muted-foreground text-lg">Join a live session, review a past broadcast, or see what's scheduled.</p>
