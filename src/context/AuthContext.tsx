@@ -46,6 +46,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [currentUser, setCurrentUser] = useState<AppUser | null>(null);
   const [loading, setLoading] = useState(true);
   const verificationTimer = useRef<NodeJS.Timeout | null>(null);
+  const isProcessingRedirect = useRef(false);
 
   const stopVerificationCheck = () => {
     if (verificationTimer.current) {
@@ -68,82 +69,75 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
    useEffect(() => {
-    // This ref helps prevent running the redirect check multiple times
-    const isProcessingRedirect = useRef(false);
+    if (isProcessingRedirect.current) return;
+    
+    isProcessingRedirect.current = true;
+    
+    getRedirectResult(auth)
+        .then(async (result) => {
+            if (result && result.user) {
+                const user = result.user;
+                const userDocRef = doc(db, 'users', user.uid);
+                const docSnap = await getDoc(userDocRef);
 
-    if (!isProcessingRedirect.current) {
-        isProcessingRedirect.current = true;
-        getRedirectResult(auth)
-            .then(async (result) => {
-                if (result && result.user) {
-                    // This is a user returning from a Google redirect.
-                    const user = result.user;
-                    const userDocRef = doc(db, 'users', user.uid);
-                    const docSnap = await getDoc(userDocRef);
-
-                    if (!docSnap.exists()) {
-                        // User is new, create their profile.
-                         await setDoc(userDocRef, {
-                            uid: user.uid,
-                            username: user.displayName || user.email?.split('@')[0] || `user_${user.uid.substring(0,5)}`,
-                            email: user.email,
-                            emailVerified: user.emailVerified,
-                            photoURL: user.photoURL || '',
-                            avatarGenerationCount: 0,
-                        });
-                    }
+                if (!docSnap.exists()) {
+                     await setDoc(userDocRef, {
+                        uid: user.uid,
+                        username: user.displayName || user.email?.split('@')[0] || `user_${user.uid.substring(0,5)}`,
+                        email: user.email,
+                        emailVerified: user.emailVerified,
+                        photoURL: user.photoURL || '',
+                        avatarGenerationCount: 0,
+                    });
                 }
-            })
-            .catch((error) => {
-                console.error("Error processing redirect result:", error);
-            })
-            .finally(() => {
-                // Now, set up the regular auth state listener, which will run
-                // for all users, whether they just redirected or have an existing session.
-                const unsubscribe = onAuthStateChanged(auth, (user) => {
-                    let profileUnsubscribe: (() => void) | undefined;
-                    
-                    if (user) {
-                        const userProfileDocRef = doc(db, 'users', user.uid);
-                        profileUnsubscribe = onSnapshot(userProfileDocRef, (docSnap) => {
-                            const profileData = docSnap.exists() ? docSnap.data() as UserProfile : null;
-                            const appUser: AppUser = { ...user, profile: profileData || undefined };
+            }
+        })
+        .catch((error) => {
+            console.error("Error processing redirect result:", error);
+        })
+        .finally(() => {
+            const unsubscribe = onAuthStateChanged(auth, (user) => {
+                let profileUnsubscribe: (() => void) | undefined;
+                
+                if (user) {
+                    const userProfileDocRef = doc(db, 'users', user.uid);
+                    profileUnsubscribe = onSnapshot(userProfileDocRef, (docSnap) => {
+                        const profileData = docSnap.exists() ? docSnap.data() as UserProfile : null;
+                        const appUser: AppUser = { ...user, profile: profileData || undefined };
 
-                            // Sync Firestore with latest auth state
-                            if (profileData && profileData.emailVerified !== user.emailVerified) {
-                                updateDoc(userProfileDocRef, { emailVerified: user.emailVerified });
-                            }
+                        if (profileData && profileData.emailVerified !== user.emailVerified) {
+                            updateDoc(userProfileDocRef, { emailVerified: user.emailVerified });
+                        }
 
-                            setCurrentUser(appUser);
-                            
-                            if (!user.emailVerified) {
-                                startVerificationCheck(user);
-                            }
-                            setLoading(false);
-                        }, (error) => {
-                            console.error("Error with profile snapshot:", error);
-                            setCurrentUser(user); // Set user without profile on error
-                            setLoading(false);
-                        });
-                    } else {
-                        if (profileUnsubscribe) profileUnsubscribe();
-                        setCurrentUser(null);
+                        setCurrentUser(appUser);
+                        
+                        if (!user.emailVerified) {
+                            startVerificationCheck(user);
+                        } else {
+                            stopVerificationCheck();
+                        }
                         setLoading(false);
-                        stopVerificationCheck();
-                    }
-                });
-
-                // Cleanup function for onAuthStateChanged
+                    }, (error) => {
+                        console.error("Error with profile snapshot:", error);
+                        setCurrentUser(user);
+                        setLoading(false);
+                    });
+                } else {
+                    if (profileUnsubscribe) profileUnsubscribe();
+                    setCurrentUser(null);
+                    setLoading(false);
+                    stopVerificationCheck();
+                }
+                
                 return () => {
-                    unsubscribe();
                     if (profileUnsubscribe) profileUnsubscribe();
                     stopVerificationCheck();
-                };
+                }
             });
-    }
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+            return () => unsubscribe();
+        });
+  }, [startVerificationCheck]);
 
   const reauthenticate = async (password: string) => {
     if (!auth.currentUser || !auth.currentUser.email) {
