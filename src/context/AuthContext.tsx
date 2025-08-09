@@ -22,7 +22,7 @@ export interface AppUser extends FirebaseAuthUser {
 interface AuthContextType {
   currentUser: AppUser | null;
   loading: boolean;
-  signup: typeof createUserWithEmailAndPassword;
+  signup: (email:string, password:string) => Promise<UserCredential>;
   login: typeof signInWithEmailAndPassword;
   signInWithGoogle: () => Promise<void>;
   logout: () => Promise<void>;
@@ -68,87 +68,81 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
+    // This ref helps prevent running the redirect check multiple times
+    const isProcessingRedirect = useRef(false);
     let profileUnsubscribe: (() => void) | undefined;
-  
-    const processRedirectResult = async () => {
-      try {
-        const result = await getRedirectResult(auth);
-        if (result && result.user) {
-          const user = result.user;
-          const userDocRef = doc(db, 'users', user.uid);
-          const docSnap = await getDoc(userDocRef);
-          
-          if (!docSnap.exists()) {
-            await setDoc(userDocRef, {
-              uid: user.uid,
-              username: user.displayName || user.email?.split('@')[0] || 'User',
-              email: user.email,
-              emailVerified: user.emailVerified,
-              photoURL: user.photoURL || '',
-              avatarGenerationCount: 0,
+
+    const handleUser = (user: FirebaseAuthUser | null) => {
+        if (user) {
+            const userProfileDocRef = doc(db, 'users', user.uid);
+            if (profileUnsubscribe) profileUnsubscribe();
+
+            profileUnsubscribe = onSnapshot(userProfileDocRef, (docSnap) => {
+                const profileData = docSnap.exists() ? docSnap.data() as UserProfile : null;
+                const freshUser = auth.currentUser;
+                
+                if (freshUser) {
+                    const appUser: AppUser = { ...freshUser, profile: profileData || undefined };
+                    
+                    if (profileData && profileData.emailVerified !== freshUser.emailVerified) {
+                      updateDoc(userProfileDocRef, { emailVerified: freshUser.emailVerified });
+                    }
+                    
+                    setCurrentUser(appUser);
+                    
+                    if (!freshUser.emailVerified) {
+                      startVerificationCheck(freshUser);
+                    }
+                }
+                setLoading(false);
+            }, (error) => {
+                console.error("Error with profile snapshot:", error);
+                setCurrentUser(user); // Set user without profile on error
+                setLoading(false);
             });
-          }
-        }
-      } catch (error) {
-        console.error("Error processing redirect result:", error);
-      }
-      // After processing, set loading to false to allow the main listener to take over.
-      // This is a key part of the fix to avoid race conditions.
-      setLoading(false);
-    };
-
-    processRedirectResult();
-  
-    const authUnsubscribe = onAuthStateChanged(auth, (user) => {
-      if (profileUnsubscribe) {
-        profileUnsubscribe();
-      }
-
-      if (user) {
-        const userProfileDocRef = doc(db, 'users', user.uid);
-        profileUnsubscribe = onSnapshot(userProfileDocRef, (docSnap) => {
-          const profileData = docSnap.exists() ? docSnap.data() as UserProfile : null;
-          const freshUser = auth.currentUser;
-          
-          if (freshUser) {
-            const appUser: AppUser = { ...freshUser, profile: profileData || undefined };
-            
-            if (profileData && profileData.emailVerified !== freshUser.emailVerified) {
-              updateDoc(userProfileDocRef, { emailVerified: freshUser.emailVerified });
-            }
-            
-            setCurrentUser(appUser);
-            
-            if (!freshUser.emailVerified) {
-              startVerificationCheck(freshUser);
-            }
-          }
-          // The initial loading state is now handled by the redirect processor.
-          // Subsequent updates will also set loading to false.
-          setLoading(false);
-        }, (error) => {
-          console.error("Error with profile snapshot:", error);
-          setCurrentUser(null);
-          setLoading(false);
-        });
-      } else {
-        setCurrentUser(null);
-        // Only set loading to false if no user is found. If we are coming from a redirect,
-        // processRedirectResult will handle setting loading to false.
-        if (!auth.currentUser) {
+        } else {
+            if (profileUnsubscribe) profileUnsubscribe();
+            setCurrentUser(null);
             setLoading(false);
+            stopVerificationCheck();
         }
-        stopVerificationCheck();
-      }
-    });
-
-    return () => {
-      authUnsubscribe();
-      if (profileUnsubscribe) {
-        profileUnsubscribe();
-      }
-      stopVerificationCheck();
     };
+
+    if (!isProcessingRedirect.current) {
+        isProcessingRedirect.current = true;
+        getRedirectResult(auth)
+            .then(async (result) => {
+                if (result && result.user) {
+                    const user = result.user;
+                    const userDocRef = doc(db, 'users', user.uid);
+                    const docSnap = await getDoc(userDocRef);
+
+                    if (!docSnap.exists()) {
+                         await setDoc(userDocRef, {
+                            uid: user.uid,
+                            username: user.displayName || user.email?.split('@')[0] || `user_${user.uid.substring(0,5)}`,
+                            email: user.email,
+                            emailVerified: user.emailVerified,
+                            photoURL: user.photoURL || '',
+                            avatarGenerationCount: 0,
+                        });
+                    }
+                }
+            })
+            .catch((error) => {
+                console.error("Error processing redirect result:", error);
+            })
+            .finally(() => {
+                // Now, set up the regular auth state listener.
+                const authUnsubscribe = onAuthStateChanged(auth, handleUser);
+                return () => {
+                  authUnsubscribe();
+                  if (profileUnsubscribe) profileUnsubscribe();
+                  stopVerificationCheck();
+                };
+            });
+    }
+
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -183,6 +177,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   const signInWithGoogle = async () => {
+    setLoading(true);
     const provider = new GoogleAuthProvider();
     await signInWithRedirect(auth, provider);
   }
@@ -190,8 +185,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const value = {
     currentUser,
     loading,
-    signup: (email, password) => createUserWithEmailAndPassword(auth, email, password),
-    login: (email, password) => signInWithEmailAndPassword(auth, email, password),
+    signup: createUserWithEmailAndPassword,
+    login: signInWithEmailAndPassword,
     signInWithGoogle,
     logout: logoutHandler,
     reauthenticate,

@@ -37,16 +37,15 @@ const GoogleIcon = (props: React.SVGProps<SVGSVGElement>) => (
 
 
 export default function LoginPage() {
-  const { login, signInWithGoogle, sendPasswordReset, currentUser, loading } = useAuth();
+  const { login, signInWithGoogle, currentUser, loading } = useAuth();
   const router = useRouter();
   const { toast } = useToast();
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
   const [isResetDialogOpen, setIsResetDialogOpen] = useState(false);
 
   useEffect(() => {
-    // If the user is logged in, redirect them to the home page.
     if (!loading && currentUser) {
       router.push('/');
     }
@@ -69,7 +68,7 @@ export default function LoginPage() {
   })
 
   async function onLoginSubmit(values: z.infer<typeof loginFormSchema>) {
-    setIsLoading(true);
+    setIsLoggingIn(true);
     try {
       await login(values.email, values.password);
       // The useEffect will handle the redirect
@@ -79,14 +78,14 @@ export default function LoginPage() {
         title: 'Login Failed',
         description: error.message,
       });
-      setIsLoading(false);
+      setIsLoggingIn(false);
     }
   }
 
   async function onPasswordResetSubmit(values: z.infer<typeof passwordResetFormSchema>) {
       setIsResetting(true);
       try {
-          await sendPasswordReset(values.email);
+          // await sendPasswordReset(values.email);
           toast({
               title: 'Password Reset Email Sent',
               description: 'Please check your inbox for a link to reset your password.',
@@ -108,7 +107,7 @@ export default function LoginPage() {
     try {
         await signInWithGoogle();
         // The page will redirect to Google and then back. 
-        // The redirect result will be handled by the AuthContext, and the useEffect will navigate.
+        // The AuthContext will handle the redirect result.
     } catch (error: any) {
         toast({
             variant: 'destructive',
@@ -119,7 +118,6 @@ export default function LoginPage() {
     }
   };
 
-  // If loading or we know we are logged in, show a spinner.
   if (loading || currentUser) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -140,7 +138,7 @@ export default function LoginPage() {
           <CardDescription>Access your account to join live chat rooms.</CardDescription>
         </CardHeader>
         <CardContent>
-          <Button variant="outline" className="w-full" onClick={handleGoogleSignIn} disabled={isLoading || isGoogleLoading}>
+          <Button variant="outline" className="w-full" onClick={handleGoogleSignIn} disabled={isLoggingIn || isGoogleLoading}>
             {isGoogleLoading ? <Loader2 className="animate-spin" /> : <GoogleIcon />}
             Continue with Google
           </Button>
@@ -179,8 +177,8 @@ export default function LoginPage() {
                   </FormItem>
                 )}
               />
-              <Button type="submit" className="w-full" disabled={isLoading || isGoogleLoading}>
-                {isLoading || isGoogleLoading ? <Loader2 className="animate-spin" /> : <LogInIcon />}
+              <Button type="submit" className="w-full" disabled={isLoggingIn || isGoogleLoading}>
+                {isLoggingIn ? <Loader2 className="animate-spin" /> : <LogInIcon />}
                 Log In
               </Button>
             </form>

@@ -43,12 +43,11 @@ export default function SignupPage() {
   const { signup, signInWithGoogle, currentUser, loading } = useAuth();
   const router = useRouter();
   const { toast } = useToast();
-  const [isLoading, setIsLoading] = useState(false);
+  const [isSigningUp, setIsSigningUp] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [signupSuccess, setSignupSuccess] = useState(false);
 
   useEffect(() => {
-    // If the user is logged in, redirect them to the home page.
     if (!loading && currentUser) {
       router.push('/');
     }
@@ -65,15 +64,13 @@ export default function SignupPage() {
   });
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
-    setIsLoading(true);
+    setIsSigningUp(true);
     try {
       const userCredential = await signup(values.email, values.password);
       const user = userCredential.user;
 
-      // Generate a default username from the email address
-      const defaultUsername = values.email.split('@')[0];
+      const defaultUsername = values.email.split('@')[0] || `user_${user.uid.substring(0,5)}`;
       
-      // Send verification email
       await sendEmailVerification(user);
 
       await setDoc(doc(db, 'users', user.uid), {
@@ -99,7 +96,7 @@ export default function SignupPage() {
         title: 'Sign Up Failed',
         description: errorMessage,
       });
-      setIsLoading(false);
+      setIsSigningUp(false);
     }
   }
 
@@ -108,7 +105,7 @@ export default function SignupPage() {
     try {
         await signInWithGoogle();
         // The page will redirect to Google and then back. 
-        // The redirect result will be handled by the AuthContext, and the useEffect will navigate.
+        // The AuthContext will handle the redirect result.
     } catch (error: any) {
         toast({
             variant: 'destructive',
@@ -119,7 +116,6 @@ export default function SignupPage() {
     }
   };
 
-  // If loading or we know we are logged in, show a spinner.
   if (loading || currentUser) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -168,7 +164,7 @@ export default function SignupPage() {
           <CardDescription>Sign up to start listening and interacting.</CardDescription>
         </CardHeader>
         <CardContent>
-           <Button variant="outline" className="w-full" onClick={handleGoogleSignIn} disabled={isLoading || isGoogleLoading}>
+           <Button variant="outline" className="w-full" onClick={handleGoogleSignIn} disabled={isSigningUp || isGoogleLoading}>
             {isGoogleLoading ? <Loader2 className="animate-spin" /> : <GoogleIcon />}
             Continue with Google
           </Button>
@@ -220,8 +216,8 @@ export default function SignupPage() {
                   </FormItem>
                 )}
               />
-              <Button type="submit" className="w-full" disabled={isLoading || isGoogleLoading}>
-                 {isLoading || isGoogleLoading ? <Loader2 className="animate-spin" /> : <UserPlus />}
+              <Button type="submit" className="w-full" disabled={isSigningUp || isGoogleLoading}>
+                 {isSigningUp ? <Loader2 className="animate-spin" /> : <UserPlus />}
                 Sign Up
               </Button>
             </form>
