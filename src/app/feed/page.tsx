@@ -6,7 +6,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
 import { Header } from '@/components/Header';
 import { ChatRoomCard } from '@/components/ChatRoomCard';
-import { getFeedForUser, getUserSuggestions, UserProfileData } from '@/services/userService';
+import { getFeedForUser, getUserSuggestions, UserProfileData, followUser, unfollowUser } from '@/services/userService';
 import { ChatRoom, deleteChatRoomForHost, likeChatRoom, startChatRoom } from '@/services/chatRoomService';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Loader2, UserPlus, Rss } from 'lucide-react';
@@ -55,7 +55,9 @@ function FeedPageSkeleton() {
 }
 
 function Suggestions({ suggestions }: { suggestions: UserProfileData[] }) {
-    
+    const { currentUser } = useAuth();
+    const { toast } = useToast();
+
     const getInitials = (name: string) => {
         if (!name) return "..";
         const nameParts = name.split(' ');
@@ -63,6 +65,18 @@ function Suggestions({ suggestions }: { suggestions: UserProfileData[] }) {
             return (nameParts[0][0] + nameParts[1][0]).toUpperCase();
         }
         return name.substring(0, 2).toUpperCase();
+    }
+    
+    const handleFollow = async (e: React.MouseEvent, targetUserId: string) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (!currentUser) return;
+        try {
+            await followUser(currentUser.uid, targetUserId);
+            toast({title: 'Followed!', description: 'You are now following this user.'});
+        } catch (error: any) {
+            toast({ variant: 'destructive', title: 'Error', description: error.message });
+        }
     }
 
     if (suggestions.length === 0) {
@@ -92,10 +106,8 @@ function Suggestions({ suggestions }: { suggestions: UserProfileData[] }) {
                                 <p className="text-xs text-muted-foreground">{user.email}</p>
                             </div>
                         </Link>
-                         <Button asChild size="sm" variant="outline">
-                            <Link href={`/profile/${user.uid}`}>
-                                <UserPlus className="mr-2" /> Follow
-                            </Link>
+                         <Button size="sm" variant="outline" onClick={(e) => handleFollow(e, user.uid)}>
+                            <UserPlus className="mr-2" /> Follow
                         </Button>
                     </div>
                 ))}
