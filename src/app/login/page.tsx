@@ -39,7 +39,6 @@ export default function LoginPage() {
   const router = useRouter();
   const { toast } = useToast();
   const [isLoggingIn, setIsLoggingIn] = useState(false);
-  const [isGoogleLoggingIn, setIsGoogleLoggingIn] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
   const [isResetDialogOpen, setIsResetDialogOpen] = useState(false);
 
@@ -82,20 +81,18 @@ export default function LoginPage() {
   }
 
   const handleGoogleLogin = async () => {
-    setIsGoogleLoggingIn(true);
+    setIsLoggingIn(true);
     try {
         await loginWithGoogle();
         // The useEffect hook will handle redirection once currentUser is set.
     } catch (error: any) {
-        if (error.code !== 'auth/popup-closed-by-user') {
-             toast({
-                variant: 'destructive',
-                title: 'Login Failed',
-                description: error.message,
-            });
-        }
+        toast({
+            variant: 'destructive',
+            title: 'Login Failed',
+            description: error.message,
+        });
     } finally {
-        setIsGoogleLoggingIn(false);
+        setIsLoggingIn(false);
     }
   }
 
@@ -168,7 +165,7 @@ export default function LoginPage() {
                   </FormItem>
                 )}
               />
-              <Button type="submit" className="w-full" disabled={isLoggingIn || isGoogleLoggingIn}>
+              <Button type="submit" className="w-full" disabled={isLoggingIn}>
                 {isLoggingIn ? <Loader2 className="animate-spin" /> : <LogInIcon />}
                 Log In
               </Button>
@@ -181,8 +178,8 @@ export default function LoginPage() {
                 </div>
             </div>
 
-            <Button variant="outline" className="w-full" onClick={handleGoogleLogin} disabled={isLoggingIn || isGoogleLoggingIn}>
-                {isGoogleLoggingIn ? <Loader2 className="animate-spin" /> : <GoogleIcon className="h-4 w-4" />}
+            <Button variant="outline" className="w-full" onClick={handleGoogleLogin} disabled={isLoggingIn}>
+                {isLoggingIn ? <Loader2 className="animate-spin" /> : <GoogleIcon className="h-4 w-4" />}
                 Continue with Google
             </Button>
 

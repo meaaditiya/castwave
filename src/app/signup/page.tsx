@@ -39,7 +39,6 @@ export default function SignupPage() {
   const router = useRouter();
   const { toast } = useToast();
   const [isSigningUp, setIsSigningUp] = useState(false);
-  const [isGoogleSigningUp, setIsGoogleSigningUp] = useState(false);
   const [signupSuccess, setSignupSuccess] = useState(false);
 
   useEffect(() => {
@@ -81,20 +80,18 @@ export default function SignupPage() {
   }
 
   const handleGoogleSignup = async () => {
-    setIsGoogleSigningUp(true);
+    setIsSigningUp(true);
     try {
         await loginWithGoogle();
         // The useEffect hook will handle redirection once currentUser is set.
     } catch (error: any) {
-        if (error.code !== 'auth/popup-closed-by-user') {
-             toast({
-                variant: 'destructive',
-                title: 'Sign Up Failed',
-                description: error.message,
-            });
-        }
+        toast({
+            variant: 'destructive',
+            title: 'Sign Up Failed',
+            description: error.message,
+        });
     } finally {
-        setIsGoogleSigningUp(false);
+        setIsSigningUp(false);
     }
   }
 
@@ -188,7 +185,7 @@ export default function SignupPage() {
                   </FormItem>
                 )}
               />
-              <Button type="submit" className="w-full" disabled={isSigningUp || isGoogleSigningUp}>
+              <Button type="submit" className="w-full" disabled={isSigningUp}>
                  {isSigningUp ? <Loader2 className="animate-spin" /> : <UserPlus />}
                 Sign Up with Email
               </Button>
@@ -202,8 +199,8 @@ export default function SignupPage() {
                 </div>
             </div>
 
-            <Button variant="outline" className="w-full" onClick={handleGoogleSignup} disabled={isSigningUp || isGoogleSigningUp}>
-                {isGoogleSigningUp ? <Loader2 className="animate-spin" /> : <GoogleIcon className="h-4 w-4" />}
+            <Button variant="outline" className="w-full" onClick={handleGoogleSignup} disabled={isSigningUp}>
+                {isSigningUp ? <Loader2 className="animate-spin" /> : <GoogleIcon className="h-4 w-4" />}
                 Continue with Google
             </Button>
 

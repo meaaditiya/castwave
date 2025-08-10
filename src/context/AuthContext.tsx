@@ -204,8 +204,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             });
         }
     } catch (error: any) {
-        // Re-throw the error to be handled by the calling component
-        throw error;
+        if (error.code !== 'auth/popup-closed-by-user') {
+            console.error("Google sign-in error:", error);
+            // Re-throw the error to be handled by the calling component
+            throw error;
+        }
     }
   };
 
