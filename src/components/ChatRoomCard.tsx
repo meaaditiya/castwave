@@ -19,7 +19,7 @@ interface ChatRoomCardProps extends ChatRoom {
     currentUserId?: string;
 }
 
-export function ChatRoomCard({ id, title, host, isLive, isOwner, onDelete, onStartSession, scheduledAt, hostPhotoURL, onLike, currentUserId, likers, likes }: ChatRoomCardProps) {
+export function ChatRoomCard({ id, title, host, hostId, isLive, isOwner, onDelete, onStartSession, scheduledAt, hostPhotoURL, onLike, currentUserId, likers, likes }: ChatRoomCardProps) {
   const [isJoining, setIsJoining] = useState(false);
   const [isLiking, setIsLiking] = useState(false);
   
