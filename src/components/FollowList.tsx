@@ -110,7 +110,6 @@ export function FollowList({ userId, type, onClose, currentUserId }: FollowListP
                                         </Link>
                                         {currentUserId && currentUserId !== user.uid && (
                                             <Button
-                                                key={`follow-btn-${user.uid}`}
                                                 size="sm"
                                                 variant={followStatuses[user.uid] ? 'secondary' : 'default'}
                                                 onClick={() => handleFollowToggle(user.uid)}
