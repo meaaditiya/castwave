@@ -42,9 +42,11 @@ export function FollowList({ userId, type, onClose, currentUserId }: FollowListP
                 setList(fetchedList);
 
                 if (currentUserId && fetchedList.length > 0) {
-                    const userIds = fetchedList.map(u => u.uid);
-                    const statuses = await getMultipleFollowStatus(currentUserId, userIds);
-                    setFollowStatuses(statuses);
+                    const userIds = fetchedList.map(u => u.uid).filter(uid => !!uid);
+                    if (userIds.length > 0) {
+                        const statuses = await getMultipleFollowStatus(currentUserId, userIds);
+                        setFollowStatuses(statuses);
+                    }
                 }
             } catch (error) {
                 console.error(`Failed to fetch ${type}`, error);
@@ -99,7 +101,7 @@ export function FollowList({ userId, type, onClose, currentUserId }: FollowListP
                             </div>
                         ) : list.length > 0 ? (
                             <div className="space-y-2">
-                                {list.map(user => (
+                                {list.filter(user => user && user.uid).map(user => (
                                     <div key={user.uid} className="flex items-center gap-4 p-2 rounded-md hover:bg-muted/50">
                                         <Link href={user.uid === currentUser?.uid ? '/profile' : `/profile/${user.uid}`} onClick={onClose} className="flex items-center gap-3 flex-1">
                                             <Avatar>

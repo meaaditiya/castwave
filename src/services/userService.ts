@@ -109,16 +109,18 @@ export const getFollowStatus = (currentUserId: string, targetUserId: string, cal
 
 // Check follow status for a list of users
 export const getMultipleFollowStatus = async (currentUserId: string, targetUserIds: string[]): Promise<Record<string, boolean>> => {
-    if (!targetUserIds.length) {
+    const validUserIds = targetUserIds.filter(id => typeof id === 'string' && id.length > 0);
+
+    if (validUserIds.length === 0) {
         return {};
     }
     const followingRef = collection(db, 'users', currentUserId, 'following');
-    const q = query(followingRef, where(documentId(), 'in', targetUserIds));
+    const q = query(followingRef, where(documentId(), 'in', validUserIds));
     const snapshot = await getDocs(q);
     const followingSet = new Set(snapshot.docs.map(doc => doc.id));
     
     const status: Record<string, boolean> = {};
-    targetUserIds.forEach(id => {
+    validUserIds.forEach(id => {
         status[id] = followingSet.has(id);
     });
     return status;
