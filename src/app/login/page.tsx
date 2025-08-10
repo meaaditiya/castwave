@@ -69,7 +69,7 @@ export default function LoginPage() {
     setIsLoggingIn(true);
     try {
       await login(values.email, values.password);
-      router.push('/');
+      // The useEffect will handle redirection
     } catch (error: any) {
       toast({
         variant: 'destructive',
