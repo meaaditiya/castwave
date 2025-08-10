@@ -46,25 +46,29 @@ export const followUser = async (currentUserId: string, targetUserId: string) =>
     if (currentUserId === targetUserId) {
         throw new Error("You cannot follow yourself.");
     }
-
     const currentUserRef = doc(db, 'users', currentUserId);
     const targetUserRef = doc(db, 'users', targetUserId);
     const followingRef = doc(currentUserRef, 'following', targetUserId);
     const followerRef = doc(targetUserRef, 'followers', currentUserId);
 
-    await runTransaction(db, async (transaction) => {
-        const followingDoc = await transaction.get(followingRef);
-        if (followingDoc.exists()) {
-            console.log("Already following.");
-            return;
-        }
+    try {
+        await runTransaction(db, async (transaction) => {
+            const followingDoc = await transaction.get(followingRef);
+            if (followingDoc.exists()) {
+                // Already following, no need to do anything.
+                return;
+            }
 
-        transaction.set(followingRef, { timestamp: serverTimestamp() });
-        transaction.set(followerRef, { timestamp: serverTimestamp() });
-
-        transaction.update(currentUserRef, { followingCount: increment(1) });
-        transaction.update(targetUserRef, { followerCount: increment(1) });
-    });
+            // Perform writes
+            transaction.set(followingRef, { timestamp: serverTimestamp() });
+            transaction.set(followerRef, { timestamp: serverTimestamp() });
+            transaction.update(currentUserRef, { followingCount: increment(1) });
+            transaction.update(targetUserRef, { followerCount: increment(1) });
+        });
+    } catch (error) {
+        console.error("Follow transaction failed: ", error);
+        throw new Error("Could not follow user. Please try again.");
+    }
 };
 
 // Unfollow a user
@@ -74,18 +78,24 @@ export const unfollowUser = async (currentUserId: string, targetUserId: string) 
     const followingRef = doc(currentUserRef, 'following', targetUserId);
     const followerRef = doc(targetUserRef, 'followers', currentUserId);
 
-    await runTransaction(db, async (transaction) => {
-        const followingDoc = await transaction.get(followingRef);
-        if (!followingDoc.exists()) {
-            console.log("Not following, cannot unfollow.");
-            return;
-        }
+    try {
+        await runTransaction(db, async (transaction) => {
+            const followingDoc = await transaction.get(followingRef);
+            if (!followingDoc.exists()) {
+                // Not following, no need to do anything.
+                return;
+            }
 
-        transaction.delete(followingRef);
-        transaction.delete(followerRef);
-        transaction.update(currentUserRef, { followingCount: increment(-1) });
-        transaction.update(targetUserRef, { followerCount: increment(-1) });
-    });
+            // Perform deletes and updates
+            transaction.delete(followingRef);
+            transaction.delete(followerRef);
+            transaction.update(currentUserRef, { followingCount: increment(-1) });
+            transaction.update(targetUserRef, { followerCount: increment(-1) });
+        });
+    } catch (error) {
+        console.error("Unfollow transaction failed: ", error);
+        throw new Error("Could not unfollow user. Please try again.");
+    }
 };
 
 
@@ -147,14 +157,7 @@ export const getUserSuggestions = async (userId: string): Promise<UserProfileDat
     const usersRef = collection(db, 'users');
     let q: Query;
 
-    if (usersToExclude.length > 0) {
-        // Firestore 'not-in' query has a limit of 10 elements.
-        // If we need to exclude more, we fetch all and filter client-side.
-        // For this app's scale, fetching and filtering is acceptable.
-        q = query(usersRef, limit(50));
-    } else {
-        q = query(usersRef, limit(5));
-    }
+    q = query(usersRef, limit(50));
     
     const snapshot = await getDocs(q);
     
@@ -162,7 +165,6 @@ export const getUserSuggestions = async (userId: string): Promise<UserProfileDat
     
     const filteredUsers = allUsers.filter(user => !usersToExclude.includes(user.uid));
     
-    // Shuffle and take the first 5 for variety
     const shuffled = filteredUsers.sort(() => 0.5 - Math.random());
     return shuffled.slice(0, 5);
 };

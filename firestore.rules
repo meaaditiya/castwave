@@ -32,15 +32,15 @@ service cloud.firestore {
 
       // --- Following/Follower Subcollections ---
       match /following/{targetUserId} {
-        // A user can only add/remove users from their own 'following' list.
-        allow create, delete: if request.auth != null && request.auth.uid == userId;
-        // Anyone can read who a user is following.
+        // A user can only add/remove from their own 'following' list.
+        allow create, delete: if request.auth.uid == userId;
+        // Anyone authenticated can read who a user is following.
         allow read: if request.auth != null;
       }
       match /followers/{followerId} {
-         // A user can add/remove themselves from another user's 'followers' list.
-        allow create, delete: if request.auth != null && request.auth.uid == followerId;
-         // Anyone can read a user's followers.
+        // The user performing the action must be the one who is added/removed from the followers list.
+        allow create, delete: if request.auth.uid == followerId;
+        // Anyone authenticated can read a user's followers.
         allow read: if request.auth != null;
       }
     }
@@ -55,9 +55,11 @@ service cloud.firestore {
       // CREATE: Any authenticated user can create a chat room.
       allow create: if request.auth != null && request.resource.data.hostId == request.auth.uid;
 
-      // UPDATE: Only the host can update room details (e.g., end session, feature message, update typing status).
-      // Also allow any authenticated user to update likes/dislikes array.
-      allow update: if request.auth != null && (isHost(chatRoomId) || request.resource.data.diff(request.resource.data).affectedKeys().hasOnly(['likes', 'dislikes', 'likers', 'dislikers']));
+      // UPDATE: Host can update most things. Any user can update likes.
+      allow update: if request.auth != null && (
+        isHost(chatRoomId) || 
+        (request.resource.data.diff(request.resource.data).affectedKeys().hasOnly(['likes', 'dislikes', 'likers', 'dislikers']))
+      );
 
       // DELETE: Only the host can delete their own chat room.
       allow delete: if request.auth != null && isHost(chatRoomId);
