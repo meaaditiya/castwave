@@ -86,11 +86,14 @@ export default function LoginPage() {
         await loginWithGoogle();
         // The useEffect hook will handle redirection once currentUser is set.
     } catch (error: any) {
-        toast({
-            variant: 'destructive',
-            title: 'Login Failed',
-            description: error.message,
-        });
+        if (error.code !== 'auth/popup-closed-by-user') {
+            toast({
+                variant: 'destructive',
+                title: 'Login Failed',
+                description: 'Could not log in with Google. Please try again.',
+            });
+            console.error("Google Login Error in Component:", error);
+        }
     } finally {
         setIsSubmitting(false);
     }
@@ -117,7 +120,7 @@ export default function LoginPage() {
       }
   }
 
-  if (loading || currentUser) {
+  if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <Loader2 className="h-8 w-8 animate-spin" />

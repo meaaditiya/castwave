@@ -18,7 +18,7 @@ import {
     GoogleAuthProvider,
     signInWithPopup
 } from 'firebase/auth';
-import { auth, db, firebaseConfig } from '@/lib/firebase';
+import { auth, db } from '@/lib/firebase';
 import { doc, getDoc, setDoc, onSnapshot, updateDoc } from 'firebase/firestore';
 
 export interface UserProfile {
@@ -114,7 +114,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             stopVerificationCheck();
         }
         
-        // This cleanup is for the onSnapshot listener when the user logs out/changes
         return () => {
             if (profileUnsubscribe) {
                 profileUnsubscribe();
@@ -122,7 +121,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
     });
 
-    // This is the main cleanup function for the onAuthStateChanged listener
     return () => {
         unsubscribe();
         stopVerificationCheck();
@@ -192,7 +190,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const userDocRef = doc(db, 'users', user.uid);
         const userDocSnap = await getDoc(userDocRef);
 
-        // If the user is new, create a profile for them in Firestore
         if (!userDocSnap.exists()) {
             await setDoc(userDocRef, {
                 uid: user.uid,
@@ -203,11 +200,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             });
         }
     } catch (error: any) {
-        if (error.code !== 'auth/popup-closed-by-user') {
-            console.error("Google sign-in error:", error);
-            // Re-throw the error to be handled by the calling component
-            throw error;
-        }
+        console.error("Google sign-in error in AuthContext:", error);
+        // This allows the component to know about the error if needed.
+        throw error;
     }
   };
 

@@ -85,18 +85,21 @@ export default function SignupPage() {
         await loginWithGoogle();
         // The useEffect hook will handle redirection once currentUser is set.
     } catch (error: any) {
-        toast({
-            variant: 'destructive',
-            title: 'Sign Up Failed',
-            description: error.message,
-        });
+        if (error.code !== 'auth/popup-closed-by-user') {
+            toast({
+                variant: 'destructive',
+                title: 'Sign Up Failed',
+                description: 'Could not sign up with Google. Please try again.',
+            });
+            console.error("Google Signup Error in Component:", error);
+        }
     } finally {
         setIsSubmitting(false);
     }
   }
 
 
-  if (loading || currentUser) {
+  if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <Loader2 className="h-8 w-8 animate-spin" />
