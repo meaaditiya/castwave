@@ -1,6 +1,6 @@
 
 import { db } from '@/lib/firebase';
-import { doc, getDoc, collection, query, where, getDocs, documentId, onSnapshot, writeBatch, runTransaction, increment, limit } from 'firebase/firestore';
+import { doc, getDoc, collection, query, where, getDocs, documentId, onSnapshot, writeBatch, runTransaction, increment, limit, serverTimestamp, Transaction } from 'firebase/firestore';
 import { ChatRoom } from './chatRoomService';
 
 export interface UserProfileData {
@@ -25,7 +25,6 @@ export const getUserProfile = async (userId: string): Promise<UserProfileData | 
         }
     } catch (error) {
         console.error("Error fetching user profile:", error);
-        // Re-throw the original error to get more specific details in the console
         throw error;
     }
 };
@@ -44,45 +43,50 @@ export const getUserProfileStream = (userId: string, callback: (profile: UserPro
 
 // Follow another user
 export const followUser = async (currentUserId: string, targetUserId: string) => {
-    const currentUserRef = doc(db, 'users', currentUserId);
-    const targetUserRef = doc(db, 'users', targetUserId);
-    const batch = writeBatch(db);
+    await runTransaction(db, async (transaction) => {
+        const currentUserRef = doc(db, 'users', currentUserId);
+        const targetUserRef = doc(db, 'users', targetUserId);
+        const followingRef = doc(currentUserRef, 'following', targetUserId);
+        const followerRef = doc(targetUserRef, 'followers', currentUserId);
 
-    // Add target to current user's "following" subcollection
-    const followingRef = doc(collection(currentUserRef, 'following'), targetUserId);
-    batch.set(followingRef, { timestamp: new Date() });
-    // Increment current user's "followingCount"
-    batch.update(currentUserRef, { followingCount: increment(1) });
+        const followingDoc = await transaction.get(followingRef);
+        if (followingDoc.exists()) {
+            console.log("Already following, aborting.");
+            return;
+        }
 
-    // Add current user to target's "followers" subcollection
-    const followerRef = doc(collection(targetUserRef, 'followers'), currentUserId);
-    batch.set(followerRef, { timestamp: new Date() });
-    // Increment target user's "followerCount"
-    batch.update(targetUserRef, { followerCount: increment(1) });
-    
-    await batch.commit();
-}
+        // Add target to current user's "following" subcollection
+        transaction.set(followingRef, { timestamp: serverTimestamp() });
+        // Add current user to target's "followers" subcollection
+        transaction.set(followerRef, { timestamp: serverTimestamp() });
+
+        // Increment counts
+        transaction.update(currentUserRef, { followingCount: increment(1) });
+        transaction.update(targetUserRef, { followerCount: increment(1) });
+    });
+};
 
 // Unfollow a user
 export const unfollowUser = async (currentUserId: string, targetUserId: string) => {
-    const currentUserRef = doc(db, 'users', currentUserId);
-    const targetUserRef = doc(db, 'users', targetUserId);
-    const batch = writeBatch(db);
+    await runTransaction(db, async (transaction: Transaction) => {
+        const currentUserRef = doc(db, 'users', currentUserId);
+        const targetUserRef = doc(db, 'users', targetUserId);
+        const followingRef = doc(collection(currentUserRef, 'following'), targetUserId);
+        const followerRef = doc(collection(targetUserRef, 'followers'), currentUserId);
 
-    // Remove target from current user's "following" subcollection
-    const followingRef = doc(collection(currentUserRef, 'following'), targetUserId);
-    batch.delete(followingRef);
-    // Decrement current user's "followingCount"
-    batch.update(currentUserRef, { followingCount: increment(-1) });
+        const followingDoc = await transaction.get(followingRef);
+        if (!followingDoc.exists()) {
+            console.log("Not following, cannot unfollow.");
+            return; 
+        }
 
-    // Remove current user from target's "followers" subcollection
-    const followerRef = doc(collection(targetUserRef, 'followers'), currentUserId);
-    batch.delete(followerRef);
-    // Decrement target user's "followerCount"
-    batch.update(targetUserRef, { followerCount: increment(-1) });
-    
-    await batch.commit();
-}
+        // Atomically delete the docs and decrement the counters
+        transaction.delete(followingRef);
+        transaction.delete(followerRef);
+        transaction.update(currentUserRef, { followingCount: increment(-1) });
+        transaction.update(targetUserRef, { followerCount: increment(-1) });
+    });
+};
 
 
 // Check if the current user is following the target user
@@ -135,12 +139,10 @@ export const getFeedForUser = async (userId: string): Promise<ChatRoom[]> => {
 };
 
 export const getUserSuggestions = async (userId: string): Promise<UserProfileData[]> => {
-    // Get list of users that the current user is already following
     const followingList = await getFollowingList(userId);
     const usersToExclude = [userId, ...followingList];
 
     const usersRef = collection(db, 'users');
-    
     const snapshot = await getDocs(query(usersRef, limit(20)));
     
     const allUsers = snapshot.docs.map(doc => doc.data() as UserProfileData);
@@ -148,5 +150,7 @@ export const getUserSuggestions = async (userId: string): Promise<UserProfileDat
     const excludeSet = new Set(usersToExclude);
     const filteredUsers = allUsers.filter(user => !excludeSet.has(user.uid));
     
-    return filteredUsers.slice(0, 5);
+    // Return a random subset of 5 suggestions
+    const shuffled = filteredUsers.sort(() => 0.5 - Math.random());
+    return shuffled.slice(0, 5);
 };
