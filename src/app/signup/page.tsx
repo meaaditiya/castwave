@@ -84,7 +84,7 @@ export default function SignupPage() {
     setIsGoogleSigningUp(true);
     try {
         await loginWithGoogle();
-        // Redirect is handled by AuthContext now
+        // The useEffect hook will handle redirection once currentUser is set.
     } catch (error: any) {
         if (error.code !== 'auth/popup-closed-by-user') {
              toast({
