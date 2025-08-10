@@ -15,17 +15,20 @@ import {
     sendEmailVerification, 
     sendPasswordResetEmail, 
     UserCredential,
-    GoogleAuthProvider,
-    signInWithPopup
+    signInWithPhoneNumber,
+    RecaptchaVerifier,
+    ConfirmationResult
 } from 'firebase/auth';
 import { auth, db } from '@/lib/firebase';
 import { doc, getDoc, setDoc, onSnapshot, updateDoc } from 'firebase/firestore';
 
 export interface UserProfile {
     uid: string;
-    email: string;
+    email?: string;
     username: string;
     emailVerified: boolean;
+    phoneNumber?: string;
+    phoneVerified?: boolean;
     photoURL?: string;
 }
 
@@ -38,12 +41,14 @@ interface AuthContextType {
   loading: boolean;
   signup: (email:string, password:string) => Promise<UserCredential>;
   login: (email:string, password:string) => Promise<UserCredential>;
-  loginWithGoogle: () => Promise<void>;
   logout: () => Promise<void>;
   reauthenticate: (password: string) => Promise<void>;
   updateUserPassword: (password: string) => Promise<void>;
   sendVerificationEmail: () => Promise<void>;
   sendPasswordReset: (email: string) => Promise<void>;
+  setupRecaptcha: (elementId: string) => RecaptchaVerifier;
+  signInWithPhone: (phoneNumber: string, appVerifier: RecaptchaVerifier) => Promise<ConfirmationResult>;
+  confirmOtp: (confirmationResult: ConfirmationResult, otp: string) => Promise<UserCredential>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -82,42 +87,44 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+        setLoading(true);
         let profileUnsubscribe: (() => void) | undefined;
         
         if (user) {
-            const userProfileDocRef = doc(db, 'users', user.uid);
-            profileUnsubscribe = onSnapshot(userProfileDocRef, (docSnap) => {
-                const profileData = docSnap.exists() ? docSnap.data() as UserProfile : null;
-                const appUser: AppUser = { ...user, profile: profileData || undefined };
+            try {
+                const userProfileDocRef = doc(db, 'users', user.uid);
+                profileUnsubscribe = onSnapshot(userProfileDocRef, (docSnap) => {
+                    const profileData = docSnap.exists() ? docSnap.data() as UserProfile : null;
+                    const appUser: AppUser = { ...user, profile: profileData || undefined };
 
-                if (profileData && profileData.emailVerified !== user.emailVerified) {
-                    updateDoc(userProfileDocRef, { emailVerified: user.emailVerified });
-                }
+                    if (profileData && profileData.emailVerified !== user.emailVerified) {
+                        updateDoc(userProfileDocRef, { emailVerified: user.emailVerified });
+                    }
 
-                setCurrentUser(appUser);
-                
-                if (!user.emailVerified) {
-                    startVerificationCheck(user);
-                } else {
-                    stopVerificationCheck();
-                }
+                    setCurrentUser(appUser);
+                    
+                    if (!user.emailVerified) {
+                        startVerificationCheck(user);
+                    } else {
+                        stopVerificationCheck();
+                    }
+                    setLoading(false);
+                }, (error) => {
+                    console.error("Error with profile snapshot:", error);
+                    setCurrentUser(user);
+                    setLoading(false);
+                });
+            } catch (error) {
+                console.error("Error setting up profile listener:", error);
+                setCurrentUser(user);
                 setLoading(false);
-            }, (error) => {
-                console.error("Error with profile snapshot:", error);
-                setCurrentUser(user); // Set user even if profile fails to load
-                setLoading(false);
-            });
+            }
         } else {
+            if (profileUnsubscribe) profileUnsubscribe();
             setCurrentUser(null);
             setLoading(false);
             stopVerificationCheck();
-        }
-        
-        return () => {
-            if (profileUnsubscribe) {
-                profileUnsubscribe();
-            }
         }
     });
 
@@ -125,7 +132,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         unsubscribe();
         stopVerificationCheck();
     };
-  }, [startVerificationCheck]);
+}, [startVerificationCheck]);
 
   const reauthenticate = async (password: string) => {
     if (!auth.currentUser || !auth.currentUser.email) {
@@ -180,43 +187,61 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return signInWithEmailAndPassword(auth, email, password);
   }
 
-  const loginWithGoogle = async () => {
-    try {
-        const provider = new GoogleAuthProvider();
-        provider.setCustomParameters({ prompt: 'select_account' });
-        const userCredential = await signInWithPopup(auth, provider);
-        const user = userCredential.user;
-
-        const userDocRef = doc(db, 'users', user.uid);
-        const userDocSnap = await getDoc(userDocRef);
-
-        if (!userDocSnap.exists()) {
-            await setDoc(userDocRef, {
-                uid: user.uid,
-                username: user.displayName || user.email?.split('@')[0] || `user_${user.uid.substring(0,5)}`,
-                email: user.email,
-                emailVerified: user.emailVerified,
-                photoURL: user.photoURL || '',
+  const setupRecaptcha = (elementId: string) => {
+    if (typeof window !== 'undefined') {
+        if (!(window as any).recaptchaVerifier) {
+            (window as any).recaptchaVerifier = new RecaptchaVerifier(auth, elementId, {
+                'size': 'invisible',
+                'callback': (response: any) => {
+                    // reCAPTCHA solved, allow signInWithPhoneNumber.
+                }
             });
         }
-    } catch (error: any) {
-        console.error("Google sign-in error in AuthContext:", error);
-        // This allows the component to know about the error if needed.
-        throw error;
+        return (window as any).recaptchaVerifier;
     }
-  };
+    // This is a server-side render, so we can't create the verifier
+    throw new Error("reCAPTCHA can only be initialized on the client-side.");
+  }
+
+  const signInWithPhone = (phoneNumber: string, appVerifier: RecaptchaVerifier) => {
+      return signInWithPhoneNumber(auth, phoneNumber, appVerifier);
+  }
+
+  const confirmOtp = async (confirmationResult: ConfirmationResult, otp: string) => {
+    const userCredential = await confirmationResult.confirm(otp);
+    const user = userCredential.user;
+    
+    const userDocRef = doc(db, 'users', user.uid);
+    const userDocSnap = await getDoc(userDocRef);
+
+    if (!userDocSnap.exists()) {
+        await setDoc(userDocRef, {
+            uid: user.uid,
+            username: `user_${user.uid.substring(0,5)}`,
+            phoneNumber: user.phoneNumber,
+            phoneVerified: true,
+            photoURL: '',
+            emailVerified: false,
+        });
+    }
+
+    return userCredential;
+  }
+
 
   const value = {
     currentUser,
     loading,
     signup: signupWithEmail,
     login: loginWithEmail,
-    loginWithGoogle,
     logout: logoutHandler,
     reauthenticate,
     updateUserPassword,
     sendVerificationEmail: sendVerificationEmailHandler,
     sendPasswordReset: sendPasswordResetHandler,
+    setupRecaptcha,
+    signInWithPhone,
+    confirmOtp,
   };
   
   return (

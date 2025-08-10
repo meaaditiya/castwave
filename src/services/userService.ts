@@ -5,8 +5,10 @@ import { doc, getDoc, collection, query, where, getDocs, documentId, onSnapshot 
 export interface UserProfileData {
     uid: string;
     username: string;
-    email: string;
+    email?: string;
     emailVerified: boolean;
+    phoneNumber?: string;
+    phoneVerified?: boolean;
     photoURL?: string;
 }
 
@@ -16,14 +18,7 @@ export const getUserProfile = async (userId: string): Promise<UserProfileData | 
         const docSnap = await getDoc(userDocRef);
 
         if (docSnap.exists()) {
-            const data = docSnap.data();
-            return {
-                uid: userId,
-                username: data.username,
-                email: data.email,
-                emailVerified: data.emailVerified,
-                photoURL: data.photoURL,
-            };
+            return docSnap.data() as UserProfileData;
         } else {
             return null;
         }
@@ -38,14 +33,7 @@ export const getUserProfileStream = (userId: string, callback: (profile: UserPro
     const userDocRef = doc(db, 'users', userId);
     const unsubscribe = onSnapshot(userDocRef, (docSnap) => {
         if (docSnap.exists()) {
-            const data = docSnap.data();
-            callback({
-                uid: userId,
-                username: data.username,
-                email: data.email,
-                emailVerified: data.emailVerified,
-                photoURL: data.photoURL,
-            });
+            callback(docSnap.data() as UserProfileData);
         } else {
             callback(null);
         }
