@@ -22,6 +22,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Separator } from "@/components/ui/separator";
 import { generateAvatar } from "@/ai/flows/generate-avatar";
 import { getFollowCounts } from "@/services/userService";
+import { FollowList } from "@/components/FollowList";
 
 const passwordFormSchema = z.object({
   currentPassword: z.string().min(1, { message: 'Current password is required.' }),
@@ -72,6 +73,7 @@ export default function ProfilePage() {
     const [isSendingVerification, setIsSendingVerification] = useState(false);
     const [isGeneratingAvatar, setIsGeneratingAvatar] = useState(false);
     const [followCounts, setFollowCounts] = useState({ followers: 0, following: 0 });
+    const [followListType, setFollowListType] = useState<'followers' | 'following' | null>(null);
     
     const passwordForm = useForm<z.infer<typeof passwordFormSchema>>({
         resolver: zodResolver(passwordFormSchema),
@@ -270,7 +272,7 @@ export default function ProfilePage() {
                             <div className="flex-1">
                                 <div className="flex items-center justify-center sm:justify-start gap-2">
                                     <CardTitle className="text-2xl">{currentUser.profile?.username || 'My Profile'}</CardTitle>
-                                    {currentUser.profile?.emailVerified ? (
+                                    {currentUser.emailVerified ? (
                                         <CheckCircle className="h-6 w-6 text-green-500" />
                                     ) : (
                                         <XCircle className="h-6 w-6 text-red-500" />
@@ -278,8 +280,8 @@ export default function ProfilePage() {
                                 </div>
                                 <CardDescription>Manage your account details and security settings.</CardDescription>
                                 <div className="flex gap-4 mt-2 justify-center sm:justify-start">
-                                    <p className="text-sm"><span className="font-bold">{followCounts.followers}</span> Followers</p>
-                                    <p className="text-sm"><span className="font-bold">{followCounts.following}</span> Following</p>
+                                    <button onClick={() => setFollowListType('followers')} className="text-sm hover:underline"><span className="font-bold">{followCounts.followers}</span> Followers</button>
+                                    <button onClick={() => setFollowListType('following')} className="text-sm hover:underline"><span className="font-bold">{followCounts.following}</span> Following</button>
                                 </div>
                             </div>
                         </CardHeader>
@@ -342,7 +344,7 @@ export default function ProfilePage() {
                                             <p className="text-sm font-medium leading-none">Email</p>
                                             <p className="text-sm text-muted-foreground">{currentUser.profile?.email}</p>
                                         </div>
-                                        {currentUser.profile?.emailVerified ? (
+                                        {currentUser.emailVerified ? (
                                             <CheckCircle className="h-5 w-5 text-green-500" />
                                         ) : (
                                             <XCircle className="h-5 w-5 text-red-500" />
@@ -357,7 +359,7 @@ export default function ProfilePage() {
                                 <h3 className="text-lg font-semibold mb-4">Security Settings</h3>
                                 <div className="space-y-4">
                                      <div className="flex items-center space-x-4 rounded-md border p-4">
-                                        {currentUser.profile?.emailVerified ? (
+                                        {currentUser.emailVerified ? (
                                             <>
                                                 <MailCheck className="h-5 w-5 text-green-500" />
                                                 <div className="flex-1 space-y-1">
@@ -458,10 +460,14 @@ export default function ProfilePage() {
                     </Card>
                 </div>
             </main>
+             <FollowList
+                userId={currentUser.uid}
+                type={followListType}
+                onClose={() => setFollowListType(null)}
+                currentUserId={currentUser.uid}
+            />
         </div>
     )
 
     
 }
-
-    

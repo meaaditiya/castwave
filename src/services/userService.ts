@@ -82,16 +82,8 @@ export const unfollowUser = async (currentUserId: string, targetUserId: string) 
         await runTransaction(db, async (transaction) => {
              const followingDoc = await transaction.get(followingRef);
              if (!followingDoc.exists()) {
-                // To be robust, ensure counts are correct even if docs are missing
-                const currentUserDoc = await transaction.get(currentUserRef);
-                const targetUserDoc = await transaction.get(targetUserRef);
-                if (currentUserDoc.exists() && (currentUserDoc.data().followingCount || 0) > 0) {
-                     transaction.update(currentUserRef, { followingCount: increment(-1) });
-                }
-                if (targetUserDoc.exists() && (targetUserDoc.data().followerCount || 0) > 0) {
-                    transaction.update(targetUserRef, { followerCount: increment(-1) });
-                }
-                return;
+                 console.log("Not following, cannot unfollow.");
+                 return;
              }
 
             // Perform deletes and updates
@@ -113,6 +105,23 @@ export const getFollowStatus = (currentUserId: string, targetUserId: string, cal
     return onSnapshot(followingRef, (doc) => {
         callback(doc.exists());
     });
+};
+
+// Check follow status for a list of users
+export const getMultipleFollowStatus = async (currentUserId: string, targetUserIds: string[]): Promise<Record<string, boolean>> => {
+    if (!targetUserIds.length) {
+        return {};
+    }
+    const followingRef = collection(db, 'users', currentUserId, 'following');
+    const q = query(followingRef, where(documentId(), 'in', targetUserIds));
+    const snapshot = await getDocs(q);
+    const followingSet = new Set(snapshot.docs.map(doc => doc.id));
+    
+    const status: Record<string, boolean> = {};
+    targetUserIds.forEach(id => {
+        status[id] = followingSet.has(id);
+    });
+    return status;
 }
 
 // Get follower and following counts
@@ -134,6 +143,31 @@ const getFollowingList = async (userId: string): Promise<string[]> => {
     const followingCol = collection(db, 'users', userId, 'following');
     const snapshot = await getDocs(followingCol);
     return snapshot.docs.map(doc => doc.id);
+}
+
+// Get profile data for a list of user IDs
+const getProfilesFromIds = async (uids: string[]): Promise<UserProfileData[]> => {
+    if (uids.length === 0) return [];
+    const usersRef = collection(db, 'users');
+    // Firestore 'in' queries are limited to 30 items.
+    // For this app, we'll assume lists won't exceed this, but for larger scale, this would need chunking.
+    const q = query(usersRef, where(documentId(), 'in', uids.slice(0, 30)));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => doc.data() as UserProfileData);
+}
+
+// Get full profiles of users someone is following
+export const getFollowingProfiles = async (userId: string): Promise<UserProfileData[]> => {
+    const followingIds = await getFollowingList(userId);
+    return getProfilesFromIds(followingIds);
+}
+
+// Get full profiles of a user's followers
+export const getFollowerProfiles = async (userId: string): Promise<UserProfileData[]> => {
+    const followersCol = collection(db, 'users', userId, 'followers');
+    const snapshot = await getDocs(followersCol);
+    const followerIds = snapshot.docs.map(doc => doc.id);
+    return getProfilesFromIds(followerIds);
 }
 
 // Get the feed (public chat rooms from followed users)

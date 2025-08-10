@@ -3,7 +3,7 @@
 
 import { useState, useEffect, use } from 'react';
 import { Header } from '@/components/Header';
-import { getUserProfile, UserProfileData, followUser, unfollowUser, getFollowStatus, getFollowCounts } from '@/services/userService';
+import { getUserProfile, UserProfileData, followUser, unfollowUser, getFollowStatus, getFollowCounts, getFollowerProfiles, getFollowingProfiles } from '@/services/userService';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/context/AuthContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -14,6 +14,7 @@ import { getChatRooms, ChatRoom, likeChatRoom, startChatRoom, deleteChatRoomForH
 import { ChatRoomCard } from '@/components/ChatRoomCard';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
+import { FollowList } from '@/components/FollowList';
 
 function PublicProfileSkeleton() {
     return (
@@ -64,6 +65,8 @@ export default function PublicProfilePage({ params }: { params: { id: string } }
     const [isFollowing, setIsFollowing] = useState(false);
     const [followLoading, setFollowLoading] = useState(true);
     const [followCounts, setFollowCounts] = useState({ followers: 0, following: 0 });
+    
+    const [followListType, setFollowListType] = useState<'followers' | 'following' | null>(null);
 
     const userId = resolvedParams.id;
 
@@ -230,8 +233,8 @@ export default function PublicProfilePage({ params }: { params: { id: string } }
                                 </div>
                                 <CardDescription>{userProfile.email}</CardDescription>
                                 <div className="flex gap-4 mt-2 justify-center sm:justify-start">
-                                    <p className="text-sm"><span className="font-bold">{followCounts.followers}</span> Followers</p>
-                                    <p className="text-sm"><span className="font-bold">{followCounts.following}</span> Following</p>
+                                    <button onClick={() => setFollowListType('followers')} className="text-sm hover:underline"><span className="font-bold">{followCounts.followers}</span> Followers</button>
+                                    <button onClick={() => setFollowListType('following')} className="text-sm hover:underline"><span className="font-bold">{followCounts.following}</span> Following</button>
                                 </div>
                             </div>
                             {currentUser && (
@@ -273,6 +276,13 @@ export default function PublicProfilePage({ params }: { params: { id: string } }
                     )}
                 </div>
             </main>
+
+            <FollowList
+                userId={userId}
+                type={followListType}
+                onClose={() => setFollowListType(null)}
+                currentUserId={currentUser?.uid}
+            />
         </div>
     )
 }
