@@ -20,6 +20,7 @@ import {
 } from 'firebase/auth';
 import { auth, db } from '@/lib/firebase';
 import { doc, getDoc, setDoc, onSnapshot, updateDoc } from 'firebase/firestore';
+import { useRouter } from 'next/navigation';
 
 export interface UserProfile {
     uid: string;
@@ -38,7 +39,7 @@ interface AuthContextType {
   loading: boolean;
   signup: (email:string, password:string) => Promise<UserCredential>;
   login: (email:string, password:string) => Promise<UserCredential>;
-  loginWithGoogle: () => Promise<UserCredential>;
+  loginWithGoogle: () => Promise<void>;
   logout: () => Promise<void>;
   reauthenticate: (password: string) => Promise<void>;
   updateUserPassword: (password: string) => Promise<void>;
@@ -60,6 +61,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [currentUser, setCurrentUser] = useState<AppUser | null>(null);
   const [loading, setLoading] = useState(true);
   const verificationTimer = useRef<NodeJS.Timeout | null>(null);
+  const router = useRouter();
   
   const stopVerificationCheck = () => {
     if (verificationTimer.current) {
@@ -179,25 +181,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   const loginWithGoogle = async () => {
-    const provider = new GoogleAuthProvider();
-    const userCredential = await signInWithPopup(auth, provider);
-    const user = userCredential.user;
+    try {
+        const provider = new GoogleAuthProvider();
+        const userCredential = await signInWithPopup(auth, provider);
+        const user = userCredential.user;
 
-    const userDocRef = doc(db, 'users', user.uid);
-    const userDocSnap = await getDoc(userDocRef);
+        const userDocRef = doc(db, 'users', user.uid);
+        const userDocSnap = await getDoc(userDocRef);
 
-    // If the user is new, create a profile for them in Firestore
-    if (!userDocSnap.exists()) {
-        await setDoc(userDocRef, {
-            uid: user.uid,
-            username: user.displayName || user.email?.split('@')[0] || `user_${user.uid.substring(0,5)}`,
-            email: user.email,
-            emailVerified: user.emailVerified,
-            photoURL: user.photoURL || '',
-        });
+        // If the user is new, create a profile for them in Firestore
+        if (!userDocSnap.exists()) {
+            await setDoc(userDocRef, {
+                uid: user.uid,
+                username: user.displayName || user.email?.split('@')[0] || `user_${user.uid.substring(0,5)}`,
+                email: user.email,
+                emailVerified: user.emailVerified,
+                photoURL: user.photoURL || '',
+            });
+        }
+        router.push('/');
+    } catch (error: any) {
+        // Re-throw the error to be handled by the calling component
+        throw error;
     }
-
-    return userCredential;
   };
 
   const value = {

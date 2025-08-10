@@ -85,17 +85,15 @@ export default function LoginPage() {
     setIsGoogleLoggingIn(true);
     try {
         await loginWithGoogle();
-        router.push('/');
+        // Redirect is handled by AuthContext now
     } catch (error: any) {
-        // Don't show an error toast if the user closes the popup
-        if (error.code === 'auth/popup-closed-by-user') {
-            return;
+        if (error.code !== 'auth/popup-closed-by-user') {
+             toast({
+                variant: 'destructive',
+                title: 'Login Failed',
+                description: error.message,
+            });
         }
-         toast({
-            variant: 'destructive',
-            title: 'Login Failed',
-            description: error.message,
-        });
     } finally {
         setIsGoogleLoggingIn(false);
     }

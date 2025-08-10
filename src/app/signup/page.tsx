@@ -84,17 +84,15 @@ export default function SignupPage() {
     setIsGoogleSigningUp(true);
     try {
         await loginWithGoogle();
-        router.push('/');
+        // Redirect is handled by AuthContext now
     } catch (error: any) {
-        // Don't show an error toast if the user closes the popup
-        if (error.code === 'auth/popup-closed-by-user') {
-            return;
+        if (error.code !== 'auth/popup-closed-by-user') {
+             toast({
+                variant: 'destructive',
+                title: 'Sign Up Failed',
+                description: error.message,
+            });
         }
-         toast({
-            variant: 'destructive',
-            title: 'Sign Up Failed',
-            description: error.message,
-        });
     } finally {
         setIsGoogleSigningUp(false);
     }
