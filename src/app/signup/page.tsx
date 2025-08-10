@@ -86,6 +86,10 @@ export default function SignupPage() {
         await loginWithGoogle();
         router.push('/');
     } catch (error: any) {
+        // Don't show an error toast if the user closes the popup
+        if (error.code === 'auth/popup-closed-by-user') {
+            return;
+        }
          toast({
             variant: 'destructive',
             title: 'Sign Up Failed',
