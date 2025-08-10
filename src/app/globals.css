@@ -258,6 +258,17 @@
   body {
     @apply bg-background text-foreground;
   }
+  .theme-preview-light > .theme-icon { @apply bg-zinc-200 text-zinc-600; }
+  .theme-preview-dark > .theme-icon { @apply bg-[#1f2937] text-white; }
+  .theme-preview-rose > .theme-icon { @apply bg-rose-200 text-rose-500; }
+  .theme-preview-green > .theme-icon { @apply bg-green-200 text-green-500; }
+  .theme-preview-orange > .theme-icon { @apply bg-orange-200 text-orange-500; }
+  .theme-preview-blue > .theme-icon { @apply bg-blue-200 text-blue-500; }
+  .theme-preview-violet > .theme-icon { @apply bg-violet-200 text-violet-500; }
+  .theme-preview-yellow > .theme-icon { @apply bg-yellow-200 text-yellow-500; }
+  .theme-preview-slate > .theme-icon { @apply bg-slate-500 text-slate-100; }
+  .theme-preview-stone > .theme-icon { @apply bg-stone-300 text-stone-600; }
+
   .theme-preview-light { @apply bg-white; }
   .theme-preview-dark { @apply bg-[#09090b]; }
   .theme-preview-rose { @apply bg-rose-50; }
@@ -268,28 +279,6 @@
   .theme-preview-yellow { @apply bg-yellow-50; }
   .theme-preview-slate { @apply bg-slate-900; }
   .theme-preview-stone { @apply bg-stone-100; }
-
-  .theme-preview-icon-bg-light { @apply bg-zinc-200; }
-  .theme-preview-icon-bg-dark { @apply bg-[#1f2937]; }
-  .theme-preview-icon-bg-rose { @apply bg-rose-200; }
-  .theme-preview-icon-bg-green { @apply bg-green-200; }
-  .theme-preview-icon-bg-orange { @apply bg-orange-200; }
-  .theme-preview-icon-bg-blue { @apply bg-blue-200; }
-  .theme-preview-icon-bg-violet { @apply bg-violet-200; }
-  .theme-preview-icon-bg-yellow { @apply bg-yellow-200; }
-  .theme-preview-icon-bg-slate { @apply bg-slate-500; }
-  .theme-preview-icon-bg-stone { @apply bg-stone-300; }
-
-  .theme-preview-icon-light { @apply text-zinc-600; }
-  .theme-preview-icon-dark { @apply text-white; }
-  .theme-preview-icon-rose { @apply text-rose-500; }
-  .theme-preview-icon-green { @apply text-green-500; }
-  .theme-preview-icon-orange { @apply text-orange-500; }
-  .theme-preview-icon-blue { @apply text-blue-500; }
-  .theme-preview-icon-violet { @apply text-violet-500; }
-  .theme-preview-icon-yellow { @apply text-yellow-500; }
-  .theme-preview-icon-slate { @apply text-slate-100; }
-  .theme-preview-icon-stone { @apply text-stone-600; }
 }
 
 @layer utilities {

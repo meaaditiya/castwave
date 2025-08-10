@@ -35,9 +35,12 @@ export function ThemeToggle() {
   const [previewTheme, setPreviewTheme] = React.useState<string | null>(null);
 
   React.useEffect(() => {
-    const currentTheme = previewTheme || resolvedTheme;
-    if (currentTheme) {
-      document.documentElement.className = currentTheme;
+    // When previewTheme is active, apply it to the document
+    if (previewTheme) {
+        document.documentElement.className = previewTheme;
+    } else {
+        // When not previewing, revert to the actual resolved theme
+        if(resolvedTheme) document.documentElement.className = resolvedTheme;
     }
   }, [previewTheme, resolvedTheme]);
 
@@ -87,14 +90,8 @@ export function ThemeToggle() {
                                 `theme-preview-${themeValue}`
                             )}
                         >
-                             <div className={cn(
-                                "p-2 rounded-full",
-                                `theme-preview-icon-bg-${themeValue}`
-                             )}>
-                                <Icon className={cn(
-                                     "h-5 w-5",
-                                     `theme-preview-icon-${themeValue}`
-                                )} />
+                             <div className={cn("p-2 rounded-full", "theme-icon")}>
+                                <Icon className="h-5 w-5" />
                              </div>
                          </div>
                         <span className="text-xs font-medium">{name}</span>
