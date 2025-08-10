@@ -110,19 +110,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 setLoading(false);
             });
         } else {
-            if (profileUnsubscribe) profileUnsubscribe();
             setCurrentUser(null);
             setLoading(false);
             stopVerificationCheck();
         }
         
+        // This cleanup is for the onSnapshot listener when the user logs out/changes
         return () => {
-            if (profileUnsubscribe) profileUnsubscribe();
-            stopVerificationCheck();
+            if (profileUnsubscribe) {
+                profileUnsubscribe();
+            }
         }
     });
 
-    return () => unsubscribe();
+    // This is the main cleanup function for the onAuthStateChanged listener
+    return () => {
+        unsubscribe();
+        stopVerificationCheck();
+    };
   }, [startVerificationCheck]);
 
   const reauthenticate = async (password: string) => {
