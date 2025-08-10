@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { Card, CardFooter, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from './ui/button';
-import { Trash2, Calendar, Play, Loader2, ThumbsUp, ThumbsDown } from 'lucide-react';
+import { Trash2, Calendar, Play, Loader2, ThumbsUp, ThumbsDown, Edit } from 'lucide-react';
 import { ChatRoom } from '@/services/chatRoomService';
 import { format } from 'date-fns';
 import { useState } from 'react';
@@ -135,6 +135,14 @@ export function ChatRoomCard({ id, title, host, hostId, isLive, isOwner, onDelet
                 )}
                 {isOwner && (
                     <div className="flex-shrink-0 ml-auto">
+                        <Link href={`/chatroom/${id}/edit`} passHref>
+                           <Button variant="ghost" size="icon" asChild className="text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors duration-200">
+                                <div>
+                                    <Edit className="h-4 w-4"/>
+                                    <span className="sr-only">Edit Chat Room</span>
+                                </div>
+                           </Button>
+                        </Link>
                         <Button variant="ghost" size="icon" onClick={handleDeleteClick} className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors duration-200">
                             <Trash2 className="h-4 w-4"/>
                             <span className="sr-only">Delete Chat Room</span>

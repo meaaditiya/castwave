@@ -48,6 +48,15 @@ export interface ChatRoomInput {
     scheduledAt?: Date;
 }
 
+export interface ChatRoomUpdateInput {
+    title: string;
+    description: string;
+    isLive: boolean;
+    isPrivate: boolean;
+    scheduledAt?: Date;
+}
+
+
 export interface Participant {
     id?: string;
     userId: string;
@@ -101,6 +110,19 @@ export const createChatRoom = async (input: ChatRoomInput): Promise<{ chatRoomId
         throw new Error("Could not create chat room. Please try again.");
     }
 };
+
+export const updateChatRoom = async (chatRoomId: string, data: Partial<ChatRoomUpdateInput>) => {
+    const chatRoomRef = doc(db, 'chatRooms', chatRoomId);
+    try {
+        await updateDoc(chatRoomRef, {
+            ...data,
+            scheduledAt: data.scheduledAt === undefined ? null : data.scheduledAt,
+        });
+    } catch (error) {
+        console.error("Error updating chat room:", error);
+        throw new Error("Could not update the session details.");
+    }
+}
 
 export const getChatRooms = (
     callback: (chatRooms: ChatRoom[]) => void,
