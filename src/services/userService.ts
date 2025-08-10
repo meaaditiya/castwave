@@ -211,8 +211,11 @@ export const getUserSuggestions = async (userId: string): Promise<UserProfileDat
     const filteredUsers = allUsers.filter(user => 
         !usersToExclude.includes(user.uid) && user.username
     );
+
+    // De-duplicate users based on uid
+    const uniqueUsers = Array.from(new Map(filteredUsers.map(user => [user.uid, user])).values());
     
     // Shuffle and take the first 5
-    const shuffled = filteredUsers.sort(() => 0.5 - Math.random());
+    const shuffled = uniqueUsers.sort(() => 0.5 - Math.random());
     return shuffled.slice(0, 5);
 };
