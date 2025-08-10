@@ -24,18 +24,27 @@ service cloud.firestore {
       allow list: if request.auth != null;
 
       // CREATE: A user can create their own profile document, typically during signup.
-      allow create: if request.auth.uid == userId;
+      allow create: if request.auth != null && request.auth.uid == userId;
 
-      // UPDATE: A user can only update their own profile information.
-      allow update: if request.auth.uid == userId;
+      // UPDATE: A user can update their own profile OR another user's followerCount.
+      allow update: if request.auth != null && 
+        (request.auth.uid == userId ||
+         (request.resource.data.followerCount == resource.data.followerCount + 1 ||
+          request.resource.data.followerCount == resource.data.followerCount - 1) &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['followerCount']));
 
       // --- Following/Follower Subcollections ---
       match /following/{targetUserId} {
-        allow read, write: if request.auth.uid == userId;
+        // A user can only add/remove users from their own 'following' list.
+        allow create, delete: if request.auth != null && request.auth.uid == userId;
+        // Anyone can read who a user is following.
+        allow read: if request.auth != null;
       }
-
       match /followers/{followerId} {
-        allow read, write: if request.auth.uid == followerId;
+         // A user can add/remove themselves from another user's 'followers' list.
+        allow create, delete: if request.auth != null && request.auth.uid == followerId;
+         // Anyone can read a user's followers.
+        allow read: if request.auth != null;
       }
     }
 
@@ -51,7 +60,8 @@ service cloud.firestore {
 
       // UPDATE: Only the host can update room details (e.g., end session, feature message, update typing status).
       // Also allow any authenticated user to update likes/dislikes array.
-      allow update: if request.auth != null && (isHost(chatRoomId) || (request.resource.data.diff(request.resource.data).affectedKeys().hasOnly(['likes', 'dislikes', 'likers', 'dislikers'])));
+      allow update: if request.auth != null && (isHost(chatRoomId) || (request.resource.data.size() == resource.data.size() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes', 'dislikes', 'likers', 'dislikers'])));
+
 
       // DELETE: Only the host can delete their own chat room.
       allow delete: if request.auth != null && isHost(chatRoomId);

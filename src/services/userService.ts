@@ -1,6 +1,5 @@
-
 import { db } from '@/lib/firebase';
-import { doc, getDoc, collection, query, where, getDocs, documentId, onSnapshot, writeBatch, runTransaction, increment, limit, serverTimestamp, Transaction } from 'firebase/firestore';
+import { doc, getDoc, collection, query, where, getDocs, documentId, onSnapshot, writeBatch, runTransaction, increment, limit, serverTimestamp, Transaction, Query } from 'firebase/firestore';
 import { ChatRoom } from './chatRoomService';
 
 export interface UserProfileData {
@@ -55,7 +54,7 @@ export const followUser = async (currentUserId: string, targetUserId: string) =>
         await runTransaction(db, async (transaction) => {
             const followingDoc = await transaction.get(followingRef);
             if (followingDoc.exists()) {
-                // Already following, no need to do anything.
+                console.log("Already following, no need to do anything.");
                 return;
             }
 
@@ -80,12 +79,6 @@ export const unfollowUser = async (currentUserId: string, targetUserId: string) 
 
     try {
         await runTransaction(db, async (transaction) => {
-            const followingDoc = await transaction.get(followingRef);
-            if (!followingDoc.exists()) {
-                // Not following, no need to do anything.
-                return;
-            }
-
             // Perform deletes and updates
             transaction.delete(followingRef);
             transaction.delete(followerRef);
