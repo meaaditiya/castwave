@@ -85,11 +85,13 @@ export default function SignupPage() {
         await loginWithGoogle();
         // The useEffect hook will handle redirection once currentUser is set.
     } catch (error: any) {
-        toast({
-            variant: 'destructive',
-            title: 'Sign Up Failed',
-            description: error.message,
-        });
+        if (error.code !== 'auth/popup-closed-by-user') {
+            toast({
+                variant: 'destructive',
+                title: 'Sign Up Failed',
+                description: error.message,
+            });
+        }
     } finally {
         setIsSigningUp(false);
     }

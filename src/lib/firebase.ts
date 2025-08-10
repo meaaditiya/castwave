@@ -10,7 +10,8 @@ export const firebaseConfig = {
   "apiKey": "AIzaSyCQlbvsLpOmGvEuKKxvXs2Ax46OwXG46UI",
   "authDomain": "castwave-axlgb.firebaseapp.com",
   "measurementId": "",
-  "messagingSenderId": "1004745624362"
+  "messagingSenderId": "1004745624362",
+  "webClientId": "1004745624362-cl4u6hckr1tsfk5i0mk8sf4h6g4q7dce.apps.googleusercontent.com"
 };
 
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();

@@ -18,9 +18,8 @@ import {
     GoogleAuthProvider,
     signInWithPopup
 } from 'firebase/auth';
-import { auth, db } from '@/lib/firebase';
+import { auth, db, firebaseConfig } from '@/lib/firebase';
 import { doc, getDoc, setDoc, onSnapshot, updateDoc } from 'firebase/firestore';
-import { useRouter } from 'next/navigation';
 
 export interface UserProfile {
     uid: string;
@@ -158,7 +157,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logoutHandler = async () => {
     await signOut(auth);
-    // Force a full page reload to the login page to clear all state.
     window.location.href = '/login';
   }
   
@@ -187,6 +185,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const loginWithGoogle = async () => {
     try {
         const provider = new GoogleAuthProvider();
+        provider.setCustomParameters({ prompt: 'select_account' });
         const userCredential = await signInWithPopup(auth, provider);
         const user = userCredential.user;
 
