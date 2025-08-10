@@ -35,16 +35,12 @@ export function ThemeToggle() {
   const [previewTheme, setPreviewTheme] = React.useState<string | null>(null);
 
   React.useEffect(() => {
-    if (previewTheme) {
-      document.documentElement.classList.remove(...themes.map(t => t.theme));
-      document.documentElement.classList.add(previewTheme);
-    } else {
-      document.documentElement.classList.remove(...themes.map(t => t.theme));
-      if (resolvedTheme) {
-        document.documentElement.classList.add(resolvedTheme);
-      }
+    const currentTheme = previewTheme || resolvedTheme;
+    if (currentTheme) {
+      document.documentElement.className = currentTheme;
     }
   }, [previewTheme, resolvedTheme]);
+
 
   const handleMouseLeave = () => {
     setPreviewTheme(null);
@@ -63,17 +59,18 @@ export function ThemeToggle() {
           <span className="sr-only">Toggle theme</span>
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-[300px] max-h-[80vh] overflow-y-auto" onMouseLeave={handleMouseLeave}>
+      <DropdownMenuContent 
+        align="end" 
+        className="w-[300px] max-h-[80vh] overflow-y-auto theme-grid-dropdown" 
+        onMouseLeave={handleMouseLeave}
+      >
         <DropdownMenuLabel>Select a Theme</DropdownMenuLabel>
         <DropdownMenuSeparator />
         <div className="grid grid-cols-2 gap-2 p-2">
             {themes.map(({ name, theme: themeValue, icon: Icon }) => (
                 <DropdownMenuItem
                     key={themeValue}
-                    onSelect={(e) => {
-                        e.preventDefault();
-                        handleThemeSelect(themeValue);
-                    }}
+                    onClick={() => handleThemeSelect(themeValue)}
                     onMouseEnter={() => setPreviewTheme(themeValue)}
                     className="p-0"
                 >
@@ -87,46 +84,16 @@ export function ThemeToggle() {
                          <div
                             className={cn(
                                 "w-full h-16 rounded-md mb-2 flex items-center justify-center border",
-                                themeValue === 'light' ? 'bg-white' :
-                                themeValue === 'dark' ? 'bg-[#09090b]' :
-                                themeValue === 'rose' ? 'bg-rose-50' :
-                                themeValue === 'green' ? 'bg-green-50' :
-                                themeValue === 'orange' ? 'bg-orange-50' :
-                                themeValue === 'blue' ? 'bg-blue-50' :
-                                themeValue === 'violet' ? 'bg-violet-50' :
-                                themeValue === 'yellow' ? 'bg-yellow-50' :
-                                themeValue === 'slate' ? 'bg-[#0f172a]' :
-                                themeValue === 'stone' ? 'bg-stone-100' :
-                                'bg-background'
+                                `theme-preview-${themeValue}`
                             )}
                         >
                              <div className={cn(
                                 "p-2 rounded-full",
-                                themeValue === 'light' ? 'bg-zinc-200' :
-                                themeValue === 'dark' ? 'bg-[#1f2937]' :
-                                themeValue === 'rose' ? 'bg-rose-200' :
-                                themeValue === 'green' ? 'bg-green-200' :
-                                themeValue === 'orange' ? 'bg-orange-200' :
-                                themeValue === 'blue' ? 'bg-blue-200' :
-                                themeValue === 'violet' ? 'bg-violet-200' :
-                                themeValue === 'yellow' ? 'bg-yellow-200' :
-                                themeValue === 'slate' ? 'bg-slate-500' :
-                                themeValue === 'stone' ? 'bg-stone-300' :
-                                 'bg-muted'
+                                `theme-preview-icon-bg-${themeValue}`
                              )}>
                                 <Icon className={cn(
                                      "h-5 w-5",
-                                     themeValue === 'light' ? 'text-zinc-600' :
-                                     themeValue === 'dark' ? 'text-white' :
-                                     themeValue === 'rose' ? 'text-rose-500' :
-                                     themeValue === 'green' ? 'text-green-500' :
-                                     themeValue === 'orange' ? 'text-orange-500' :
-                                     themeValue === 'blue' ? 'text-blue-500' :
-                                     themeValue === 'violet' ? 'text-violet-500' :
-                                     themeValue === 'yellow' ? 'text-yellow-500' :
-                                     themeValue === 'slate' ? 'text-slate-100' :
-                                     themeValue === 'stone' ? 'text-stone-600' :
-                                     'text-foreground'
+                                     `theme-preview-icon-${themeValue}`
                                 )} />
                              </div>
                          </div>

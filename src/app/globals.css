@@ -1,3 +1,4 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -257,6 +258,38 @@
   body {
     @apply bg-background text-foreground;
   }
+  .theme-preview-light { @apply bg-white; }
+  .theme-preview-dark { @apply bg-[#09090b]; }
+  .theme-preview-rose { @apply bg-rose-50; }
+  .theme-preview-green { @apply bg-green-50; }
+  .theme-preview-orange { @apply bg-orange-50; }
+  .theme-preview-blue { @apply bg-blue-50; }
+  .theme-preview-violet { @apply bg-violet-50; }
+  .theme-preview-yellow { @apply bg-yellow-50; }
+  .theme-preview-slate { @apply bg-slate-900; }
+  .theme-preview-stone { @apply bg-stone-100; }
+
+  .theme-preview-icon-bg-light { @apply bg-zinc-200; }
+  .theme-preview-icon-bg-dark { @apply bg-[#1f2937]; }
+  .theme-preview-icon-bg-rose { @apply bg-rose-200; }
+  .theme-preview-icon-bg-green { @apply bg-green-200; }
+  .theme-preview-icon-bg-orange { @apply bg-orange-200; }
+  .theme-preview-icon-bg-blue { @apply bg-blue-200; }
+  .theme-preview-icon-bg-violet { @apply bg-violet-200; }
+  .theme-preview-icon-bg-yellow { @apply bg-yellow-200; }
+  .theme-preview-icon-bg-slate { @apply bg-slate-500; }
+  .theme-preview-icon-bg-stone { @apply bg-stone-300; }
+
+  .theme-preview-icon-light { @apply text-zinc-600; }
+  .theme-preview-icon-dark { @apply text-white; }
+  .theme-preview-icon-rose { @apply text-rose-500; }
+  .theme-preview-icon-green { @apply text-green-500; }
+  .theme-preview-icon-orange { @apply text-orange-500; }
+  .theme-preview-icon-blue { @apply text-blue-500; }
+  .theme-preview-icon-violet { @apply text-violet-500; }
+  .theme-preview-icon-yellow { @apply text-yellow-500; }
+  .theme-preview-icon-slate { @apply text-slate-100; }
+  .theme-preview-icon-stone { @apply text-stone-600; }
 }
 
 @layer utilities {
@@ -281,5 +314,23 @@
     50% {
       opacity: 1;
     }
+  }
+
+  .theme-grid-dropdown::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  .theme-grid-dropdown::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .theme-grid-dropdown::-webkit-scrollbar-thumb {
+    background-color: hsl(var(--border));
+    border-radius: 6px;
+  }
+
+  .theme-grid-dropdown::-webkit-scrollbar-thumb:hover {
+    background-color: hsl(var(--accent-foreground) / 0.5);
   }
 }
