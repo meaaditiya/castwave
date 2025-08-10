@@ -1,5 +1,6 @@
+
 import { db } from '@/lib/firebase';
-import { doc, getDoc, collection, query, where, getDocs, documentId, onSnapshot, writeBatch, runTransaction, increment, limit, serverTimestamp, Transaction, Query } from 'firebase/firestore';
+import { doc, getDoc, collection, query, where, getDocs, documentId, onSnapshot, writeBatch, runTransaction, increment, limit, serverTimestamp, Transaction, Query, collectionGroup } from 'firebase/firestore';
 import { ChatRoom } from './chatRoomService';
 
 export interface UserProfileData {
@@ -47,15 +48,15 @@ export const followUser = async (currentUserId: string, targetUserId: string) =>
     }
     const currentUserRef = doc(db, 'users', currentUserId);
     const targetUserRef = doc(db, 'users', targetUserId);
-    const followingRef = doc(currentUserRef, 'following', targetUserId);
-    const followerRef = doc(targetUserRef, 'followers', currentUserId);
+    const followingRef = doc(db, 'users', currentUserId, 'following', targetUserId);
+    const followerRef = doc(db, 'users', targetUserId, 'followers', currentUserId);
 
     try {
         await runTransaction(db, async (transaction) => {
             const followingDoc = await transaction.get(followingRef);
             if (followingDoc.exists()) {
-                console.log("Already following, no need to do anything.");
-                return;
+                console.log("Already following.");
+                return; // Exit if already following
             }
 
             // Perform writes
@@ -74,11 +75,25 @@ export const followUser = async (currentUserId: string, targetUserId: string) =>
 export const unfollowUser = async (currentUserId: string, targetUserId: string) => {
     const currentUserRef = doc(db, 'users', currentUserId);
     const targetUserRef = doc(db, 'users', targetUserId);
-    const followingRef = doc(currentUserRef, 'following', targetUserId);
-    const followerRef = doc(targetUserRef, 'followers', currentUserId);
+    const followingRef = doc(db, 'users', currentUserId, 'following', targetUserId);
+    const followerRef = doc(db, 'users', targetUserId, 'followers', currentUserId);
 
     try {
         await runTransaction(db, async (transaction) => {
+             const followingDoc = await transaction.get(followingRef);
+             if (!followingDoc.exists()) {
+                // To be robust, ensure counts are correct even if docs are missing
+                const currentUserDoc = await transaction.get(currentUserRef);
+                const targetUserDoc = await transaction.get(targetUserRef);
+                if (currentUserDoc.exists() && (currentUserDoc.data().followingCount || 0) > 0) {
+                     transaction.update(currentUserRef, { followingCount: increment(-1) });
+                }
+                if (targetUserDoc.exists() && (targetUserDoc.data().followerCount || 0) > 0) {
+                    transaction.update(targetUserRef, { followerCount: increment(-1) });
+                }
+                return;
+             }
+
             // Perform deletes and updates
             transaction.delete(followingRef);
             transaction.delete(followerRef);
@@ -156,8 +171,10 @@ export const getUserSuggestions = async (userId: string): Promise<UserProfileDat
     
     const allUsers = snapshot.docs.map(doc => doc.data() as UserProfileData);
     
+    // Filter out the current user and people they already follow
     const filteredUsers = allUsers.filter(user => !usersToExclude.includes(user.uid));
     
+    // Shuffle and take the first 5
     const shuffled = filteredUsers.sort(() => 0.5 - Math.random());
     return shuffled.slice(0, 5);
 };
