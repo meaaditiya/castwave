@@ -38,7 +38,7 @@ export default function SignupPage() {
   const { signup, loginWithGoogle, currentUser, loading } = useAuth();
   const router = useRouter();
   const { toast } = useToast();
-  const [isSigningUp, setIsSigningUp] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [signupSuccess, setSignupSuccess] = useState(false);
 
   useEffect(() => {
@@ -58,7 +58,7 @@ export default function SignupPage() {
   });
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
-    setIsSigningUp(true);
+    setIsSubmitting(true);
     try {
       await signup(values.email, values.password);
       setSignupSuccess(true);
@@ -75,25 +75,23 @@ export default function SignupPage() {
         description: errorMessage,
       });
     } finally {
-      setIsSigningUp(false);
+      setIsSubmitting(false);
     }
   }
 
   const handleGoogleSignup = async () => {
-    setIsSigningUp(true);
+    setIsSubmitting(true);
     try {
         await loginWithGoogle();
         // The useEffect hook will handle redirection once currentUser is set.
     } catch (error: any) {
-        if (error.code !== 'auth/popup-closed-by-user') {
-            toast({
-                variant: 'destructive',
-                title: 'Sign Up Failed',
-                description: error.message,
-            });
-        }
+        toast({
+            variant: 'destructive',
+            title: 'Sign Up Failed',
+            description: error.message,
+        });
     } finally {
-        setIsSigningUp(false);
+        setIsSubmitting(false);
     }
   }
 
@@ -187,8 +185,8 @@ export default function SignupPage() {
                   </FormItem>
                 )}
               />
-              <Button type="submit" className="w-full" disabled={isSigningUp}>
-                 {isSigningUp ? <Loader2 className="animate-spin" /> : <UserPlus />}
+              <Button type="submit" className="w-full" disabled={isSubmitting}>
+                 {isSubmitting ? <Loader2 className="animate-spin" /> : <UserPlus />}
                 Sign Up with Email
               </Button>
             </form>
@@ -201,8 +199,8 @@ export default function SignupPage() {
                 </div>
             </div>
 
-            <Button variant="outline" className="w-full" onClick={handleGoogleSignup} disabled={isSigningUp}>
-                {isSigningUp ? <Loader2 className="animate-spin" /> : <GoogleIcon className="h-4 w-4" />}
+            <Button variant="outline" className="w-full" onClick={handleGoogleSignup} disabled={isSubmitting}>
+                {isSubmitting ? <Loader2 className="animate-spin" /> : <GoogleIcon className="h-4 w-4" />}
                 Continue with Google
             </Button>
 

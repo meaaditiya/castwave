@@ -38,7 +38,7 @@ export default function LoginPage() {
   const { login, loginWithGoogle, currentUser, loading, sendPasswordReset } = useAuth();
   const router = useRouter();
   const { toast } = useToast();
-  const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
   const [isResetDialogOpen, setIsResetDialogOpen] = useState(false);
 
@@ -65,7 +65,7 @@ export default function LoginPage() {
   })
 
   async function onLoginSubmit(values: z.infer<typeof loginFormSchema>) {
-    setIsLoggingIn(true);
+    setIsSubmitting(true);
     try {
       await login(values.email, values.password);
       // The useEffect will handle redirection
@@ -76,25 +76,23 @@ export default function LoginPage() {
         description: error.message,
       });
     } finally {
-        setIsLoggingIn(false);
+        setIsSubmitting(false);
     }
   }
 
   const handleGoogleLogin = async () => {
-    setIsLoggingIn(true);
+    setIsSubmitting(true);
     try {
         await loginWithGoogle();
         // The useEffect hook will handle redirection once currentUser is set.
     } catch (error: any) {
-        if (error.code !== 'auth/popup-closed-by-user') {
-            toast({
-                variant: 'destructive',
-                title: 'Login Failed',
-                description: error.message,
-            });
-        }
+        toast({
+            variant: 'destructive',
+            title: 'Login Failed',
+            description: error.message,
+        });
     } finally {
-        setIsLoggingIn(false);
+        setIsSubmitting(false);
     }
   }
 
@@ -167,8 +165,8 @@ export default function LoginPage() {
                   </FormItem>
                 )}
               />
-              <Button type="submit" className="w-full" disabled={isLoggingIn}>
-                {isLoggingIn ? <Loader2 className="animate-spin" /> : <LogInIcon />}
+              <Button type="submit" className="w-full" disabled={isSubmitting}>
+                {isSubmitting ? <Loader2 className="animate-spin" /> : <LogInIcon />}
                 Log In
               </Button>
             </form>
@@ -180,8 +178,8 @@ export default function LoginPage() {
                 </div>
             </div>
 
-            <Button variant="outline" className="w-full" onClick={handleGoogleLogin} disabled={isLoggingIn}>
-                {isLoggingIn ? <Loader2 className="animate-spin" /> : <GoogleIcon className="h-4 w-4" />}
+            <Button variant="outline" className="w-full" onClick={handleGoogleLogin} disabled={isSubmitting}>
+                {isSubmitting ? <Loader2 className="animate-spin" /> : <GoogleIcon className="h-4 w-4" />}
                 Continue with Google
             </Button>
 
