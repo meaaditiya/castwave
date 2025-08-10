@@ -3,62 +3,57 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Users can read/write their own profile, but only read others' public profiles.
+    // Default deny all reads/writes
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Users: Can read public profiles, can only write to their own profile.
     match /users/{userId} {
-      allow read: if request.auth != null;
+      allow read;
       allow write: if request.auth.uid == userId;
 
-      // Allow authenticated users to manage their own follow lists
-      match /following/{targetId} {
-        allow read, create, delete: if request.auth.uid == userId;
-      }
+      // Subcollections for followers/following
       match /followers/{followerId} {
-        allow read: if request.auth != null;
-        // Followers can only be created/deleted by the corresponding user action
-        allow write: if request.auth.uid == followerId;
+        allow read;
+        allow create, delete: if request.auth.uid == followerId || request.auth.uid == userId;
+      }
+      match /following/{followingId} {
+        allow read;
+        allow create, delete: if request.auth.uid == userId;
       }
     }
 
-    // Chat Rooms
+    // ChatRooms: Rules for sessions
     match /chatRooms/{roomId} {
-      // Anyone authenticated can read a public chat room.
-      // Private rooms can only be read by participants.
-      allow read: if request.auth != null && (resource.data.isPrivate == false || exists(/databases/$(database)/documents/chatRooms/$(roomId)/participants/$(request.auth.uid)));
-      
-      // Allow authenticated users to create rooms.
-      allow create: if request.auth != null;
-      
-      // Allow host to update/delete. Allow authenticated users to like/dislike.
-      allow update: if request.auth != null && (request.auth.uid == resource.data.hostId || request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes', 'dislikes', 'likers', 'dislikers']));
-      allow delete: if request.auth != null && request.auth.uid == resource.data.hostId;
-
-      // Messages subcollection
-      match /messages/{messageId} {
-        // Only approved participants can read/write messages.
-        allow read, create: if request.auth != null && get(/databases/$(database)/documents/chatRooms/$(roomId)/participants/$(request.auth.uid)).data.status == 'approved';
-        // Allow voting by approved participants
-        allow update: if request.auth != null && get(/databases/$(database)/documents/chatRooms/$(roomId)/participants/$(request.auth.uid)).data.status == 'approved';
-      }
+      // Read access: allow if public, or if the user is a participant in a private room
+      allow read: if resource.data.isPrivate == false || exists(/databases/$(database)/documents/chatRooms/$(roomId)/participants/$(request.auth.uid));
+      // Update access: Liking, starting, ending a room.
+      allow update: if request.auth.uid != null;
+      // Create access: any authenticated user can create a room.
+      allow create: if request.auth.uid != null;
+      // Delete access: only the host can delete their own room.
+      allow delete: if resource.data.hostId == request.auth.uid;
 
       // Participants subcollection
       match /participants/{participantId} {
-        // User can create their own participant document (join request)
-        // Host can read/update any participant.
-        // User can read their own participant document.
+        // Only the host can read the full list or update status
+        allow read, write: if exists(/databases/$(database)/documents/chatRooms/$(roomId)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/chatRooms/$(roomId)).data.hostId == request.auth.uid;
+        // Any authenticated user can create their own participant document (request to join)
         allow create: if request.auth.uid == participantId;
-        allow read, update: if request.auth != null && (request.auth.uid == resource.data.hostId || request.auth.uid == participantId);
       }
-      
+
+      // Messages subcollection
+      match /messages/{messageId} {
+        // Any approved participant can read or write messages.
+        allow read, write: if get(/databases/$(database)/documents/chatRooms/$(roomId)/participants/$(request.auth.uid)).data.status == 'approved';
+      }
+
       // Polls subcollection
       match /polls/{pollId} {
-      	// Host can create/update polls.
-        // Approved participants can read/vote on polls.
-      	allow read, write: if request.auth != null && (get(/databases/$(database)/documents/chatRooms/$(roomId)/participants/$(request.auth.uid)).data.status == 'approved' || request.auth.uid == resource.data.hostId);
-      }
-      
-      // WebRTC Signals (if you add WebRTC)
-      match /webrtc_signals/{signalId} {
-        allow read, write: if request.auth != null && exists(/databases/$(database)/documents/chatRooms/$(roomId)/participants/$(request.auth.uid));
+         allow read: if get(/databases/$(database)/documents/chatRooms/$(roomId)/participants/$(request.auth.uid)).data.status == 'approved';
+         // Only the host can create, update or delete polls
+         allow write: if get(/databases/$(database)/documents/chatRooms/$(roomId)).data.hostId == request.auth.uid;
       }
     }
   }
