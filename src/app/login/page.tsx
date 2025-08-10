@@ -15,6 +15,7 @@ import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { Waves, Loader2, LogIn as LogInIcon, Mail } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
+import { Separator } from '@/components/ui/separator';
 
 const loginFormSchema = z.object({
   email: z.string().email({ message: 'Invalid email address.' }),
@@ -25,11 +26,20 @@ const passwordResetFormSchema = z.object({
     email: z.string().email({ message: 'Please enter a valid email address.'}),
 });
 
+const GoogleIcon = (props: React.SVGProps<SVGSVGElement>) => (
+    <svg role="img" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" {...props}>
+        <title>Google</title>
+        <path d="M12.48 10.92v3.28h7.84c-.24 1.84-.85 3.18-1.73 4.1-1.02 1.02-2.62 1.98-4.66 1.98-3.56 0-6.47-2.91-6.47-6.47s2.91-6.47 6.47-6.47c1.98 0 3.06.82 4.06 1.76l2.58-2.58C17.7 2.2 15.48 1 12.48 1 7.01 1 3 5.02 3 10.5s4.01 9.5 9.48 9.5c2.73 0 4.93-.91 6.57-2.55 1.73-1.73 2.3-4.25 2.3-6.47 0-.91-.08-1.48-.18-2.08H12.48z" />
+    </svg>
+);
+
+
 export default function LoginPage() {
-  const { login, currentUser, loading, sendPasswordReset } = useAuth();
+  const { login, loginWithGoogle, currentUser, loading, sendPasswordReset } = useAuth();
   const router = useRouter();
   const { toast } = useToast();
   const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const [isGoogleLoggingIn, setIsGoogleLoggingIn] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
   const [isResetDialogOpen, setIsResetDialogOpen] = useState(false);
 
@@ -70,6 +80,23 @@ export default function LoginPage() {
         setIsLoggingIn(false);
     }
   }
+
+  const handleGoogleLogin = async () => {
+    setIsGoogleLoggingIn(true);
+    try {
+        await loginWithGoogle();
+        router.push('/');
+    } catch (error: any) {
+         toast({
+            variant: 'destructive',
+            title: 'Login Failed',
+            description: error.message,
+        });
+    } finally {
+        setIsGoogleLoggingIn(false);
+    }
+  }
+
 
   async function onPasswordResetSubmit(values: z.infer<typeof passwordResetFormSchema>) {
       setIsResetting(true);
@@ -139,12 +166,25 @@ export default function LoginPage() {
                   </FormItem>
                 )}
               />
-              <Button type="submit" className="w-full" disabled={isLoggingIn}>
+              <Button type="submit" className="w-full" disabled={isLoggingIn || isGoogleLoggingIn}>
                 {isLoggingIn ? <Loader2 className="animate-spin" /> : <LogInIcon />}
                 Log In
               </Button>
             </form>
           </Form>
+            <div className="relative my-4">
+                <Separator />
+                <div className="absolute top-1/2 -translate-y-1/2 left-1/2 -translate-x-1/2 bg-background px-2">
+                    <span className="text-muted-foreground text-sm">OR</span>
+                </div>
+            </div>
+
+            <Button variant="outline" className="w-full" onClick={handleGoogleLogin} disabled={isLoggingIn || isGoogleLoggingIn}>
+                {isGoogleLoggingIn ? <Loader2 className="animate-spin" /> : <GoogleIcon className="h-4 w-4" />}
+                Continue with Google
+            </Button>
+
+
            <div className="mt-4 text-center text-sm">
                 <Dialog open={isResetDialogOpen} onOpenChange={setIsResetDialogOpen}>
                     <DialogTrigger asChild>

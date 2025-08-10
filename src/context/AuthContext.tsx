@@ -2,10 +2,24 @@
 "use client";
 
 import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
-import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, User as FirebaseAuthUser, EmailAuthProvider, reauthenticateWithCredential, updatePassword, sendEmailVerification, sendPasswordResetEmail, UserCredential } from 'firebase/auth';
+import { 
+    getAuth, 
+    onAuthStateChanged, 
+    createUserWithEmailAndPassword, 
+    signInWithEmailAndPassword, 
+    signOut, 
+    User as FirebaseAuthUser, 
+    EmailAuthProvider, 
+    reauthenticateWithCredential, 
+    updatePassword, 
+    sendEmailVerification, 
+    sendPasswordResetEmail, 
+    UserCredential,
+    GoogleAuthProvider,
+    signInWithPopup
+} from 'firebase/auth';
 import { auth, db } from '@/lib/firebase';
 import { doc, getDoc, setDoc, onSnapshot, updateDoc } from 'firebase/firestore';
-import { useRouter } from 'next/navigation';
 
 export interface UserProfile {
     uid: string;
@@ -24,6 +38,7 @@ interface AuthContextType {
   loading: boolean;
   signup: (email:string, password:string) => Promise<UserCredential>;
   login: (email:string, password:string) => Promise<UserCredential>;
+  loginWithGoogle: () => Promise<UserCredential>;
   logout: () => Promise<void>;
   reauthenticate: (password: string) => Promise<void>;
   updateUserPassword: (password: string) => Promise<void>;
@@ -163,11 +178,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return signInWithEmailAndPassword(auth, email, password);
   }
 
+  const loginWithGoogle = async () => {
+    const provider = new GoogleAuthProvider();
+    const userCredential = await signInWithPopup(auth, provider);
+    const user = userCredential.user;
+
+    const userDocRef = doc(db, 'users', user.uid);
+    const userDocSnap = await getDoc(userDocRef);
+
+    // If the user is new, create a profile for them in Firestore
+    if (!userDocSnap.exists()) {
+        await setDoc(userDocRef, {
+            uid: user.uid,
+            username: user.displayName || user.email?.split('@')[0] || `user_${user.uid.substring(0,5)}`,
+            email: user.email,
+            emailVerified: user.emailVerified,
+            photoURL: user.photoURL || '',
+        });
+    }
+
+    return userCredential;
+  };
+
   const value = {
     currentUser,
     loading,
     signup: signupWithEmail,
     login: loginWithEmail,
+    loginWithGoogle,
     logout: logoutHandler,
     reauthenticate,
     updateUserPassword,
