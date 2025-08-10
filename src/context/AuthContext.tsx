@@ -22,7 +22,7 @@ import {
     linkWithCredential
 } from 'firebase/auth';
 import { auth, db } from '@/lib/firebase';
-import { doc, getDoc, setDoc, onSnapshot, updateDoc, query, collection, where } from 'firebase/firestore';
+import { doc, getDoc, setDoc, onSnapshot, updateDoc, query, collection, where, getDocs } from 'firebase/firestore';
 
 export interface UserProfile {
     uid: string;
@@ -202,10 +202,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
    const loginWithPhoneHandler = async (phoneNumber: string, password: string) => {
-    // 1. Find the user's email by their phone number from your Firestore database.
     const usersRef = collection(db, 'users');
     const q = query(usersRef, where("phoneNumber", "==", phoneNumber));
-    const querySnapshot = await getDoc(q);
+    const querySnapshot = await getDocs(q);
 
     if (querySnapshot.empty) {
         throw new Error("No account found with this phone number.");
@@ -218,7 +217,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         throw new Error("This account is not set up for password login. Please try another method.");
     }
 
-    // 2. Use the retrieved email and the provided password to sign in.
     await signInWithEmailAndPassword(auth, userData.email, password);
   };
 
@@ -241,7 +239,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   const confirmPhoneOtpHandler = async (confirmationResult: ConfirmationResult, otp: string) => {
-    // This will sign in the user temporarily as an anonymous user with a phone credential
     return await confirmationResult.confirm(otp);
   }
 
@@ -251,31 +248,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         throw new Error("No verified phone number found.");
     }
 
-    // Generate a temporary email to link the password credential
     const tempEmail = `${user.phoneNumber}@castwave.app`;
 
     const emailCredential = EmailAuthProvider.credential(tempEmail, password);
 
     try {
-      // Link the password credential to the user with the phone number
       const userCredential = await linkWithCredential(user, emailCredential);
       const linkedUser = userCredential.user;
 
-      // Now create the user profile in Firestore
       const userDocRef = doc(db, 'users', linkedUser.uid);
       await setDoc(userDocRef, {
           uid: linkedUser.uid,
           username: `user_${linkedUser.uid.substring(0, 5)}`,
           phoneNumber: linkedUser.phoneNumber,
           phoneVerified: true,
-          email: tempEmail, // Store the dummy email
+          email: tempEmail,
           emailVerified: false,
           photoURL: '',
       });
     } catch(error: any) {
         if (error.code === 'auth/email-already-in-use') {
-            // This can happen if the dummy email was somehow used before.
-            // A more robust solution might generate a truly unique email.
             throw new Error("This phone number appears to be linked to another account.");
         }
         throw error;
