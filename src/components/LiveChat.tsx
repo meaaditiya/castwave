@@ -148,6 +148,7 @@ export function LiveChat({ chatRoom, messages, participant }: LiveChatProps) {
   const [hostReply, setHostReply] = useState('');
   const [isFeaturing, setIsFeaturing] = useState(false);
   const [replyingTo, setReplyingTo] = useState<Message | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   
   const isHost = currentUser?.uid === chatRoom.hostId;
   const canChat = isHost || participant?.status === 'approved';
@@ -289,6 +290,11 @@ export function LiveChat({ chatRoom, messages, participant }: LiveChatProps) {
         setIsFeaturing(false);
     }
   }
+
+  const handleReplyClick = (message: Message) => {
+    setReplyingTo(message);
+    inputRef.current?.focus();
+  }
   
   const typingUsers = Object.entries(chatRoom.typingUsers || {})
     .filter(([id]) => id !== currentUser?.uid)
@@ -308,7 +314,7 @@ export function LiveChat({ chatRoom, messages, participant }: LiveChatProps) {
                 <ChatMessage 
                     key={msg.id}
                     message={msg}
-                    onReply={setReplyingTo}
+                    onReply={handleReplyClick}
                     onFeature={setMessageToFeature}
                     onVote={handleVote}
                     canChat={canChat}
@@ -360,6 +366,7 @@ export function LiveChat({ chatRoom, messages, participant }: LiveChatProps) {
         )}
         <form onSubmit={handleSubmit} className="flex gap-2">
             <Input
+              ref={inputRef}
               placeholder={canChat ? "Join the conversation..." : "Waiting for host approval..."}
               value={newMessage}
               onChange={(e) => setNewMessage(e.target.value)}
@@ -402,3 +409,5 @@ export function LiveChat({ chatRoom, messages, participant }: LiveChatProps) {
     </CardContent>
   );
 }
+
+    
