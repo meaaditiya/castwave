@@ -46,40 +46,42 @@ export const getUserProfileStream = (userId: string, callback: (profile: UserPro
 export const followUser = async (currentUserId: string, targetUserId: string) => {
     const currentUserRef = doc(db, 'users', currentUserId);
     const targetUserRef = doc(db, 'users', targetUserId);
+    const batch = writeBatch(db);
 
-    await runTransaction(db, async (transaction) => {
-        // Add target to current user's "following" subcollection
-        const followingRef = doc(collection(currentUserRef, 'following'), targetUserId);
-        transaction.set(followingRef, { timestamp: new Date() });
-        // Increment current user's "followingCount"
-        transaction.update(currentUserRef, { followingCount: increment(1) });
+    // Add target to current user's "following" subcollection
+    const followingRef = doc(collection(currentUserRef, 'following'), targetUserId);
+    batch.set(followingRef, { timestamp: new Date() });
+    // Increment current user's "followingCount"
+    batch.update(currentUserRef, { followingCount: increment(1) });
 
-        // Add current user to target's "followers" subcollection
-        const followerRef = doc(collection(targetUserRef, 'followers'), currentUserId);
-        transaction.set(followerRef, { timestamp: new Date() });
-        // Increment target user's "followerCount"
-        transaction.update(targetUserRef, { followerCount: increment(1) });
-    });
+    // Add current user to target's "followers" subcollection
+    const followerRef = doc(collection(targetUserRef, 'followers'), currentUserId);
+    batch.set(followerRef, { timestamp: new Date() });
+    // Increment target user's "followerCount"
+    batch.update(targetUserRef, { followerCount: increment(1) });
+    
+    await batch.commit();
 }
 
 // Unfollow a user
 export const unfollowUser = async (currentUserId: string, targetUserId: string) => {
     const currentUserRef = doc(db, 'users', currentUserId);
     const targetUserRef = doc(db, 'users', targetUserId);
+    const batch = writeBatch(db);
 
-    await runTransaction(db, async (transaction) => {
-        // Remove target from current user's "following" subcollection
-        const followingRef = doc(collection(currentUserRef, 'following'), targetUserId);
-        transaction.delete(followingRef);
-        // Decrement current user's "followingCount"
-        transaction.update(currentUserRef, { followingCount: increment(-1) });
+    // Remove target from current user's "following" subcollection
+    const followingRef = doc(collection(currentUserRef, 'following'), targetUserId);
+    batch.delete(followingRef);
+    // Decrement current user's "followingCount"
+    batch.update(currentUserRef, { followingCount: increment(-1) });
 
-        // Remove current user from target's "followers" subcollection
-        const followerRef = doc(collection(targetUserRef, 'followers'), currentUserId);
-        transaction.delete(followerRef);
-        // Decrement target user's "followerCount"
-        transaction.update(targetUserRef, { followerCount: increment(-1) });
-    });
+    // Remove current user from target's "followers" subcollection
+    const followerRef = doc(collection(targetUserRef, 'followers'), currentUserId);
+    batch.delete(followerRef);
+    // Decrement target user's "followerCount"
+    batch.update(targetUserRef, { followerCount: increment(-1) });
+    
+    await batch.commit();
 }
 
 
@@ -135,21 +137,17 @@ export const getFeedForUser = async (userId: string): Promise<ChatRoom[]> => {
 export const getUserSuggestions = async (userId: string): Promise<UserProfileData[]> => {
     // Get list of users that the current user is already following
     const followingList = await getFollowingList(userId);
-    const usersToExclude = [userId, ...followingList];
+    const usersToExclude = new Set([userId, ...followingList]);
 
     const usersRef = collection(db, 'users');
-    let q;
-
-    if (usersToExclude.length > 0 && usersToExclude.length < 30) {
-        q = query(
-            usersRef, 
-            where(documentId(), 'not-in', usersToExclude),
-            limit(5)
-        );
-    } else {
-        q = query(usersRef, limit(5)); // Fallback if the array is too large or empty
-    }
+    const q = query(usersRef, limit(20)); // Fetch a reasonable number of users
     
     const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => doc.data() as UserProfileData).filter(u => u.uid !== userId);
+    
+    const allUsers = snapshot.docs.map(doc => doc.data() as UserProfileData);
+
+    // Filter out the excluded users in code
+    const suggestions = allUsers.filter(user => !usersToExclude.has(user.uid));
+    
+    return suggestions.slice(0, 5); // Return the top 5
 };
