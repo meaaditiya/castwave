@@ -87,7 +87,7 @@ function ChatMessage({ message, onReply, onFeature, onVote, canChat, isHost, par
                         <span className={`font-bold text-sm ${getUserColor(message.user)} cursor-pointer hover:underline`}>{message.user}</span>
                     </Link>
                     <span className="text-xs text-muted-foreground">{formatTimestamp(message.timestamp)}</span>
-                    <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center">
+                    <div className="flex items-center">
                         <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => onReply(message)} disabled={!canChat}>
                             <MessageCircle className="h-4 w-4" />
                         </Button>
