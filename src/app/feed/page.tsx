@@ -16,39 +16,30 @@ import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { useToast } from '@/hooks/use-toast';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
 
 
 function FeedPageSkeleton() {
     return (
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-            <div className="md:col-span-3">
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {Array.from({ length: 6 }).map((_, i) => (
-                        <div key={i} className="flex flex-col space-y-3">
-                            <Skeleton className="h-[225px] w-full rounded-xl" />
-                            <div className="space-y-2">
-                                <Skeleton className="h-4 w-3/4" />
-                                <Skeleton className="h-4 w-1/2" />
-                            </div>
-                        </div>
+        <div className="space-y-8">
+            <div>
+                <Skeleton className="h-8 w-48 mb-4" />
+                <div className="flex space-x-4">
+                    {Array.from({ length: 4 }).map((_, i) => (
+                        <Skeleton key={i} className="h-32 w-64 rounded-xl" />
                     ))}
                 </div>
             </div>
-            <div className="md:col-span-1">
-                 <Card>
-                    <CardHeader><Skeleton className="h-6 w-3/4" /></CardHeader>
-                    <CardContent className="space-y-4">
-                        {Array.from({length: 4}).map((_, i) => (
-                            <div key={i} className="flex items-center gap-4">
-                                <Skeleton className="h-10 w-10 rounded-full" />
-                                <div className="space-y-2 flex-1">
-                                    <Skeleton className="h-4 w-full" />
-                                    <Skeleton className="h-3 w-1/2" />
-                                </div>
-                            </div>
-                        ))}
-                    </CardContent>
-                </Card>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                {Array.from({ length: 8 }).map((_, i) => (
+                    <div key={i} className="flex flex-col space-y-3">
+                        <Skeleton className="h-[225px] w-full rounded-xl" />
+                        <div className="space-y-2">
+                            <Skeleton className="h-4 w-3/4" />
+                            <Skeleton className="h-4 w-1/2" />
+                        </div>
+                    </div>
+                ))}
             </div>
         </div>
     )
@@ -80,39 +71,40 @@ function Suggestions({ suggestions }: { suggestions: UserProfileData[] }) {
     }
 
     if (suggestions.length === 0) {
-        return (
-            <Card>
-                <CardHeader><CardTitle>Suggestions</CardTitle></CardHeader>
-                <CardContent>
-                    <p className="text-sm text-muted-foreground">No suggestions right now. Check back later!</p>
-                </CardContent>
-            </Card>
-        )
+        return null;
     }
 
     return (
-        <Card>
-            <CardHeader><CardTitle>Suggestions For You</CardTitle></CardHeader>
-            <CardContent className="space-y-4">
-                {suggestions.map(user => (
-                    <div key={user.uid} className="flex items-center justify-between gap-4">
-                        <Link href={`/profile/${user.uid}`} className="flex items-center gap-3 flex-1">
-                            <Avatar className="h-10 w-10">
-                                <AvatarImage src={user.photoURL} alt={user.username} />
-                                <AvatarFallback>{getInitials(user.username)}</AvatarFallback>
-                            </Avatar>
-                            <div>
-                                <p className="font-semibold text-sm hover:underline">{user.username}</p>
-                                <p className="text-xs text-muted-foreground">{user.email}</p>
-                            </div>
-                        </Link>
-                         <Button size="sm" variant="outline" onClick={(e) => handleFollow(e, user.uid)}>
-                            <UserPlus className="mr-2" /> Follow
-                        </Button>
-                    </div>
-                ))}
-            </CardContent>
-        </Card>
+        <div className="mb-12">
+            <h2 className="text-2xl font-bold tracking-tight mb-4">Suggestions For You</h2>
+             <Carousel opts={{ align: "start", dragFree: true }}>
+                <CarouselContent className="-ml-4">
+                    {suggestions.map(user => (
+                        <CarouselItem key={user.uid} className="basis-auto pl-4">
+                             <Card className="w-64 hover:border-primary/50 transition-colors">
+                                <CardContent className="flex flex-col items-center text-center p-6">
+                                     <Link href={`/profile/${user.uid}`} className="flex flex-col items-center gap-3 flex-1">
+                                        <Avatar className="h-16 w-16 text-xl">
+                                            <AvatarImage src={user.photoURL} alt={user.username} />
+                                            <AvatarFallback>{getInitials(user.username)}</AvatarFallback>
+                                        </Avatar>
+                                        <div>
+                                            <p className="font-semibold hover:underline">{user.username}</p>
+                                            <p className="text-xs text-muted-foreground">{user.email}</p>
+                                        </div>
+                                    </Link>
+                                    <Button size="sm" variant="outline" className="mt-4 w-full" onClick={(e) => handleFollow(e, user.uid)}>
+                                        <UserPlus className="mr-2" /> Follow
+                                    </Button>
+                                </CardContent>
+                             </Card>
+                        </CarouselItem>
+                    ))}
+                </CarouselContent>
+                <CarouselPrevious />
+                <CarouselNext />
+            </Carousel>
+        </div>
     )
 }
 
@@ -231,10 +223,13 @@ export default function FeedPage() {
         }
         
         return (
-             <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-                <div className="md:col-span-3">
+             <div className="space-y-12">
+                <Suggestions suggestions={suggestions} />
+                
+                <div>
+                     <h2 className="text-2xl font-bold tracking-tight mb-4">From Your Network</h2>
                     {feedRooms.length > 0 ? (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                             {feedRooms.map(chatRoom => (
                                 <ChatRoomCard 
                                     key={chatRoom.id} 
@@ -248,16 +243,13 @@ export default function FeedPage() {
                             ))}
                         </div>
                     ) : (
-                         <div className="text-center py-16 text-muted-foreground border-2 border-dashed rounded-lg flex flex-col items-center justify-center h-full">
+                         <div className="text-center py-16 text-muted-foreground border-2 border-dashed rounded-lg flex flex-col items-center justify-center h-full min-h-[400px]">
                            <Rss className="mx-auto h-12 w-12 text-muted-foreground/50 mb-4" />
                            <p className="font-semibold text-lg">Your Feed is Empty</p>
-                           <p>Follow people to see their public sessions here.</p>
+                           <p>Follow people from the suggestions above to see their public sessions here.</p>
                         </div>
                     )}
                 </div>
-                 <div className="md:col-span-1">
-                     <Suggestions suggestions={suggestions} />
-                 </div>
             </div>
         )
 
