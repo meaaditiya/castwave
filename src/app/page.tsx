@@ -187,7 +187,7 @@ export default function Home() {
     <div className="min-h-screen flex flex-col">
       <Header />
       <main className="flex-1 container py-8 px-2 md:px-8">
-        <div className="relative text-center py-12 md:py-20 rounded-xl mb-12 overflow-hidden bg-card border">
+        <div className="relative text-center py-12 rounded-xl mb-12 overflow-hidden bg-card border">
           <div className="absolute inset-0 bg-gradient-to-b from-primary/5 to-transparent -z-10"></div>
            <div 
                 className="absolute top-0 left-0 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-primary/10 rounded-full blur-3xl -z-10"
@@ -197,13 +197,13 @@ export default function Home() {
                 className="absolute bottom-0 right-0 translate-x-1/2 translate-y-1/2 w-96 h-96 bg-primary/10 rounded-full blur-3xl -z-10"
                 aria-hidden="true">
             </div>
-          <Waves className="h-16 w-16 text-primary mx-auto mb-4" />
-          <h1 className="text-4xl md:text-5xl font-bold tracking-tighter mb-4">
+          <Waves className="h-12 w-12 text-primary mx-auto mb-4" />
+          <h1 className="text-3xl md:text-4xl font-bold tracking-tighter mb-4">
               <span className="bg-gradient-to-br from-primary via-primary/80 to-primary/60 bg-clip-text text-transparent">
                   Explore Live Sessions
               </span>
           </h1>
-          <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
+          <p className="text-muted-foreground text-base max-w-2xl mx-auto">
               Join a conversation, review a past broadcast, or see what's coming up. Your next favorite session awaits.
           </p>
         </div>
