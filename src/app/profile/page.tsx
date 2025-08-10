@@ -8,7 +8,7 @@ import { Header } from "@/components/Header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { LogOut, Loader2, Mail, User, Edit, Check, ShieldCheck, KeyRound, MailCheck, AlertTriangle, CheckCircle, XCircle, X, Sparkles, Trash2, ArrowLeft, Phone } from "lucide-react";
+import { LogOut, Loader2, Mail, User, Edit, Check, ShieldCheck, KeyRound, MailCheck, AlertTriangle, CheckCircle, XCircle, X, Sparkles, Trash2, ArrowLeft } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { doc, setDoc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
@@ -241,9 +241,6 @@ export default function ProfilePage() {
         return username.toUpperCase();
     }
 
-    const isEmailUser = !!currentUser.profile?.email;
-    const isPhoneUser = !!currentUser.profile?.phoneNumber;
-
 
     return (
         <div className="flex flex-col min-h-screen">
@@ -261,13 +258,13 @@ export default function ProfilePage() {
                            <div className="relative group">
                                 <Avatar className="h-24 w-24 text-3xl border-2 border-primary">
                                      <AvatarImage src={currentUser.profile?.photoURL} alt={currentUser.profile?.username} />
-                                    <AvatarFallback>{getInitials(currentUser.profile?.username || currentUser.email || currentUser.phoneNumber)}</AvatarFallback>
+                                    <AvatarFallback>{getInitials(currentUser.profile?.username || currentUser.email)}</AvatarFallback>
                                 </Avatar>
                            </div>
                             <div className="flex-1">
                                 <div className="flex items-center justify-center sm:justify-start gap-2">
                                     <CardTitle className="text-2xl">{currentUser.profile?.username || 'My Profile'}</CardTitle>
-                                    {(currentUser.profile?.emailVerified || currentUser.profile?.phoneVerified) ? (
+                                    {currentUser.profile?.emailVerified ? (
                                         <CheckCircle className="h-6 w-6 text-green-500" />
                                     ) : (
                                         <XCircle className="h-6 w-6 text-red-500" />
@@ -329,34 +326,18 @@ export default function ProfilePage() {
                                             </Button>
                                         )}
                                     </div>
-                                    {isEmailUser && (
-                                        <div className="flex items-center space-x-4 rounded-md border p-4">
-                                            <Mail className="h-5 w-5 text-muted-foreground" />
-                                            <div className="flex-1 space-y-1">
-                                                <p className="text-sm font-medium leading-none">Email</p>
-                                                <p className="text-sm text-muted-foreground">{currentUser.profile?.email}</p>
-                                            </div>
-                                            {currentUser.profile?.emailVerified ? (
-                                                <CheckCircle className="h-5 w-5 text-green-500" />
-                                            ) : (
-                                                <XCircle className="h-5 w-5 text-red-500" />
-                                            )}
+                                    <div className="flex items-center space-x-4 rounded-md border p-4">
+                                        <Mail className="h-5 w-5 text-muted-foreground" />
+                                        <div className="flex-1 space-y-1">
+                                            <p className="text-sm font-medium leading-none">Email</p>
+                                            <p className="text-sm text-muted-foreground">{currentUser.profile?.email}</p>
                                         </div>
-                                    )}
-                                    {isPhoneUser && (
-                                        <div className="flex items-center space-x-4 rounded-md border p-4">
-                                            <Phone className="h-5 w-5 text-muted-foreground" />
-                                            <div className="flex-1 space-y-1">
-                                                <p className="text-sm font-medium leading-none">Phone Number</p>
-                                                <p className="text-sm text-muted-foreground">{currentUser.profile?.phoneNumber}</p>
-                                            </div>
-                                             {currentUser.profile?.phoneVerified ? (
-                                                <CheckCircle className="h-5 w-5 text-green-500" />
-                                            ) : (
-                                                <XCircle className="h-5 w-5 text-red-500" />
-                                            )}
-                                        </div>
-                                    )}
+                                        {currentUser.profile?.emailVerified ? (
+                                            <CheckCircle className="h-5 w-5 text-green-500" />
+                                        ) : (
+                                            <XCircle className="h-5 w-5 text-red-500" />
+                                        )}
+                                    </div>
                                 </div>
                             </div>
                             
@@ -365,101 +346,97 @@ export default function ProfilePage() {
                             <div>
                                 <h3 className="text-lg font-semibold mb-4">Security Settings</h3>
                                 <div className="space-y-4">
-                                     {isEmailUser && (
-                                         <div className="flex items-center space-x-4 rounded-md border p-4">
-                                            {currentUser.profile?.emailVerified ? (
-                                                <>
-                                                    <MailCheck className="h-5 w-5 text-green-500" />
-                                                    <div className="flex-1 space-y-1">
-                                                        <p className="text-sm font-medium leading-none">Email Verification</p>
-                                                        <p className="text-sm text-muted-foreground">Your email address has been verified.</p>
-                                                    </div>
-                                                </>
-                                            ) : (
-                                                <>
-                                                    <AlertTriangle className="h-5 w-5 text-yellow-500" />
-                                                    <div className="flex-1 space-y-1">
-                                                        <p className="text-sm font-medium leading-none">Email Not Verified</p>
-                                                        <p className="text-sm text-muted-foreground">Please check your inbox for a verification link.</p>
-                                                    </div>
-                                                    <Button variant="secondary" onClick={handleSendVerificationEmail} disabled={isSendingVerification}>
-                                                        {isSendingVerification ? <Loader2 className="animate-spin mr-2" /> : null}
-                                                        Resend Email
-                                                    </Button>
-                                                </>
-                                            )}
-                                        </div>
-                                     )}
+                                     <div className="flex items-center space-x-4 rounded-md border p-4">
+                                        {currentUser.profile?.emailVerified ? (
+                                            <>
+                                                <MailCheck className="h-5 w-5 text-green-500" />
+                                                <div className="flex-1 space-y-1">
+                                                    <p className="text-sm font-medium leading-none">Email Verification</p>
+                                                    <p className="text-sm text-muted-foreground">Your email address has been verified.</p>
+                                                </div>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <AlertTriangle className="h-5 w-5 text-yellow-500" />
+                                                <div className="flex-1 space-y-1">
+                                                    <p className="text-sm font-medium leading-none">Email Not Verified</p>
+                                                    <p className="text-sm text-muted-foreground">Please check your inbox for a verification link.</p>
+                                                </div>
+                                                <Button variant="secondary" onClick={handleSendVerificationEmail} disabled={isSendingVerification}>
+                                                    {isSendingVerification ? <Loader2 className="animate-spin mr-2" /> : null}
+                                                    Resend Email
+                                                </Button>
+                                            </>
+                                        )}
+                                    </div>
 
-                                    {isEmailUser && (
-                                        <div className="flex items-center space-x-4 rounded-md border p-4">
-                                            <KeyRound className="h-5 w-5 text-muted-foreground" />
-                                            <div className="flex-1 space-y-1">
-                                                <p className="text-sm font-medium leading-none">Password</p>
-                                                <p className="text-sm text-muted-foreground">Change your account password.</p>
-                                            </div>
-                                            <Dialog>
-                                                <DialogTrigger asChild>
-                                                    <Button variant="secondary">Change Password</Button>
-                                                </DialogTrigger>
-                                                <DialogContent>
-                                                    <DialogHeader>
-                                                        <DialogTitle>Change Your Password</DialogTitle>
-                                                        <DialogDescription>Enter your current password and a new password below.</DialogDescription>
-                                                    </DialogHeader>
-                                                    <Form {...passwordForm}>
-                                                        <form onSubmit={passwordForm.handleSubmit(handleChangePassword)} className="space-y-4 py-4">
-                                                            <FormField
-                                                                control={passwordForm.control}
-                                                                name="currentPassword"
-                                                                render={({ field }) => (
-                                                                <FormItem>
-                                                                    <FormLabel>Current Password</FormLabel>
-                                                                    <FormControl>
-                                                                        <Input type="password" {...field} />
-                                                                    </FormControl>
-                                                                    <FormMessage />
-                                                                </FormItem>
-                                                                )}
-                                                            />
-                                                            <FormField
-                                                                control={passwordForm.control}
-                                                                name="newPassword"
-                                                                render={({ field }) => (
-                                                                <FormItem>
-                                                                    <FormLabel>New Password</FormLabel>
-                                                                    <FormControl>
-                                                                        <Input type="password" {...field} />
-                                                                    </FormControl>
-                                                                    <FormMessage />
-                                                                </FormItem>
-                                                                )}
-                                                            />
-                                                            <FormField
-                                                                control={passwordForm.control}
-                                                                name="confirmPassword"
-                                                                render={({ field }) => (
-                                                                <FormItem>
-                                                                    <FormLabel>Confirm New Password</FormLabel>
-                                                                    <FormControl>
-                                                                        <Input type="password" {...field} />
-                                                                    </FormControl>
-                                                                    <FormMessage />
-                                                                </FormItem>
-                                                                )}
-                                                            />
-                                                            <DialogFooter>
-                                                                <Button type="submit" disabled={passwordForm.formState.isSubmitting}>
-                                                                    {passwordForm.formState.isSubmitting && <Loader2 className="animate-spin" />}
-                                                                    Update Password
-                                                                </Button>
-                                                            </DialogFooter>
-                                                        </form>
-                                                    </Form>
-                                                </DialogContent>
-                                            </Dialog>
+                                    <div className="flex items-center space-x-4 rounded-md border p-4">
+                                        <KeyRound className="h-5 w-5 text-muted-foreground" />
+                                        <div className="flex-1 space-y-1">
+                                            <p className="text-sm font-medium leading-none">Password</p>
+                                            <p className="text-sm text-muted-foreground">Change your account password.</p>
                                         </div>
-                                    )}
+                                        <Dialog>
+                                            <DialogTrigger asChild>
+                                                <Button variant="secondary">Change Password</Button>
+                                            </DialogTrigger>
+                                            <DialogContent>
+                                                <DialogHeader>
+                                                    <DialogTitle>Change Your Password</DialogTitle>
+                                                    <DialogDescription>Enter your current password and a new password below.</DialogDescription>
+                                                </DialogHeader>
+                                                <Form {...passwordForm}>
+                                                    <form onSubmit={passwordForm.handleSubmit(handleChangePassword)} className="space-y-4 py-4">
+                                                        <FormField
+                                                            control={passwordForm.control}
+                                                            name="currentPassword"
+                                                            render={({ field }) => (
+                                                            <FormItem>
+                                                                <FormLabel>Current Password</FormLabel>
+                                                                <FormControl>
+                                                                    <Input type="password" {...field} />
+                                                                </FormControl>
+                                                                <FormMessage />
+                                                            </FormItem>
+                                                            )}
+                                                        />
+                                                        <FormField
+                                                            control={passwordForm.control}
+                                                            name="newPassword"
+                                                            render={({ field }) => (
+                                                            <FormItem>
+                                                                <FormLabel>New Password</FormLabel>
+                                                                <FormControl>
+                                                                    <Input type="password" {...field} />
+                                                                </FormControl>
+                                                                <FormMessage />
+                                                            </FormItem>
+                                                            )}
+                                                        />
+                                                        <FormField
+                                                            control={passwordForm.control}
+                                                            name="confirmPassword"
+                                                            render={({ field }) => (
+                                                            <FormItem>
+                                                                <FormLabel>Confirm New Password</FormLabel>
+                                                                <FormControl>
+                                                                    <Input type="password" {...field} />
+                                                                </FormControl>
+                                                                <FormMessage />
+                                                            </FormItem>
+                                                            )}
+                                                        />
+                                                        <DialogFooter>
+                                                            <Button type="submit" disabled={passwordForm.formState.isSubmitting}>
+                                                                {passwordForm.formState.isSubmitting && <Loader2 className="animate-spin" />}
+                                                                Update Password
+                                                            </Button>
+                                                        </DialogFooter>
+                                                    </form>
+                                                </Form>
+                                            </DialogContent>
+                                        </Dialog>
+                                    </div>
                                 </div>
                             </div>
                         </CardContent>

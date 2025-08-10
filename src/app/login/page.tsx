@@ -13,17 +13,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-import { Waves, Loader2, LogIn as LogInIcon, Phone } from 'lucide-react';
+import { Waves, Loader2, LogIn as LogInIcon } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 const emailLoginFormSchema = z.object({
   email: z.string().email({ message: 'Invalid email address.' }),
-  password: z.string().min(6, { message: 'Password must be at least 6 characters.' }),
-});
-
-const phoneLoginFormSchema = z.object({
-  phoneNumber: z.string().min(10, { message: 'Please enter a valid phone number.' }),
   password: z.string().min(6, { message: 'Password must be at least 6 characters.' }),
 });
 
@@ -33,7 +27,7 @@ const passwordResetFormSchema = z.object({
 
 
 export default function LoginPage() {
-  const { loginWithEmail, loginWithPhone, currentUser, loading, sendPasswordReset } = useAuth();
+  const { loginWithEmail, currentUser, loading, sendPasswordReset } = useAuth();
   const router = useRouter();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -58,15 +52,6 @@ export default function LoginPage() {
       password: '',
     },
   });
-  
-  const phoneLoginForm = useForm<z.infer<typeof phoneLoginFormSchema>>({
-    resolver: zodResolver(phoneLoginFormSchema),
-    defaultValues: {
-      phoneNumber: '',
-      password: '',
-    },
-  });
-
 
   const passwordResetForm = useForm<z.infer<typeof passwordResetFormSchema>>({
       resolver: zodResolver(passwordResetFormSchema),
@@ -87,21 +72,6 @@ export default function LoginPage() {
       });
     } finally {
         setIsSubmitting(false);
-    }
-  }
-
-  async function onPhoneLoginSubmit(values: z.infer<typeof phoneLoginFormSchema>) {
-    setIsSubmitting(true);
-    try {
-      await loginWithPhone(values.phoneNumber, values.password);
-    } catch (error: any) {
-      toast({
-        variant: 'destructive',
-        title: 'Login Failed',
-        description: error.message,
-      });
-    } finally {
-      setIsSubmitting(false);
     }
   }
 
@@ -135,7 +105,6 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-background p-4">
-        <div id="recaptcha-container-login"></div>
         <Link href="/" className="flex items-center space-x-2 mb-8">
           <Waves className="h-8 w-8 text-primary" />
           <span className="font-bold text-2xl font-headline">CastWave</span>
@@ -146,124 +115,80 @@ export default function LoginPage() {
           <CardDescription>Access your account to join live chat rooms.</CardDescription>
         </CardHeader>
         <CardContent>
-            <Tabs defaultValue="phone" className="w-full">
-                <TabsList className="grid w-full grid-cols-2">
-                    <TabsTrigger value="phone">Phone</TabsTrigger>
-                    <TabsTrigger value="email">Email</TabsTrigger>
-                </TabsList>
-                <TabsContent value="email">
-                  <Form {...emailLoginForm}>
-                    <form onSubmit={emailLoginForm.handleSubmit(onEmailLoginSubmit)} className="space-y-4 pt-4">
-                      <FormField
-                        control={emailLoginForm.control}
-                        name="email"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Email</FormLabel>
-                            <FormControl>
-                              <Input placeholder="you@example.com" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={emailLoginForm.control}
-                        name="password"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Password</FormLabel>
-                            <FormControl>
-                              <Input type="password" placeholder="••••••••" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <Button type="submit" className="w-full" disabled={isSubmitting}>
-                        {isSubmitting ? <Loader2 className="animate-spin" /> : <LogInIcon />}
-                        Log In with Email
-                      </Button>
-                    </form>
-                  </Form>
-                   <div className="mt-4 text-center text-sm">
-                        <Dialog open={isResetDialogOpen} onOpenChange={setIsResetDialogOpen}>
-                            <DialogTrigger asChild>
-                                <Button variant="link" className="p-0 h-auto font-normal">
-                                    Forgot password?
-                                </Button>
-                            </DialogTrigger>
-                            <DialogContent>
-                                <DialogHeader>
-                                    <DialogTitle>Reset Your Password</DialogTitle>
-                                    <DialogDescription>
-                                        Enter your email address and we'll send you a link to reset your password.
-                                    </DialogDescription>
-                                </DialogHeader>
-                                <Form {...passwordResetForm}>
-                                    <form onSubmit={passwordResetForm.handleSubmit(onPasswordResetSubmit)} className="space-y-4">
-                                        <FormField
-                                            control={passwordResetForm.control}
-                                            name="email"
-                                            render={({ field }) => (
-                                                <FormItem>
-                                                    <FormLabel>Email</FormLabel>
-                                                    <FormControl>
-                                                        <Input type="email" placeholder="you@example.com" {...field} />
-                                                    </FormControl>
-                                                    <FormMessage />
-                                                </FormItem>
-                                            )}
-                                        />
-                                        <DialogFooter>
-                                            <Button type="submit" disabled={isResetting}>
-                                                {isResetting && <Loader2 className="animate-spin" />}
-                                                Send Reset Link
-                                            </Button>
-                                        </DialogFooter>
-                                    </form>
-                                </Form>
-                            </DialogContent>
-                        </Dialog>
-                   </div>
-                </TabsContent>
-                <TabsContent value="phone">
-                    <Form {...phoneLoginForm}>
-                        <form onSubmit={phoneLoginForm.handleSubmit(onPhoneLoginSubmit)} className="space-y-4 pt-4">
-                            <FormField
-                                control={phoneLoginForm.control}
-                                name="phoneNumber"
-                                render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Phone Number</FormLabel>
-                                    <FormControl>
-                                    <Input placeholder="+1 123 456 7890" {...field} />
-                                    </FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                                )}
-                            />
-                            <FormField
-                                control={phoneLoginForm.control}
-                                name="password"
-                                render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Password</FormLabel>
-                                    <FormControl>
-                                    <Input type="password" placeholder="••••••••" {...field} />
-                                    </FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                                )}
-                            />
-                            <Button type="submit" className="w-full" disabled={isSubmitting}>
-                                {isSubmitting ? <Loader2 className="animate-spin" /> : <Phone />}
-                                Log In with Phone
-                            </Button>
-                        </form>
-                    </Form>
-                </TabsContent>
-            </Tabs>
+          <Form {...emailLoginForm}>
+            <form onSubmit={emailLoginForm.handleSubmit(onEmailLoginSubmit)} className="space-y-4 pt-4">
+              <FormField
+                control={emailLoginForm.control}
+                name="email"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Email</FormLabel>
+                    <FormControl>
+                      <Input placeholder="you@example.com" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={emailLoginForm.control}
+                name="password"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Password</FormLabel>
+                    <FormControl>
+                      <Input type="password" placeholder="••••••••" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <Button type="submit" className="w-full" disabled={isSubmitting}>
+                {isSubmitting ? <Loader2 className="animate-spin" /> : <LogInIcon />}
+                Log In with Email
+              </Button>
+            </form>
+          </Form>
+           <div className="mt-4 text-center text-sm">
+                <Dialog open={isResetDialogOpen} onOpenChange={setIsResetDialogOpen}>
+                    <DialogTrigger asChild>
+                        <Button variant="link" className="p-0 h-auto font-normal">
+                            Forgot password?
+                        </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                        <DialogHeader>
+                            <DialogTitle>Reset Your Password</DialogTitle>
+                            <DialogDescription>
+                                Enter your email address and we'll send you a link to reset your password.
+                            </DialogDescription>
+                        </DialogHeader>
+                        <Form {...passwordResetForm}>
+                            <form onSubmit={passwordResetForm.handleSubmit(onPasswordResetSubmit)} className="space-y-4">
+                                <FormField
+                                    control={passwordResetForm.control}
+                                    name="email"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Email</FormLabel>
+                                            <FormControl>
+                                                <Input type="email" placeholder="you@example.com" {...field} />
+                                            </FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                                <DialogFooter>
+                                    <Button type="submit" disabled={isResetting}>
+                                        {isResetting && <Loader2 className="animate-spin" />}
+                                        Send Reset Link
+                                    </Button>
+                                </DialogFooter>
+                            </form>
+                        </Form>
+                    </DialogContent>
+                </Dialog>
+           </div>
           
           <div className="mt-4 text-center text-sm">
             Don't have an account?{' '}

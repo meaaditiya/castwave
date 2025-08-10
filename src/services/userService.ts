@@ -5,10 +5,8 @@ import { doc, getDoc, collection, query, where, getDocs, documentId, onSnapshot 
 export interface UserProfileData {
     uid: string;
     username: string;
-    email?: string;
+    email: string;
     emailVerified: boolean;
-    phoneNumber?: string;
-    phoneVerified?: boolean;
     photoURL?: string;
 }
 

@@ -13,24 +13,17 @@ import {
     reauthenticateWithCredential, 
     updatePassword, 
     sendEmailVerification, 
-    sendPasswordResetEmail, 
-    UserCredential,
-    signInWithPhoneNumber,
-    RecaptchaVerifier,
-    ConfirmationResult,
-    PhoneAuthProvider,
-    linkWithCredential
+    sendPasswordResetEmail,
+    UserCredential
 } from 'firebase/auth';
 import { auth, db } from '@/lib/firebase';
-import { doc, getDoc, setDoc, onSnapshot, updateDoc, query, collection, where, getDocs } from 'firebase/firestore';
+import { doc, getDoc, setDoc, onSnapshot, updateDoc } from 'firebase/firestore';
 
 export interface UserProfile {
     uid: string;
-    email?: string;
+    email: string;
     username: string;
     emailVerified: boolean;
-    phoneNumber?: string;
-    phoneVerified?: boolean;
     photoURL?: string;
 }
 
@@ -43,16 +36,11 @@ interface AuthContextType {
   loading: boolean;
   signupWithEmail: (email:string, password:string) => Promise<UserCredential>;
   loginWithEmail: (email:string, password:string) => Promise<UserCredential>;
-  loginWithPhone: (phoneNumber: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   reauthenticate: (password: string) => Promise<void>;
   updateUserPassword: (password: string) => Promise<void>;
   sendVerificationEmail: () => Promise<void>;
   sendPasswordReset: (email: string) => Promise<void>;
-  setupRecaptcha: (elementId: string) => RecaptchaVerifier;
-  sendPhoneOtp: (phoneNumber: string, appVerifier: RecaptchaVerifier) => Promise<ConfirmationResult>;
-  confirmPhoneOtp: (confirmationResult: ConfirmationResult, otp: string) => Promise<UserCredential>;
-  completePhoneSignup: (password: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -144,15 +132,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 }, [startVerificationCheck]);
 
   const reauthenticate = async (password: string) => {
-    if (!auth.currentUser || !auth.currentUser.providerData.some(p => p.providerId === 'password')) {
-        throw new Error("Password authentication is not enabled for this user.");
-    }
-    // Need to find which identity has a password. Assume email if it exists.
-    const email = auth.currentUser.email;
-    if (!email) {
+    if (!auth.currentUser || !auth.currentUser.email) {
         throw new Error("Cannot reauthenticate user without an email address.");
     }
-    const credential = EmailAuthProvider.credential(email, password);
+    const credential = EmailAuthProvider.credential(auth.currentUser.email, password);
     await reauthenticateWithCredential(auth.currentUser, credential);
   };
 
@@ -201,95 +184,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return signInWithEmailAndPassword(auth, email, password);
   }
 
-   const loginWithPhoneHandler = async (phoneNumber: string, password: string) => {
-    const usersRef = collection(db, 'users');
-    const q = query(usersRef, where("phoneNumber", "==", phoneNumber));
-    const querySnapshot = await getDocs(q);
-
-    if (querySnapshot.empty) {
-        throw new Error("No account found with this phone number.");
-    }
-    
-    const userDoc = querySnapshot.docs[0];
-    const userData = userDoc.data();
-
-    if (!userData.email) {
-        throw new Error("This account is not set up for password login. Please try another method.");
-    }
-
-    await signInWithEmailAndPassword(auth, userData.email, password);
-  };
-
-
-  const setupRecaptcha = (elementId: string) => {
-    if (typeof window !== 'undefined') {
-        if (!(window as any).recaptchaVerifier) {
-            (window as any).recaptchaVerifier = new RecaptchaVerifier(auth, elementId, {
-                'size': 'invisible',
-                'callback': (response: any) => {},
-            });
-        }
-        return (window as any).recaptchaVerifier;
-    }
-    throw new Error("reCAPTCHA can only be initialized on the client-side.");
-  }
-
-  const sendPhoneOtpHandler = (phoneNumber: string, appVerifier: RecaptchaVerifier) => {
-      return signInWithPhoneNumber(auth, phoneNumber, appVerifier);
-  }
-
-  const confirmPhoneOtpHandler = async (confirmationResult: ConfirmationResult, otp: string) => {
-    return await confirmationResult.confirm(otp);
-  }
-
-  const completePhoneSignupHandler = async (password: string) => {
-    const user = auth.currentUser;
-    if (!user || !user.phoneNumber) {
-        throw new Error("No verified phone number found.");
-    }
-
-    const tempEmail = `${user.phoneNumber}@castwave.app`;
-
-    const emailCredential = EmailAuthProvider.credential(tempEmail, password);
-
-    try {
-      const userCredential = await linkWithCredential(user, emailCredential);
-      const linkedUser = userCredential.user;
-
-      const userDocRef = doc(db, 'users', linkedUser.uid);
-      await setDoc(userDocRef, {
-          uid: linkedUser.uid,
-          username: `user_${linkedUser.uid.substring(0, 5)}`,
-          phoneNumber: linkedUser.phoneNumber,
-          phoneVerified: true,
-          email: tempEmail,
-          emailVerified: false,
-          photoURL: '',
-      });
-    } catch(error: any) {
-        if (error.code === 'auth/email-already-in-use') {
-            throw new Error("This phone number appears to be linked to another account.");
-        }
-        throw error;
-    }
-  }
-
-
   const value = {
     currentUser,
     loading,
     signupWithEmail: signupWithEmailHandler,
     loginWithEmail: loginWithEmailHandler,
-    loginWithPhone: loginWithPhoneHandler,
     logout: logoutHandler,
     reauthenticate,
     updateUserPassword,
     sendVerificationEmail: sendVerificationEmailHandler,
     sendPasswordReset: sendPasswordResetHandler,
-    setupRecaptcha,
-    sendPhoneOtp: sendPhoneOtpHandler,
-    confirmPhoneOtp: confirmPhoneOtpHandler,
-    completePhoneSignup: completePhoneSignupHandler
   };
   
   return (
