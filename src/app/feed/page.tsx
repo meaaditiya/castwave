@@ -81,7 +81,7 @@ function Suggestions({ suggestions }: { suggestions: UserProfileData[] }) {
             <h2 className="text-2xl font-bold tracking-tight mb-4">Suggestions For You</h2>
              <Carousel opts={{ align: "start", dragFree: true }}>
                 <CarouselContent className="-ml-4">
-                    {suggestions.map(user => (
+                    {suggestions.filter(user => user.uid).map(user => (
                         <CarouselItem key={user.uid} className="basis-auto pl-4">
                              <Card className="w-64 hover:border-primary/50 transition-colors h-full flex flex-col">
                                 <CardContent className="flex flex-col items-center text-center p-6 flex-1">
