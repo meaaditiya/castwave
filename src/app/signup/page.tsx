@@ -104,7 +104,7 @@ export default function SignupPage() {
   async function onPhoneSubmit(values: z.infer<typeof phoneFormSchema>) {
     setIsSubmitting(true);
     try {
-        const appVerifier = setupRecaptcha('recaptcha-container');
+        const appVerifier = setupRecaptcha('recaptcha-container-signup');
         const result = await signInWithPhone(values.phoneNumber, appVerifier);
         setConfirmationResult(result);
         setShowOtpForm(true);
@@ -164,7 +164,7 @@ export default function SignupPage() {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-background p-4">
-      <div id="recaptcha-container"></div>
+      <div id="recaptcha-container-signup"></div>
       <Link href="/" className="flex items-center space-x-2 mb-8">
         <Waves className="h-8 w-8 text-primary" />
         <span className="font-bold text-2xl font-headline">CastWave</span>
@@ -289,4 +289,5 @@ export default function SignupPage() {
       </Card>
     </div>
   );
-}
+
+    

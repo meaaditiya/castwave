@@ -13,9 +13,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-import { Waves, Loader2, LogIn as LogInIcon } from 'lucide-react';
+import { Waves, Loader2, LogIn as LogInIcon, Phone, MessageSquare } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
 import { Separator } from '@/components/ui/separator';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import type { ConfirmationResult, RecaptchaVerifier } from 'firebase/auth';
 
 const loginFormSchema = z.object({
   email: z.string().email({ message: 'Invalid email address.' }),
@@ -26,13 +28,23 @@ const passwordResetFormSchema = z.object({
     email: z.string().email({ message: 'Please enter a valid email address.'}),
 });
 
+const phoneFormSchema = z.object({
+  phoneNumber: z.string().min(10, { message: 'Please enter a valid phone number with country code.' }),
+});
+
+const otpFormSchema = z.object({
+    otp: z.string().length(6, { message: "OTP must be 6 digits."})
+})
+
 export default function LoginPage() {
-  const { login, currentUser, loading, sendPasswordReset } = useAuth();
+  const { login, currentUser, loading, sendPasswordReset, setupRecaptcha, signInWithPhone, confirmOtp } = useAuth();
   const router = useRouter();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
   const [isResetDialogOpen, setIsResetDialogOpen] = useState(false);
+  const [showOtpForm, setShowOtpForm] = useState(false);
+  const [confirmationResult, setConfirmationResult] = useState<ConfirmationResult | null>(null);
 
   useEffect(() => {
     // Add a small delay to ensure profile is loaded
@@ -43,7 +55,7 @@ export default function LoginPage() {
         
         return () => clearTimeout(timer);
     }
-}, [currentUser, loading, router]);
+  }, [currentUser, loading, router]);
 
 
   const loginForm = useForm<z.infer<typeof loginFormSchema>>({
@@ -53,6 +65,21 @@ export default function LoginPage() {
       password: '',
     },
   });
+  
+  const phoneForm = useForm<z.infer<typeof phoneFormSchema>>({
+    resolver: zodResolver(phoneFormSchema),
+    defaultValues: {
+      phoneNumber: '',
+    },
+  });
+
+  const otpForm = useForm<z.infer<typeof otpFormSchema>>({
+    resolver: zodResolver(otpFormSchema),
+    defaultValues: {
+        otp: ''
+    }
+  })
+
 
   const passwordResetForm = useForm<z.infer<typeof passwordResetFormSchema>>({
       resolver: zodResolver(passwordResetFormSchema),
@@ -76,6 +103,37 @@ export default function LoginPage() {
         setIsSubmitting(false);
     }
   }
+  
+  async function onPhoneSubmit(values: z.infer<typeof phoneFormSchema>) {
+    setIsSubmitting(true);
+    try {
+        const appVerifier = setupRecaptcha('recaptcha-container-login');
+        const result = await signInWithPhone(values.phoneNumber, appVerifier);
+        setConfirmationResult(result);
+        setShowOtpForm(true);
+        toast({ title: 'OTP Sent', description: 'Please check your phone for the verification code.'});
+    } catch (error: any) {
+        console.error(error);
+        toast({ variant: 'destructive', title: 'Failed to send OTP', description: error.message});
+    } finally {
+        setIsSubmitting(false);
+    }
+  }
+  
+  async function onOtpSubmit(values: z.infer<typeof otpFormSchema>) {
+    if (!confirmationResult) return;
+    setIsSubmitting(true);
+    try {
+        await confirmOtp(confirmationResult, values.otp);
+        // Let the useEffect handle redirection
+    } catch (error: any) {
+        console.error(error);
+        toast({ variant: 'destructive', title: 'Invalid OTP', description: 'The OTP you entered is incorrect. Please try again.'});
+    } finally {
+        setIsSubmitting(false);
+    }
+  }
+
 
   async function onPasswordResetSubmit(values: z.infer<typeof passwordResetFormSchema>) {
       setIsResetting(true);
@@ -107,6 +165,7 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-background p-4">
+        <div id="recaptcha-container-login"></div>
         <Link href="/" className="flex items-center space-x-2 mb-8">
           <Waves className="h-8 w-8 text-primary" />
           <span className="font-bold text-2xl font-headline">CastWave</span>
@@ -117,81 +176,137 @@ export default function LoginPage() {
           <CardDescription>Access your account to join live chat rooms.</CardDescription>
         </CardHeader>
         <CardContent>
-          <Form {...loginForm}>
-            <form onSubmit={loginForm.handleSubmit(onLoginSubmit)} className="space-y-4">
-              <FormField
-                control={loginForm.control}
-                name="email"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Email</FormLabel>
-                    <FormControl>
-                      <Input placeholder="you@example.com" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={loginForm.control}
-                name="password"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Password</FormLabel>
-                    <FormControl>
-                      <Input type="password" placeholder="••••••••" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <Button type="submit" className="w-full" disabled={isSubmitting}>
-                {isSubmitting ? <Loader2 className="animate-spin" /> : <LogInIcon />}
-                Log In with Email
-              </Button>
-            </form>
-          </Form>
-
-           <div className="mt-4 text-center text-sm">
-                <Dialog open={isResetDialogOpen} onOpenChange={setIsResetDialogOpen}>
-                    <DialogTrigger asChild>
-                        <Button variant="link" className="p-0 h-auto font-normal">
-                            Forgot password?
-                        </Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                        <DialogHeader>
-                            <DialogTitle>Reset Your Password</DialogTitle>
-                            <DialogDescription>
-                                Enter your email address and we'll send you a link to reset your password.
-                            </DialogDescription>
-                        </DialogHeader>
-                        <Form {...passwordResetForm}>
-                            <form onSubmit={passwordResetForm.handleSubmit(onPasswordResetSubmit)} className="space-y-4">
+            <Tabs defaultValue="email" className="w-full">
+                <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="email">Email</TabsTrigger>
+                    <TabsTrigger value="phone">Phone</TabsTrigger>
+                </TabsList>
+                <TabsContent value="email">
+                  <Form {...loginForm}>
+                    <form onSubmit={loginForm.handleSubmit(onLoginSubmit)} className="space-y-4 pt-4">
+                      <FormField
+                        control={loginForm.control}
+                        name="email"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Email</FormLabel>
+                            <FormControl>
+                              <Input placeholder="you@example.com" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={loginForm.control}
+                        name="password"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Password</FormLabel>
+                            <FormControl>
+                              <Input type="password" placeholder="••••••••" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <Button type="submit" className="w-full" disabled={isSubmitting}>
+                        {isSubmitting ? <Loader2 className="animate-spin" /> : <LogInIcon />}
+                        Log In with Email
+                      </Button>
+                    </form>
+                  </Form>
+                   <div className="mt-4 text-center text-sm">
+                        <Dialog open={isResetDialogOpen} onOpenChange={setIsResetDialogOpen}>
+                            <DialogTrigger asChild>
+                                <Button variant="link" className="p-0 h-auto font-normal">
+                                    Forgot password?
+                                </Button>
+                            </DialogTrigger>
+                            <DialogContent>
+                                <DialogHeader>
+                                    <DialogTitle>Reset Your Password</DialogTitle>
+                                    <DialogDescription>
+                                        Enter your email address and we'll send you a link to reset your password.
+                                    </DialogDescription>
+                                </DialogHeader>
+                                <Form {...passwordResetForm}>
+                                    <form onSubmit={passwordResetForm.handleSubmit(onPasswordResetSubmit)} className="space-y-4">
+                                        <FormField
+                                            control={passwordResetForm.control}
+                                            name="email"
+                                            render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel>Email</FormLabel>
+                                                    <FormControl>
+                                                        <Input type="email" placeholder="you@example.com" {...field} />
+                                                    </FormControl>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )}
+                                        />
+                                        <DialogFooter>
+                                            <Button type="submit" disabled={isResetting}>
+                                                {isResetting && <Loader2 className="animate-spin" />}
+                                                Send Reset Link
+                                            </Button>
+                                        </DialogFooter>
+                                    </form>
+                                </Form>
+                            </DialogContent>
+                        </Dialog>
+                   </div>
+                </TabsContent>
+                <TabsContent value="phone">
+                    {!showOtpForm ? (
+                         <Form {...phoneForm}>
+                            <form onSubmit={phoneForm.handleSubmit(onPhoneSubmit)} className="space-y-4 pt-4">
                                 <FormField
-                                    control={passwordResetForm.control}
-                                    name="email"
+                                    control={phoneForm.control}
+                                    name="phoneNumber"
                                     render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel>Email</FormLabel>
-                                            <FormControl>
-                                                <Input type="email" placeholder="you@example.com" {...field} />
-                                            </FormControl>
-                                            <FormMessage />
-                                        </FormItem>
+                                    <FormItem>
+                                        <FormLabel>Phone Number</FormLabel>
+                                        <FormControl>
+                                        <Input placeholder="+1 123 456 7890" {...field} />
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
                                     )}
                                 />
-                                <DialogFooter>
-                                    <Button type="submit" disabled={isResetting}>
-                                        {isResetting && <Loader2 className="animate-spin" />}
-                                        Send Reset Link
-                                    </Button>
-                                </DialogFooter>
+                                <Button type="submit" className="w-full" disabled={isSubmitting}>
+                                    {isSubmitting ? <Loader2 className="animate-spin" /> : <Phone />}
+                                    Send OTP
+                                </Button>
                             </form>
                         </Form>
-                    </DialogContent>
-                </Dialog>
-           </div>
+                    ) : (
+                        <Form {...otpForm}>
+                            <form onSubmit={otpForm.handleSubmit(onOtpSubmit)} className="space-y-4 pt-4">
+                                <FormField
+                                    control={otpForm.control}
+                                    name="otp"
+                                    render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Verification Code</FormLabel>
+                                        <FormControl>
+                                        <Input placeholder="123456" {...field} />
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                    )}
+                                />
+                                <Button type="submit" className="w-full" disabled={isSubmitting}>
+                                    {isSubmitting ? <Loader2 className="animate-spin" /> : <MessageSquare />}
+                                    Verify & Log In
+                                </Button>
+                                <Button variant="link" onClick={() => setShowOtpForm(false)}>Back</Button>
+                            </form>
+                        </Form>
+                    )}
+                </TabsContent>
+            </Tabs>
+          
           <div className="mt-4 text-center text-sm">
             Don't have an account?{' '}
             <Link href="/signup" className="underline text-primary">
@@ -202,4 +317,5 @@ export default function LoginPage() {
       </Card>
     </div>
   );
-}
+
+    
