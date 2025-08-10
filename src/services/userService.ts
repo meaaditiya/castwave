@@ -171,8 +171,10 @@ export const getUserSuggestions = async (userId: string): Promise<UserProfileDat
     
     const allUsers = snapshot.docs.map(doc => doc.data() as UserProfileData);
     
-    // Filter out the current user and people they already follow
-    const filteredUsers = allUsers.filter(user => !usersToExclude.includes(user.uid));
+    // Filter out the current user, people they already follow, and users without a username
+    const filteredUsers = allUsers.filter(user => 
+        !usersToExclude.includes(user.uid) && user.username
+    );
     
     // Shuffle and take the first 5
     const shuffled = filteredUsers.sort(() => 0.5 - Math.random());

@@ -81,8 +81,8 @@ function Suggestions({ suggestions }: { suggestions: UserProfileData[] }) {
                 <CarouselContent className="-ml-4">
                     {suggestions.map(user => (
                         <CarouselItem key={user.uid} className="basis-auto pl-4">
-                             <Card className="w-64 hover:border-primary/50 transition-colors">
-                                <CardContent className="flex flex-col items-center text-center p-6">
+                             <Card className="w-64 hover:border-primary/50 transition-colors h-full flex flex-col">
+                                <CardContent className="flex flex-col items-center text-center p-6 flex-1">
                                      <Link href={`/profile/${user.uid}`} className="flex flex-col items-center gap-3 flex-1">
                                         <Avatar className="h-16 w-16 text-xl">
                                             <AvatarImage src={user.photoURL} alt={user.username} />
@@ -93,7 +93,7 @@ function Suggestions({ suggestions }: { suggestions: UserProfileData[] }) {
                                             <p className="text-xs text-muted-foreground">{user.email}</p>
                                         </div>
                                     </Link>
-                                    <Button size="sm" variant="outline" className="mt-4 w-full" onClick={(e) => handleFollow(e, user.uid)}>
+                                    <Button size="sm" variant="outline" className="mt-auto w-full" onClick={(e) => handleFollow(e, user.uid)}>
                                         <UserPlus className="mr-2" /> Follow
                                     </Button>
                                 </CardContent>
