@@ -64,7 +64,7 @@ export function ThemeToggle() {
           <span className="sr-only">Toggle theme</span>
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="max-w-[320px]" onMouseLeave={handleMouseLeave}>
+      <DropdownMenuContent align="end" className="w-[300px] max-h-[80vh] overflow-y-auto" onMouseLeave={handleMouseLeave}>
         <DropdownMenuLabel>Select a Theme</DropdownMenuLabel>
         <DropdownMenuSeparator />
         <div className="grid grid-cols-2 gap-2 p-2">
