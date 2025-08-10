@@ -56,15 +56,12 @@ export const followUser = async (currentUserId: string, targetUserId: string) =>
         const followingDoc = await transaction.get(followingRef);
         if (followingDoc.exists()) {
             console.log("Already following.");
-            return; // Or throw an error if you want to notify the user
+            return;
         }
 
-        // Add target to current user's "following" subcollection
         transaction.set(followingRef, { timestamp: serverTimestamp() });
-        // Add current user to target's "followers" subcollection
         transaction.set(followerRef, { timestamp: serverTimestamp() });
 
-        // Increment counts
         transaction.update(currentUserRef, { followingCount: increment(1) });
         transaction.update(targetUserRef, { followerCount: increment(1) });
     });
@@ -81,10 +78,9 @@ export const unfollowUser = async (currentUserId: string, targetUserId: string) 
         const followingDoc = await transaction.get(followingRef);
         if (!followingDoc.exists()) {
             console.log("Not following, cannot unfollow.");
-            return; // Or throw an error
+            return;
         }
 
-        // Atomically delete the docs and decrement the counters
         transaction.delete(followingRef);
         transaction.delete(followerRef);
         transaction.update(currentUserRef, { followingCount: increment(-1) });
@@ -147,16 +143,26 @@ export const getFeedForUser = async (userId: string): Promise<ChatRoom[]> => {
 export const getUserSuggestions = async (userId: string): Promise<UserProfileData[]> => {
     const followingList = await getFollowingList(userId);
     const usersToExclude = [userId, ...followingList];
-    const excludeSet = new Set(usersToExclude);
 
     const usersRef = collection(db, 'users');
-    const q = query(usersRef, limit(20)); // Fetch more users to have a good pool for suggestions
+    let q: Query;
+
+    if (usersToExclude.length > 0) {
+        // Firestore 'not-in' query has a limit of 10 elements.
+        // If we need to exclude more, we fetch all and filter client-side.
+        // For this app's scale, fetching and filtering is acceptable.
+        q = query(usersRef, limit(50));
+    } else {
+        q = query(usersRef, limit(5));
+    }
+    
     const snapshot = await getDocs(q);
     
     const allUsers = snapshot.docs.map(doc => doc.data() as UserProfileData);
     
-    const filteredUsers = allUsers.filter(user => !excludeSet.has(user.uid));
+    const filteredUsers = allUsers.filter(user => !usersToExclude.includes(user.uid));
     
+    // Shuffle and take the first 5 for variety
     const shuffled = filteredUsers.sort(() => 0.5 - Math.random());
     return shuffled.slice(0, 5);
 };
