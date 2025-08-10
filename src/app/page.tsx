@@ -11,7 +11,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Input } from '@/components/ui/input';
-import { Search, Globe, Lock, Loader2 } from 'lucide-react';
+import { Search, Globe, Lock, Loader2, Waves } from 'lucide-react';
 import { startChatRoom } from '@/services/chatRoomService';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
@@ -160,9 +160,25 @@ export default function Home() {
             </div>
         );
     }
+    const emptyStateMessages = {
+      public: {
+        icon: <Globe className="mx-auto h-12 w-12 text-muted-foreground/50 mb-4" />,
+        title: "No Public Sessions",
+        description: "There are no public sessions available right now. Why not create one?"
+      },
+      'my-sessions': {
+        icon: <Lock className="mx-auto h-12 w-12 text-muted-foreground/50 mb-4" />,
+        title: "No Sessions Found",
+        description: "You haven't created any sessions yet, or none match your search."
+      }
+    }
+    const currentEmptyState = emptyStateMessages[currentTab as keyof typeof emptyStateMessages];
+    
     return (
-        <div className="text-center py-16">
-            <p className="text-muted-foreground">No sessions found in this category. Why not create one?</p>
+        <div className="text-center py-16 text-muted-foreground border-2 border-dashed rounded-lg">
+           {currentEmptyState.icon}
+           <p className="font-semibold text-lg">{currentEmptyState.title}</p>
+           <p>{currentEmptyState.description}</p>
         </div>
     );
   }
@@ -171,25 +187,41 @@ export default function Home() {
     <div className="min-h-screen flex flex-col">
       <Header />
       <main className="flex-1 container py-8 px-2 md:px-8">
-        <div className="mb-8">
-            <h1 className="text-4xl font-bold tracking-tighter mb-2">Explore Sessions</h1>
-            <p className="text-muted-foreground text-lg">Join a live session, review a past broadcast, or see what's scheduled.</p>
+        <div className="relative text-center py-12 md:py-20 rounded-xl mb-12 overflow-hidden bg-card border">
+          <div className="absolute inset-0 bg-gradient-to-b from-primary/5 to-transparent -z-10"></div>
+           <div 
+                className="absolute top-0 left-0 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-primary/10 rounded-full blur-3xl -z-10"
+                aria-hidden="true">
+            </div>
+            <div 
+                className="absolute bottom-0 right-0 translate-x-1/2 translate-y-1/2 w-96 h-96 bg-primary/10 rounded-full blur-3xl -z-10"
+                aria-hidden="true">
+            </div>
+          <Waves className="h-16 w-16 text-primary mx-auto mb-4" />
+          <h1 className="text-4xl md:text-5xl font-bold tracking-tighter mb-4">
+              <span className="bg-gradient-to-br from-primary via-primary/80 to-primary/60 bg-clip-text text-transparent">
+                  Explore Live Sessions
+              </span>
+          </h1>
+          <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
+              Join a conversation, review a past broadcast, or see what's coming up. Your next favorite session awaits.
+          </p>
         </div>
         
         <div className="flex flex-col md:flex-row gap-4 mb-8">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
             <Input 
-              placeholder="Search for a session by name..."
-              className="pl-10 text-base"
+              placeholder="Search for a session by title..."
+              className="pl-10 text-base h-11"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
           <Tabs value={currentTab} onValueChange={setCurrentTab} className="w-full md:w-auto">
-              <TabsList className="grid w-full grid-cols-2 md:w-auto">
-                  <TabsTrigger value="public"><Globe className="mr-2 h-4 w-4"/>Public</TabsTrigger>
-                  {currentUser && <TabsTrigger value="my-sessions"><Lock className="mr-2 h-4 w-4"/>My Sessions</TabsTrigger>}
+              <TabsList className="grid w-full grid-cols-2 md:w-auto h-11">
+                  <TabsTrigger value="public" className="text-base"><Globe className="mr-2 h-4 w-4"/>Public</TabsTrigger>
+                  {currentUser && <TabsTrigger value="my-sessions" className="text-base"><Lock className="mr-2 h-4 w-4"/>My Sessions</TabsTrigger>}
               </TabsList>
           </Tabs>
         </div>
@@ -217,3 +249,5 @@ export default function Home() {
     </div>
   );
 }
+
+    
