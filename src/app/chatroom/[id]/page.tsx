@@ -9,7 +9,7 @@ import { ParticipantsList } from '@/components/ParticipantsList';
 import type { Message } from '@/services/chatRoomService';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from '@/components/ui/skeleton';
-import { MicOff, Sparkles, Users, MessageSquare, ShieldQuestion, UserX, ArrowLeft } from 'lucide-react';
+import { MicOff, Sparkles, Users, MessageSquare, ShieldQuestion, UserX, ArrowLeft, Expand, Shrink } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
 import { getChatRoomStream, ChatRoom, getMessages, Participant, getParticipants, getParticipantStream, requestToJoinChat } from '@/services/chatRoomService';
@@ -18,6 +18,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { HighlightTool } from '@/components/HighlightTool';
+import { cn } from '@/lib/utils';
 
 
 function ChatRoomPageSkeleton() {
@@ -138,6 +139,7 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
   const router = useRouter();
   const [pageLoading, setPageLoading] = useState(true);
   const { toast } = useToast();
+  const [isChatFullscreen, setIsChatFullscreen] = useState(false);
   
   const chatRoomId = resolvedParams.id;
   const isHost = currentUser && chatRoom && currentUser.uid === chatRoom.hostId;
@@ -286,14 +288,28 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
-      <main className="flex-1 container py-4 md:py-8 grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-8 px-2 md:px-8">
-        <div className="lg:col-span-2 space-y-4">
+      <main className={cn(
+          "flex-1 container py-4 md:py-8 gap-4 md:gap-8 px-2 md:px-8",
+          isChatFullscreen ? "grid grid-cols-1 p-0 md:p-0" : "grid grid-cols-1 lg:grid-cols-3"
+      )}>
+        <div className={cn("lg:col-span-2 space-y-4", isChatFullscreen && "hidden")}>
           <LiveScreen {...chatRoomDetails} />
         </div>
-        <div className="lg:col-span-1 flex flex-col gap-4">
-           <Card className="flex flex-col h-[calc(100vh-12rem)] md:h-[calc(100vh-10rem)] lg:h-auto lg:max-h-[calc(100vh-7rem)]">
-              <CardHeader>
+        <div className={cn(
+            "lg:col-span-1 flex flex-col gap-4",
+            isChatFullscreen && "col-span-1"
+        )}>
+           <Card className={cn(
+               "flex flex-col",
+               isChatFullscreen 
+                   ? "h-[calc(100vh-4rem)] rounded-none border-0" 
+                   : "h-[calc(100vh-12rem)] md:h-[calc(100vh-10rem)] lg:h-auto lg:max-h-[calc(100vh-7rem)]"
+           )}>
+              <CardHeader className="flex flex-row items-center justify-between">
                   <CardTitle className="flex items-center gap-2"><MessageSquare className="h-5 w-5"/> Live Chat</CardTitle>
+                  <Button variant="ghost" size="icon" onClick={() => setIsChatFullscreen(!isChatFullscreen)}>
+                    {isChatFullscreen ? <Shrink className="h-5 w-5" /> : <Expand className="h-5 w-5" />}
+                  </Button>
               </CardHeader>
               <LiveChat 
                   chatRoom={chatRoom}
@@ -332,3 +348,5 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
     </div>
   );
 }
+
+    
