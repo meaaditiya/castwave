@@ -52,7 +52,6 @@ export function ThemeToggle() {
 
   const handleThemeSelect = (selectedTheme: string) => {
     setTheme(selectedTheme);
-    setPreviewTheme(null);
   };
 
   return (
@@ -69,13 +68,18 @@ export function ThemeToggle() {
         <DropdownMenuSeparator />
         <div className="grid grid-cols-2 gap-2 p-2">
             {themes.map(({ name, theme: themeValue, icon: Icon }) => (
-                <div key={themeValue}
+                <DropdownMenuItem
+                    key={themeValue}
+                    onSelect={(e) => {
+                        e.preventDefault();
+                        handleThemeSelect(themeValue);
+                    }}
                     onMouseEnter={() => setPreviewTheme(themeValue)}
-                    onClick={() => handleThemeSelect(themeValue)}
+                    className="p-0"
                 >
                     <div
                         className={cn(
-                        "flex flex-col items-center justify-center p-2 rounded-md cursor-pointer border-2",
+                        "w-full flex flex-col items-center justify-center p-2 rounded-md cursor-pointer border-2",
                         theme === themeValue ? "border-primary" : "border-transparent",
                         "hover:border-primary/50"
                         )}
@@ -128,7 +132,7 @@ export function ThemeToggle() {
                          </div>
                         <span className="text-xs font-medium">{name}</span>
                     </div>
-                </div>
+                </DropdownMenuItem>
             ))}
         </div>
       </DropdownMenuContent>
