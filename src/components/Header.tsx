@@ -1,7 +1,7 @@
 
 "use client";
 
-import { Waves, LogOut, Loader2, PlusCircle, User, CheckCircle, XCircle } from 'lucide-react';
+import { Waves, LogOut, Loader2, PlusCircle, User, CheckCircle, XCircle, Rss } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from './ui/button';
 import { useAuth } from '@/context/AuthContext';
@@ -53,6 +53,12 @@ export function Header() {
               <Loader2 className="animate-spin" />
             ) : currentUser ? (
               <>
+                <Button variant="ghost" asChild className="hidden sm:flex px-2 sm:px-3">
+                   <Link href="/feed">
+                        <Rss className="h-4 w-4" />
+                        <span className="hidden sm:inline ml-2">Feed</span>
+                   </Link>
+                </Button>
                 <Button variant="ghost" onClick={handleCreateSessionClick} disabled={isCreatingSession} className="flex px-2 sm:px-3">
                     {isCreatingSession ? (
                         <Loader2 className="h-4 w-4 animate-spin" />
@@ -82,6 +88,9 @@ export function Header() {
                         <DropdownMenuSeparator />
                         <DropdownMenuItem asChild>
                            <Link href="/profile"><User className="mr-2 h-4 w-4"/>Profile</Link>
+                        </DropdownMenuItem>
+                         <DropdownMenuItem asChild className="sm:hidden">
+                           <Link href="/feed"><Rss className="mr-2 h-4 w-4"/>Feed</Link>
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={handleCreateSessionClick} className="sm:hidden">
                             <PlusCircle className="mr-2 h-4 w-4" />

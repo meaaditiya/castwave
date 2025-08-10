@@ -30,6 +30,10 @@ export interface ChatRoom {
     featuredMessage?: Message;
     hostReply?: string;
     typingUsers?: { [userId: string]: string };
+    likes: number;
+    dislikes: number;
+    likers: string[];
+    dislikers: string[];
 }
 
 export interface ChatRoomInput {
@@ -72,7 +76,11 @@ export const createChatRoom = async (input: ChatRoomInput): Promise<{ chatRoomId
                 createdAt: serverTimestamp(),
                 scheduledAt: input.scheduledAt || null,
                 imageUrl: '',
-                imageHint: ''
+                imageHint: '',
+                likes: 0,
+                dislikes: 0,
+                likers: [],
+                dislikers: []
             });
             
             const participantRef = doc(db, 'chatRooms', newChatRoomRef.id, 'participants', input.hostId);
@@ -349,4 +357,59 @@ export const deleteChatRoomForHost = async (chatRoomId: string, hostId: string) 
         console.error("Error deleting chat room:", error);
         throw new Error("Could not delete chat room.");
     }
+};
+
+
+export const likeChatRoom = async (chatRoomId: string, userId: string, type: 'like' | 'dislike') => {
+    const roomRef = doc(db, 'chatRooms', chatRoomId);
+
+    await runTransaction(db, async (transaction) => {
+        const roomDoc = await transaction.get(roomRef);
+        if (!roomDoc.exists()) {
+            throw new Error("Chat room not found.");
+        }
+
+        const roomData = roomDoc.data() as ChatRoom;
+        const likers = roomData.likers || [];
+        const dislikers = roomData.dislikers || [];
+        
+        const hasLiked = likers.includes(userId);
+        const hasDisliked = dislikers.includes(userId);
+
+        if (type === 'like') {
+            if (hasLiked) {
+                // User is un-liking
+                transaction.update(roomRef, {
+                    likes: increment(-1),
+                    likers: likers.filter(id => id !== userId)
+                });
+            } else {
+                // User is liking
+                transaction.update(roomRef, {
+                    likes: increment(1),
+                    likers: [...likers, userId],
+                    // if user disliked before, remove their dislike
+                    dislikes: hasDisliked ? increment(-1) : roomData.dislikes,
+                    dislikers: hasDisliked ? dislikers.filter(id => id !== userId) : dislikers
+                });
+            }
+        } else { // type === 'dislike'
+             if (hasDisliked) {
+                // User is un-disliking
+                transaction.update(roomRef, {
+                    dislikes: increment(-1),
+                    dislikers: dislikers.filter(id => id !== userId)
+                });
+            } else {
+                // User is liking
+                transaction.update(roomRef, {
+                    dislikes: increment(1),
+                    dislikers: [...dislikers, userId],
+                    // if user liked before, remove their like
+                    likes: hasLiked ? increment(-1) : roomData.likes,
+                    likers: hasLiked ? likers.filter(id => id !== userId) : likers
+                });
+            }
+        }
+    });
 };

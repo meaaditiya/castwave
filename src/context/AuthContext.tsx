@@ -25,6 +25,8 @@ export interface UserProfile {
     username: string;
     emailVerified: boolean;
     photoURL?: string;
+    followerCount: number;
+    followingCount: number;
 }
 
 export interface AppUser extends FirebaseAuthUser {
@@ -173,6 +175,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         email: email,
         emailVerified: user.emailVerified,
         photoURL: '',
+        followerCount: 0,
+        followingCount: 0,
     });
     
     await sendEmailVerification(user);

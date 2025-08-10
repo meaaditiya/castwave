@@ -5,7 +5,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { Header } from '@/components/Header';
 import { ChatRoomCard } from '@/components/ChatRoomCard';
-import { getChatRooms, ChatRoom, deleteChatRoomForHost } from '@/services/chatRoomService';
+import { getChatRooms, ChatRoom, deleteChatRoomForHost, likeChatRoom } from '@/services/chatRoomService';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -134,6 +134,26 @@ export default function Home() {
       });
     }
   };
+
+  const handleLike = async (chatRoomId: string, type: 'like' | 'dislike') => {
+      if (!currentUser) return;
+      try {
+          await likeChatRoom(chatRoomId, currentUser.uid, type);
+          // Optimistically update UI - note this won't reflect dislike counts
+          setAllChatRooms(prevRooms => prevRooms.map(room => {
+              if (room.id === chatRoomId) {
+                  const alreadyLiked = room.likers?.includes(currentUser.uid);
+                  
+                  if (type === 'like' && !alreadyLiked) {
+                       return { ...room, likes: (room.likes || 0) + 1, likers: [...(room.likers || []), currentUser.uid] };
+                  }
+              }
+              return room;
+          }));
+      } catch (error: any) {
+          toast({ variant: 'destructive', title: 'Error', description: error.message });
+      }
+  }
   
   if (authLoading || !currentUser) {
     return (
@@ -155,6 +175,8 @@ export default function Home() {
                         isOwner={currentUser?.uid === chatRoom.hostId}
                         onDelete={() => setChatRoomToDelete(chatRoom.id)}
                         onStartSession={() => handleStartSession(chatRoom.id)}
+                        onLike={(type) => handleLike(chatRoom.id, type)}
+                        currentUserId={currentUser.uid}
                     />
                 ))}
             </div>
@@ -249,5 +271,3 @@ export default function Home() {
     </div>
   );
 }
-
-    

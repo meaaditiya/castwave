@@ -2,11 +2,10 @@
 "use client";
 
 import Link from 'next/link';
-import Image from 'next/image';
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardFooter, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from './ui/button';
-import { Trash2, Calendar, Play, Loader2 } from 'lucide-react';
+import { Trash2, Calendar, Play, Loader2, ThumbsUp, ThumbsDown } from 'lucide-react';
 import { ChatRoom } from '@/services/chatRoomService';
 import { format } from 'date-fns';
 import { useState } from 'react';
@@ -16,10 +15,13 @@ interface ChatRoomCardProps extends ChatRoom {
     isOwner: boolean;
     onDelete: () => void;
     onStartSession: () => void;
+    onLike: (type: 'like' | 'dislike') => void;
+    currentUserId?: string;
 }
 
-export function ChatRoomCard({ id, title, host, imageUrl, isLive, imageHint, isOwner, onDelete, onStartSession, scheduledAt, hostPhotoURL }: ChatRoomCardProps) {
+export function ChatRoomCard({ id, title, host, isLive, isOwner, onDelete, onStartSession, scheduledAt, hostPhotoURL, onLike, currentUserId, likers, likes }: ChatRoomCardProps) {
   const [isJoining, setIsJoining] = useState(false);
+  const [isLiking, setIsLiking] = useState(false);
   
   const handleDeleteClick = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -31,6 +33,15 @@ export function ChatRoomCard({ id, title, host, imageUrl, isLive, imageHint, isO
     e.preventDefault();
     e.stopPropagation();
     onStartSession();
+  }
+
+  const handleLikeClick = async (e: React.MouseEvent, type: 'like' | 'dislike') => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!currentUserId) return;
+    setIsLiking(true);
+    await onLike(type);
+    setIsLiking(false);
   }
   
   const handleJoinClick = () => {
@@ -62,6 +73,8 @@ export function ChatRoomCard({ id, title, host, imageUrl, isLive, imageHint, isO
     let formattedDate = new Intl.DateTimeFormat('en-IN', options).format(date);
     return `${formattedDate} IST`;
   };
+  
+  const hasLiked = currentUserId ? likers?.includes(currentUserId) : false;
 
   return (
     <Card className="relative hover:border-primary/50 hover:shadow-lg transition-all duration-300 overflow-hidden h-full flex flex-col group shadow-md border-border bg-card">
@@ -70,9 +83,6 @@ export function ChatRoomCard({ id, title, host, imageUrl, isLive, imageHint, isO
                 <div className="w-full h-48 flex items-center justify-center bg-gradient-to-br from-primary/20 via-primary/10 to-background relative overflow-hidden group-hover:from-primary/30 transition-all duration-300">
                     <div className="absolute inset-0 bg-card/20"></div>
                     <div className="relative z-10 text-center px-4">
-                        <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-primary/20 backdrop-blur-sm flex items-center justify-center group-hover:bg-primary/30 transition-all duration-300">
-                            <div className="w-8 h-8 rounded-full bg-primary/40 group-hover:scale-110 transition-transform duration-300"></div>
-                        </div>
                         <h3 className="text-lg font-bold text-card-foreground leading-tight line-clamp-2">{title}</h3>
                     </div>
                     <div className="absolute -top-4 -right-4 w-20 h-20 bg-primary/10 rounded-full blur-xl group-hover:bg-primary/20 transition-all duration-300"></div>
@@ -96,27 +106,30 @@ export function ChatRoomCard({ id, title, host, imageUrl, isLive, imageHint, isO
                         </Badge>
                     )}
                 </div>
-            </CardHeader>
-            <CardContent className="p-4 flex-1 flex flex-col bg-card">
-                <CardTitle className="text-lg font-semibold tracking-tight truncate group-hover:text-primary text-card-foreground transition-colors duration-200">{title}</CardTitle>
-                <div className="flex items-center gap-2 mt-1 flex-1">
-                    <Avatar className="h-6 w-6">
-                      <AvatarImage src={hostPhotoURL} alt={host} />
-                      <AvatarFallback>{getInitials(host)}</AvatarFallback>
-                    </Avatar>
-                    <p className="text-muted-foreground text-sm">By {host}</p>
+                 <div className="absolute bottom-2 left-2 flex items-center gap-2">
+                    <Link href={`/profile/${hostId}`} className="flex items-center gap-2 group/avatar" onClick={(e) => e.stopPropagation()}>
+                        <Avatar className="h-10 w-10 border-2 border-background shadow-md">
+                        <AvatarImage src={hostPhotoURL} alt={host} />
+                        <AvatarFallback>{getInitials(host)}</AvatarFallback>
+                        </Avatar>
+                        <p className="text-sm font-semibold text-white bg-black/50 px-2 py-1 rounded-md opacity-0 group-hover/avatar:opacity-100 transition-opacity">By {host}</p>
+                    </Link>
                 </div>
-            </CardContent>
+            </CardHeader>
         </Link>
         <CardFooter className="p-2 border-t bg-muted/50 flex items-center min-h-[52px]">
             <div className="flex items-center w-full">
-                <div className="flex-1">
-                    {isOwner && isReadyToStart && (
-                        <Button onClick={handleStartClick} size="sm" className="w-full bg-green-600 hover:bg-green-700 text-white border-none shadow-sm">
-                            <Play className="mr-2 h-4 w-4" /> Start Session Now
-                        </Button>
-                    )}
+                <div className="flex-1 flex gap-2 items-center">
+                    <Button variant="ghost" size="sm" onClick={(e) => handleLikeClick(e, 'like')} disabled={isLiking || hasLiked}>
+                        <ThumbsUp className={`mr-2 h-4 w-4 ${hasLiked ? 'text-primary' : ''}`} />
+                        {likes || 0}
+                    </Button>
                 </div>
+                 {isOwner && isReadyToStart && (
+                    <Button onClick={handleStartClick} size="sm" className="bg-green-600 hover:bg-green-700 text-white border-none shadow-sm">
+                        <Play className="mr-2 h-4 w-4" /> Start
+                    </Button>
+                )}
                 {isOwner && (
                     <div className="flex-shrink-0 ml-auto">
                         <Button variant="ghost" size="icon" onClick={handleDeleteClick} className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors duration-200">

@@ -3,16 +3,17 @@
 
 import { useState, useEffect, use } from 'react';
 import { Header } from '@/components/Header';
-import { getUserProfile, UserProfileData } from '@/services/userService';
+import { getUserProfile, UserProfileData, followUser, unfollowUser, getFollowStatus, getFollowCounts } from '@/services/userService';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/context/AuthContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { CheckCircle, XCircle, Mic, ArrowLeft } from 'lucide-react';
+import { CheckCircle, XCircle, Mic, ArrowLeft, UserPlus, UserCheck, Loader2 } from 'lucide-react';
 import { notFound, useRouter } from 'next/navigation';
-import { getChatRooms, ChatRoom } from '@/services/chatRoomService';
+import { getChatRooms, ChatRoom, likeChatRoom, startChatRoom, deleteChatRoomForHost } from '@/services/chatRoomService';
 import { ChatRoomCard } from '@/components/ChatRoomCard';
 import { Button } from '@/components/ui/button';
+import { useToast } from '@/hooks/use-toast';
 
 function PublicProfileSkeleton() {
     return (
@@ -21,11 +22,15 @@ function PublicProfileSkeleton() {
             <main className="flex-1 bg-muted/40">
                 <div className="container max-w-4xl py-12 px-2 md:px-8">
                     <Card className="mb-8">
-                        <CardHeader className="flex flex-row items-center gap-4">
-                            <Skeleton className="h-20 w-20 rounded-full" />
+                        <CardHeader className="flex flex-col sm:flex-row items-center gap-6 text-center sm:text-left p-6">
+                            <Skeleton className="h-24 w-24 rounded-full" />
                             <div className="flex-1 space-y-2">
                                 <Skeleton className="h-6 w-48" />
                                 <Skeleton className="h-4 w-24" />
+                                <div className="flex gap-4 pt-2">
+                                    <Skeleton className="h-5 w-20" />
+                                    <Skeleton className="h-5 w-20" />
+                                </div>
                             </div>
                         </CardHeader>
                     </Card>
@@ -51,10 +56,14 @@ export default function PublicProfilePage({ params }: { params: { id: string } }
     const resolvedParams = use(params);
     const { currentUser, loading: authLoading } = useAuth();
     const router = useRouter();
+    const { toast } = useToast();
 
     const [userProfile, setUserProfile] = useState<UserProfileData | null>(null);
     const [userSessions, setUserSessions] = useState<ChatRoom[]>([]);
     const [loading, setLoading] = useState(true);
+    const [isFollowing, setIsFollowing] = useState(false);
+    const [followLoading, setFollowLoading] = useState(true);
+    const [followCounts, setFollowCounts] = useState({ followers: 0, following: 0 });
 
     const userId = resolvedParams.id;
 
@@ -69,12 +78,14 @@ export default function PublicProfilePage({ params }: { params: { id: string } }
         }
 
         let isMounted = true;
-        let unsubscribe: (() => void) | undefined;
+        let unsubscribeRooms: (() => void) | undefined;
+        let unsubscribeFollow: (() => void) | undefined;
+        let unsubscribeCounts: (() => void) | undefined;
 
         async function fetchProfileData() {
             setLoading(true);
+            setFollowLoading(true);
             try {
-                // Anyone can view a profile, so we don't need to be authed to fetch this
                 const profile = await getUserProfile(userId);
 
                 if (!isMounted) return;
@@ -86,7 +97,7 @@ export default function PublicProfilePage({ params }: { params: { id: string } }
                 setUserProfile(profile);
 
                 // Fetch user's public sessions
-                unsubscribe = getChatRooms(
+                unsubscribeRooms = getChatRooms(
                     (allChatRooms) => {
                         if (isMounted) {
                             const userPublicSessions = allChatRooms.filter(room => room.hostId === userId && !room.isPrivate);
@@ -97,11 +108,25 @@ export default function PublicProfilePage({ params }: { params: { id: string } }
                         console.error("Failed to get chat rooms for profile:", error);
                     }
                 );
+
+                if (currentUser) {
+                    unsubscribeFollow = getFollowStatus(currentUser.uid, userId, (status) => {
+                        if(isMounted) setIsFollowing(status);
+                    });
+                }
+                
+                unsubscribeCounts = getFollowCounts(userId, (counts) => {
+                    if(isMounted) setFollowCounts(counts);
+                });
+
             } catch (err) {
                 console.error("Failed to fetch profile", err);
                 if (isMounted) notFound();
             } finally {
-                if (isMounted) setLoading(false);
+                if (isMounted) {
+                    setLoading(false);
+                    setFollowLoading(false);
+                }
             }
         }
 
@@ -109,12 +134,56 @@ export default function PublicProfilePage({ params }: { params: { id: string } }
         
         return () => {
             isMounted = false;
-            if (unsubscribe) {
-                unsubscribe();
-            }
+            if (unsubscribeRooms) unsubscribeRooms();
+            if (unsubscribeFollow) unsubscribeFollow();
+            if (unsubscribeCounts) unsubscribeCounts();
         };
 
     }, [userId, currentUser, authLoading, router]);
+
+    const handleFollowToggle = async () => {
+        if (!currentUser) {
+            toast({ variant: 'destructive', title: 'Please log in to follow users.'});
+            return;
+        }
+        setFollowLoading(true);
+        try {
+            if (isFollowing) {
+                await unfollowUser(currentUser.uid, userId);
+                toast({ title: 'Unfollowed', description: `You are no longer following ${userProfile?.username}.` });
+            } else {
+                await followUser(currentUser.uid, userId);
+                toast({ title: 'Followed!', description: `You are now following ${userProfile?.username}.` });
+            }
+        } catch (error) {
+            console.error(error);
+            toast({ variant: 'destructive', title: 'Error', description: 'Could not complete the action.' });
+        } finally {
+            setFollowLoading(false);
+        }
+    }
+
+    const handleLike = async (chatRoomId: string, type: 'like' | 'dislike') => {
+        if (!currentUser) return;
+        try {
+            await likeChatRoom(chatRoomId, currentUser.uid, type);
+             // Optimistically update UI
+            setUserSessions(prevRooms => prevRooms.map(room => {
+                if (room.id === chatRoomId) {
+                    const alreadyLiked = room.likers?.includes(currentUser.uid);
+                    
+                    if (type === 'like' && !alreadyLiked) {
+                        return { ...room, likes: (room.likes || 0) + 1, likers: [...(room.likers || []), currentUser.uid] };
+                    }
+                }
+                return room;
+            }));
+
+        } catch (error: any) {
+            toast({ variant: 'destructive', title: 'Error', description: error.message });
+        }
+    }
+
 
      if (loading || authLoading) {
         return <PublicProfileSkeleton />;
@@ -160,7 +229,22 @@ export default function PublicProfilePage({ params }: { params: { id: string } }
                                     )}
                                 </div>
                                 <CardDescription>{userProfile.email}</CardDescription>
+                                <div className="flex gap-4 mt-2 justify-center sm:justify-start">
+                                    <p className="text-sm"><span className="font-bold">{followCounts.followers}</span> Followers</p>
+                                    <p className="text-sm"><span className="font-bold">{followCounts.following}</span> Following</p>
+                                </div>
                             </div>
+                            {currentUser && (
+                                <Button onClick={handleFollowToggle} disabled={followLoading} className="w-full sm:w-auto">
+                                    {followLoading ? (
+                                        <Loader2 className="animate-spin" />
+                                    ) : isFollowing ? (
+                                        <><UserCheck className="mr-2" /> Following</>
+                                    ) : (
+                                        <><UserPlus className="mr-2" /> Follow</>
+                                    )}
+                                </Button>
+                            )}
                         </CardHeader>
                     </Card>
 
@@ -173,9 +257,11 @@ export default function PublicProfilePage({ params }: { params: { id: string } }
                                 <ChatRoomCard 
                                     key={chatRoom.id} 
                                     {...chatRoom} 
-                                    isOwner={currentUser?.uid === chatRoom.hostId}
+                                    isOwner={false}
                                     onDelete={() => {}} // Not needed on public profile
                                     onStartSession={() => {}} // Not needed on public profile
+                                    onLike={(type) => handleLike(chatRoom.id, type)}
+                                    currentUserId={currentUser?.uid}
                                 />
                             ))}
                         </div>

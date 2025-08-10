@@ -3,26 +3,25 @@
 
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import { Header } from "@/components/Header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { LogOut, Loader2, Mail, User, Edit, Check, ShieldCheck, KeyRound, MailCheck, AlertTriangle, CheckCircle, XCircle, X, Sparkles, Trash2, ArrowLeft } from "lucide-react";
+import { LogOut, Loader2, Mail, User, Edit, Check, KeyRound, MailCheck, AlertTriangle, CheckCircle, XCircle, X, Sparkles, Trash2, ArrowLeft } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
-import { doc, setDoc, updateDoc } from 'firebase/firestore';
+import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { Input } from "@/components/ui/input";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from 'zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Separator } from "@/components/ui/separator";
 import { generateAvatar } from "@/ai/flows/generate-avatar";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-
+import { getFollowCounts } from "@/services/userService";
 
 const passwordFormSchema = z.object({
   currentPassword: z.string().min(1, { message: 'Current password is required.' }),
@@ -33,10 +32,6 @@ const passwordFormSchema = z.object({
   path: ['confirmPassword'],
 });
 
-const usernameFormSchema = z.object({
-    username: z.string().min(3, "Username must be at least 3 characters.").max(20, "Username must be 20 characters or less."),
-});
-
 function ProfilePageSkeleton() {
     return (
         <div className="flex flex-col min-h-screen">
@@ -44,11 +39,15 @@ function ProfilePageSkeleton() {
             <main className="flex-1 bg-muted/40">
                 <div className="container max-w-2xl py-12 px-2 md:px-8">
                      <Card>
-                        <CardHeader className="flex flex-row items-center gap-4">
-                            <Skeleton className="h-20 w-20 rounded-full" />
+                        <CardHeader className="flex flex-col sm:flex-row items-center gap-6 text-center sm:text-left p-6">
+                            <Skeleton className="h-24 w-24 rounded-full" />
                             <div className="flex-1 space-y-2">
                                 <Skeleton className="h-6 w-48" />
                                 <Skeleton className="h-4 w-24" />
+                                <div className="flex gap-4 pt-2">
+                                    <Skeleton className="h-5 w-20" />
+                                    <Skeleton className="h-5 w-20" />
+                                </div>
                             </div>
                         </CardHeader>
                         <CardContent className="space-y-4 pt-6">
@@ -72,6 +71,7 @@ export default function ProfilePage() {
     const [isSaving, setIsSaving] = useState(false);
     const [isSendingVerification, setIsSendingVerification] = useState(false);
     const [isGeneratingAvatar, setIsGeneratingAvatar] = useState(false);
+    const [followCounts, setFollowCounts] = useState({ followers: 0, following: 0 });
     
     const passwordForm = useForm<z.infer<typeof passwordFormSchema>>({
         resolver: zodResolver(passwordFormSchema),
@@ -89,6 +89,12 @@ export default function ProfilePage() {
          if (currentUser?.profile?.username) {
             setNewUsername(currentUser.profile.username);
         }
+
+        if (currentUser) {
+            const unsubscribe = getFollowCounts(currentUser.uid, setFollowCounts);
+            return () => unsubscribe();
+        }
+
     }, [currentUser, loading, router]);
 
     const handleLogout = async () => {
@@ -271,6 +277,10 @@ export default function ProfilePage() {
                                     )}
                                 </div>
                                 <CardDescription>Manage your account details and security settings.</CardDescription>
+                                <div className="flex gap-4 mt-2 justify-center sm:justify-start">
+                                    <p className="text-sm"><span className="font-bold">{followCounts.followers}</span> Followers</p>
+                                    <p className="text-sm"><span className="font-bold">{followCounts.following}</span> Following</p>
+                                </div>
                             </div>
                         </CardHeader>
                         <CardContent className="pt-6 space-y-6">
@@ -453,3 +463,5 @@ export default function ProfilePage() {
 
     
 }
+
+    
