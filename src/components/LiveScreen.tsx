@@ -5,7 +5,7 @@ import Image from 'next/image';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Share2, MicOff, Loader2, Star, MessageSquare, Mic, ArrowLeft } from 'lucide-react';
+import { Share2, MicOff, Loader2, Star, MessageSquare, Mic, ArrowLeft, Waves } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { endChatRoom, Participant, startChatRoom } from '@/services/chatRoomService';
@@ -184,7 +184,7 @@ export function LiveScreen({ id: chatRoomId, title, host, hostId, isLive, imageH
         </>
        ) : (
         <div className="flex flex-col items-center justify-center text-center space-y-4 flex-1">
-            <MicOff size={80} className="text-muted-foreground mx-auto" />
+            <Waves size={80} className="text-muted-foreground mx-auto" />
             <p className="text-muted-foreground">This chat room has ended.</p>
             {isHost && (
                 <Button onClick={handleStartChatRoom} disabled={isStarting}>
