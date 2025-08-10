@@ -9,7 +9,7 @@ import { ChatRoomCard } from '@/components/ChatRoomCard';
 import { getFeedForUser, getUserSuggestions, UserProfileData, followUser, unfollowUser } from '@/services/userService';
 import { ChatRoom, deleteChatRoomForHost, likeChatRoom, startChatRoom } from '@/services/chatRoomService';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Loader2, UserPlus, Rss } from 'lucide-react';
+import { Loader2, UserPlus, Rss, ArrowLeft } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -24,9 +24,11 @@ function FeedPageSkeleton() {
         <div className="space-y-8">
             <div>
                 <Skeleton className="h-8 w-48 mb-4" />
-                <div className="flex space-x-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                     {Array.from({ length: 4 }).map((_, i) => (
-                        <Skeleton key={i} className="h-32 w-64 rounded-xl" />
+                        <div key={i} className="flex flex-col space-y-3">
+                           <Skeleton key={i} className="h-40 w-full rounded-xl" />
+                        </div>
                     ))}
                 </div>
             </div>
@@ -260,6 +262,10 @@ export default function FeedPage() {
             <Header />
             <main className="flex-1 container py-8 px-2 md:px-8">
                  <div className="mb-8">
+                    <Button variant="outline" size="sm" onClick={() => router.back()} className="rounded-full mb-4">
+                        <ArrowLeft className="mr-2" />
+                        Back
+                    </Button>
                     <h1 className="text-3xl md:text-4xl font-bold tracking-tighter">Your Feed</h1>
                     <p className="text-muted-foreground">Catch up on the latest sessions from people you follow.</p>
                 </div>
@@ -285,3 +291,5 @@ export default function FeedPage() {
         </div>
     )
 }
+
+    
