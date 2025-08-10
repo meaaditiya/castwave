@@ -43,16 +43,20 @@ export const getUserProfileStream = (userId: string, callback: (profile: UserPro
 
 // Follow another user
 export const followUser = async (currentUserId: string, targetUserId: string) => {
-    await runTransaction(db, async (transaction) => {
-        const currentUserRef = doc(db, 'users', currentUserId);
-        const targetUserRef = doc(db, 'users', targetUserId);
-        const followingRef = doc(currentUserRef, 'following', targetUserId);
-        const followerRef = doc(targetUserRef, 'followers', currentUserId);
+    if (currentUserId === targetUserId) {
+        throw new Error("You cannot follow yourself.");
+    }
 
+    const currentUserRef = doc(db, 'users', currentUserId);
+    const targetUserRef = doc(db, 'users', targetUserId);
+    const followingRef = doc(currentUserRef, 'following', targetUserId);
+    const followerRef = doc(targetUserRef, 'followers', currentUserId);
+
+    await runTransaction(db, async (transaction) => {
         const followingDoc = await transaction.get(followingRef);
         if (followingDoc.exists()) {
-            console.log("Already following, aborting.");
-            return;
+            console.log("Already following.");
+            return; // Or throw an error if you want to notify the user
         }
 
         // Add target to current user's "following" subcollection
@@ -68,16 +72,16 @@ export const followUser = async (currentUserId: string, targetUserId: string) =>
 
 // Unfollow a user
 export const unfollowUser = async (currentUserId: string, targetUserId: string) => {
-    await runTransaction(db, async (transaction: Transaction) => {
-        const currentUserRef = doc(db, 'users', currentUserId);
-        const targetUserRef = doc(db, 'users', targetUserId);
-        const followingRef = doc(collection(currentUserRef, 'following'), targetUserId);
-        const followerRef = doc(collection(targetUserRef, 'followers'), currentUserId);
+    const currentUserRef = doc(db, 'users', currentUserId);
+    const targetUserRef = doc(db, 'users', targetUserId);
+    const followingRef = doc(currentUserRef, 'following', targetUserId);
+    const followerRef = doc(targetUserRef, 'followers', currentUserId);
 
+    await runTransaction(db, async (transaction) => {
         const followingDoc = await transaction.get(followingRef);
         if (!followingDoc.exists()) {
             console.log("Not following, cannot unfollow.");
-            return; 
+            return; // Or throw an error
         }
 
         // Atomically delete the docs and decrement the counters
@@ -101,11 +105,13 @@ export const getFollowStatus = (currentUserId: string, targetUserId: string, cal
 export const getFollowCounts = (userId: string, callback: (counts: {followers: number, following: number}) => void) => {
     const userRef = doc(db, 'users', userId);
     return onSnapshot(userRef, (doc) => {
-        const data = doc.data() as UserProfileData;
-        callback({
-            followers: data?.followerCount || 0,
-            following: data?.followingCount || 0
-        });
+        if (doc.exists()) {
+            const data = doc.data() as UserProfileData;
+            callback({
+                followers: data?.followerCount || 0,
+                following: data?.followingCount || 0
+            });
+        }
     });
 }
 
@@ -141,16 +147,16 @@ export const getFeedForUser = async (userId: string): Promise<ChatRoom[]> => {
 export const getUserSuggestions = async (userId: string): Promise<UserProfileData[]> => {
     const followingList = await getFollowingList(userId);
     const usersToExclude = [userId, ...followingList];
+    const excludeSet = new Set(usersToExclude);
 
     const usersRef = collection(db, 'users');
-    const snapshot = await getDocs(query(usersRef, limit(20)));
+    const q = query(usersRef, limit(20)); // Fetch more users to have a good pool for suggestions
+    const snapshot = await getDocs(q);
     
     const allUsers = snapshot.docs.map(doc => doc.data() as UserProfileData);
     
-    const excludeSet = new Set(usersToExclude);
     const filteredUsers = allUsers.filter(user => !excludeSet.has(user.uid));
     
-    // Return a random subset of 5 suggestions
     const shuffled = filteredUsers.sort(() => 0.5 - Math.random());
     return shuffled.slice(0, 5);
 };
