@@ -4,7 +4,7 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Send, Loader2, ThumbsUp, ThumbsDown, Star, ArrowDown } from 'lucide-react';
+import { Send, Loader2, ThumbsUp, ThumbsDown, Star, ArrowDown, MessageCircle, X } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { useAuth } from '@/context/AuthContext';
@@ -47,6 +47,96 @@ const getInitials = (name: string) => {
     return name.substring(0, 2).toUpperCase();
 }
 
+
+function ChatMessage({ message, onReply, onFeature, onVote, canChat, isHost, participantMap, replies = [] }: {
+    message: Message,
+    onReply: (message: Message) => void,
+    onFeature: (message: Message) => void,
+    onVote: (messageId: string, voteType: 'upvotes' | 'downvotes') => void,
+    canChat: boolean,
+    isHost: boolean,
+    participantMap: Map<string, Participant>,
+    replies: Message[]
+}) {
+    const { currentUser } = useAuth();
+    const userProfile = participantMap.get(message.userId);
+
+    const formatTimestamp = (timestamp: any) => {
+        if (!timestamp) return '';
+        try {
+            const date = timestamp.toDate();
+            return format(date, 'h:mm a');
+        } catch (error) {
+            return '';
+        }
+    };
+
+    return (
+        <div className="flex items-start space-x-3 group">
+            <Link href={`/profile/${message.userId}`} passHref>
+                <Avatar className="h-8 w-8 cursor-pointer">
+                    <AvatarImage src={userProfile?.photoURL} alt={message.user} />
+                    <AvatarFallback className={`${getUserColor(message.user)}/20 border ${getUserColor(message.user)}/50`}>
+                        {getInitials(message.user)}
+                    </AvatarFallback>
+                </Avatar>
+            </Link>
+            <div className="flex-1">
+                <div className="flex items-center gap-2">
+                    <Link href={`/profile/${message.userId}`} passHref>
+                        <span className={`font-bold text-sm ${getUserColor(message.user)} cursor-pointer hover:underline`}>{message.user}</span>
+                    </Link>
+                    <span className="text-xs text-muted-foreground">{formatTimestamp(message.timestamp)}</span>
+                    <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center">
+                        <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => onReply(message)} disabled={!canChat}>
+                            <MessageCircle className="h-4 w-4" />
+                        </Button>
+                        {isHost && (
+                            <Button size="icon" variant="ghost" className="h-6 w-6 text-amber-500" onClick={() => onFeature(message)}>
+                                <Star className="h-4 w-4" />
+                            </Button>
+                        )}
+                    </div>
+                </div>
+                {message.text && <p className="text-sm text-foreground/90 whitespace-pre-wrap">{message.text}</p>}
+                <div className="flex items-center gap-4 mt-1 text-muted-foreground">
+                    <div className="flex items-center gap-1">
+                        <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => onVote(message.id!, 'upvotes')} disabled={!canChat || message.voters?.[currentUser?.uid!]}>
+                            <ThumbsUp className={`h-4 w-4 ${message.voters?.[currentUser?.uid!] === 'upvotes' ? 'text-primary' : ''}`} />
+                        </Button>
+                        <span className="text-xs">{message.upvotes}</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                        <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => onVote(message.id!, 'downvotes')} disabled={!canChat || message.voters?.[currentUser?.uid!]}>
+                            <ThumbsDown className={`h-4 w-4 ${message.voters?.[currentUser?.uid!] === 'downvotes' ? 'text-destructive' : ''}`} />
+                        </Button>
+                        <span className="text-xs">{message.downvotes}</span>
+                    </div>
+                </div>
+
+                {replies.length > 0 && (
+                    <div className="mt-2 space-y-3 pl-4 border-l-2 border-muted-foreground/20">
+                        {replies.map(reply => (
+                             <ChatMessage
+                                key={reply.id}
+                                message={reply}
+                                onReply={onReply}
+                                onFeature={onFeature}
+                                onVote={onVote}
+                                canChat={canChat}
+                                isHost={isHost}
+                                participantMap={participantMap}
+                                replies={[]} // Replies don't have replies in this design
+                            />
+                        ))}
+                    </div>
+                )}
+            </div>
+        </div>
+    )
+}
+
+
 export function LiveChat({ chatRoom, messages, participant }: LiveChatProps) {
   const [newMessage, setNewMessage] = useState('');
   const [isSending, setIsSending] = useState(false);
@@ -57,6 +147,7 @@ export function LiveChat({ chatRoom, messages, participant }: LiveChatProps) {
   const [messageToFeature, setMessageToFeature] = useState<Message | null>(null);
   const [hostReply, setHostReply] = useState('');
   const [isFeaturing, setIsFeaturing] = useState(false);
+  const [replyingTo, setReplyingTo] = useState<Message | null>(null);
   
   const isHost = currentUser?.uid === chatRoom.hostId;
   const canChat = isHost || participant?.status === 'approved';
@@ -67,6 +158,26 @@ export function LiveChat({ chatRoom, messages, participant }: LiveChatProps) {
     if (participant) map.set(participant.userId, participant);
     return map;
   }, [participant]);
+  
+  const threadedMessages = useMemo(() => {
+    const messageMap = new Map<string, Message & { replies: Message[] }>();
+    const topLevelMessages: (Message & { replies: Message[] })[] = [];
+
+    messages.forEach(message => {
+        messageMap.set(message.id!, { ...message, replies: [] });
+    });
+
+    messages.forEach(message => {
+        if (message.parentId && messageMap.has(message.parentId)) {
+            messageMap.get(message.parentId)!.replies.push(message);
+        } else {
+            topLevelMessages.push(messageMap.get(message.id!)!);
+        }
+    });
+
+    return topLevelMessages;
+}, [messages]);
+
 
   const scrollToBottom = useCallback((behavior: 'smooth' | 'auto' = 'smooth') => {
     const viewport = scrollViewportRef.current;
@@ -135,11 +246,14 @@ export function LiveChat({ chatRoom, messages, participant }: LiveChatProps) {
             user: currentUser.profile.username,
             userId: currentUser.uid,
             text: newMessage.trim(),
+            parentId: replyingTo ? replyingTo.id : undefined,
         });
         setNewMessage('');
+        setReplyingTo(null);
         setShowNewMessageButton(false);
         scrollToBottom('smooth');
-    } catch (error: any) {
+    } catch (error: any)
+{
       console.error(error);
       toast({ variant: 'destructive', title: 'Error', description: error.message || 'Could not send message.' });
     } finally {
@@ -176,16 +290,6 @@ export function LiveChat({ chatRoom, messages, participant }: LiveChatProps) {
     }
   }
   
-  const formatTimestamp = (timestamp: any) => {
-    if (!timestamp) return '';
-    try {
-      const date = timestamp.toDate();
-      return format(date, 'h:mm a');
-    } catch (error) {
-      return '';
-    }
-  };
-
   const typingUsers = Object.entries(chatRoom.typingUsers || {})
     .filter(([id]) => id !== currentUser?.uid)
     .map(([, name]) => name);
@@ -200,50 +304,19 @@ export function LiveChat({ chatRoom, messages, participant }: LiveChatProps) {
       <div className="flex-1 min-h-0 relative">
         <ScrollArea className="h-full pr-4" viewportRef={scrollViewportRef}>
             <div className="space-y-4">
-            {messages && messages.map((msg) => {
-                const userProfile = participantMap.get(msg.userId);
-                return (
-                <div key={msg.id} className="flex items-start space-x-3 group">
-                    <Link href={`/profile/${msg.userId}`} passHref>
-                        <Avatar className="h-8 w-8 cursor-pointer">
-                            <AvatarImage src={userProfile?.photoURL} alt={msg.user} />
-                            <AvatarFallback className={`${getUserColor(msg.user)}/20 border ${getUserColor(msg.user)}/50`}>
-                                {getInitials(msg.user)}
-                            </AvatarFallback>
-                        </Avatar>
-                    </Link>
-                <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                        <Link href={`/profile/${msg.userId}`} passHref>
-                            <span className={`font-bold text-sm ${getUserColor(msg.user)} cursor-pointer hover:underline`}>{msg.user}</span>
-                        </Link>
-                        <span className="text-xs text-muted-foreground">{formatTimestamp(msg.timestamp)}</span>
-                         <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center">
-                            {isHost && (
-                                <Button size="icon" variant="ghost" className="h-6 w-6 text-amber-500" onClick={() => setMessageToFeature(msg)}>
-                                    <Star className="h-4 w-4" />
-                                </Button>
-                            )}
-                        </div>
-                    </div>
-                    {msg.text && <p className="text-sm text-foreground/90 whitespace-pre-wrap">{msg.text}</p>}
-                    <div className="flex items-center gap-4 mt-1 text-muted-foreground">
-                        <div className="flex items-center gap-1">
-                            <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => handleVote(msg.id!, 'upvotes')} disabled={!canChat || msg.voters?.[currentUser?.uid!]}>
-                                <ThumbsUp className={`h-4 w-4 ${msg.voters?.[currentUser?.uid!] === 'upvotes' ? 'text-primary' : ''}`} />
-                            </Button>
-                            <span className="text-xs">{msg.upvotes}</span>
-                        </div>
-                         <div className="flex items-center gap-1">
-                             <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => handleVote(msg.id!, 'downvotes')} disabled={!canChat || msg.voters?.[currentUser?.uid!]}>
-                               <ThumbsDown className={`h-4 w-4 ${msg.voters?.[currentUser?.uid!] === 'downvotes' ? 'text-destructive' : ''}`} />
-                            </Button>
-                            <span className="text-xs">{msg.downvotes}</span>
-                        </div>
-                    </div>
-                </div>
-                </div>
-            )})}
+            {threadedMessages && threadedMessages.map((msg) => (
+                <ChatMessage 
+                    key={msg.id}
+                    message={msg}
+                    onReply={setReplyingTo}
+                    onFeature={setMessageToFeature}
+                    onVote={handleVote}
+                    canChat={canChat}
+                    isHost={isHost}
+                    participantMap={participantMap}
+                    replies={msg.replies}
+                />
+            ))}
             {messages && messages.length === 0 && canChat && (
                     <div className="text-center text-muted-foreground pt-10">
                         <p>No messages yet. Be the first to start the conversation!</p>
@@ -279,12 +352,19 @@ export function LiveChat({ chatRoom, messages, participant }: LiveChatProps) {
           }
       </div>
       <div className="border-t pt-2 mt-auto">
+        {replyingTo && (
+            <div className="text-xs text-muted-foreground bg-muted p-2 rounded-t-md flex justify-between items-center">
+                <span>Replying to <span className="font-bold">{replyingTo.user}</span></span>
+                <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => setReplyingTo(null)}><X className="h-3 w-3"/></Button>
+            </div>
+        )}
         <form onSubmit={handleSubmit} className="flex gap-2">
             <Input
               placeholder={canChat ? "Join the conversation..." : "Waiting for host approval..."}
               value={newMessage}
               onChange={(e) => setNewMessage(e.target.value)}
               disabled={!canChat || isSending}
+              className={replyingTo ? 'rounded-t-none' : ''}
             />
             <Button type="submit" size="icon" aria-label="Send message" disabled={!canChat || isSending || !newMessage.trim()}>
               {isSending ? <Loader2 className="animate-spin" /> : <Send />}

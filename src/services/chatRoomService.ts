@@ -12,6 +12,7 @@ export interface Message {
   upvotes: number;
   downvotes: number;
   voters: { [userId: string]: 'upvotes' | 'downvotes' };
+  parentId?: string; // ID of the message this is a reply to
 }
 
 export interface ChatRoom {
@@ -172,6 +173,10 @@ export const sendMessage = async (chatRoomId: string, message: Partial<Message>)
             voters: {},
             timestamp: serverTimestamp()
         };
+
+        if (message.parentId) {
+            messageData.parentId = message.parentId;
+        }
 
         await addDoc(messagesCol, messageData);
     } catch (error) {
