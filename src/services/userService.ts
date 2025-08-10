@@ -137,17 +137,32 @@ export const getFeedForUser = async (userId: string): Promise<ChatRoom[]> => {
 export const getUserSuggestions = async (userId: string): Promise<UserProfileData[]> => {
     // Get list of users that the current user is already following
     const followingList = await getFollowingList(userId);
-    const usersToExclude = new Set([userId, ...followingList]);
+    const usersToExclude = [userId, ...followingList];
 
     const usersRef = collection(db, 'users');
-    const q = query(usersRef, limit(20)); // Fetch a reasonable number of users
+    // Firestore's `not-in` query has a limit of 10 values. 
+    // If a user follows more than 9 people, this query will fail.
+    // The robust solution is to fetch all and filter client-side,
+    // but for this app, we'll assume a user won't follow that many and use a query.
+    // For a production app, pagination and client-side filtering would be better.
+    let q;
+    if (usersToExclude.length > 0 && usersToExclude.length <= 10) {
+      q = query(usersRef, where(documentId(), 'not-in', usersToExclude), limit(5));
+    } else {
+      // Fallback if there are too many users to exclude or none to exclude
+      q = query(usersRef, limit(20));
+    }
     
     const snapshot = await getDocs(q);
     
     const allUsers = snapshot.docs.map(doc => doc.data() as UserProfileData);
-
-    // Filter out the excluded users in code
-    const suggestions = allUsers.filter(user => !usersToExclude.has(user.uid));
     
-    return suggestions.slice(0, 5); // Return the top 5
+    // If we used the fallback query, we need to filter now
+    if (usersToExclude.length > 10 || usersToExclude.length === 0) {
+        const excludeSet = new Set(usersToExclude);
+        const filteredUsers = allUsers.filter(user => !excludeSet.has(user.uid));
+        return filteredUsers.slice(0, 5);
+    }
+    
+    return allUsers;
 };

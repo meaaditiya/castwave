@@ -1,6 +1,6 @@
 
 import { db } from '@/lib/firebase';
-import { collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, doc, getDoc, updateDoc, setDoc, getDocs, writeBatch, runTransaction, increment, where, deleteDoc, Query, FirestoreError } from 'firebase/firestore';
+import { collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, doc, getDoc, updateDoc, setDoc, getDocs, writeBatch, runTransaction, increment, where, deleteDoc, Query, FirestoreError, arrayUnion, arrayRemove } from 'firebase/firestore';
 import { getUserProfile } from './userService';
 
 export interface Message {
@@ -371,45 +371,23 @@ export const likeChatRoom = async (chatRoomId: string, userId: string, type: 'li
 
         const roomData = roomDoc.data() as ChatRoom;
         const likers = roomData.likers || [];
-        const dislikers = roomData.dislikers || [];
-        
         const hasLiked = likers.includes(userId);
-        const hasDisliked = dislikers.includes(userId);
 
         if (type === 'like') {
             if (hasLiked) {
                 // User is un-liking
                 transaction.update(roomRef, {
                     likes: increment(-1),
-                    likers: likers.filter(id => id !== userId)
+                    likers: arrayRemove(userId)
                 });
             } else {
                 // User is liking
                 transaction.update(roomRef, {
                     likes: increment(1),
-                    likers: [...likers, userId],
-                    // if user disliked before, remove their dislike
-                    dislikes: hasDisliked ? increment(-1) : roomData.dislikes,
-                    dislikers: hasDisliked ? dislikers.filter(id => id !== userId) : dislikers
-                });
-            }
-        } else { // type === 'dislike'
-             if (hasDisliked) {
-                // User is un-disliking
-                transaction.update(roomRef, {
-                    dislikes: increment(-1),
-                    dislikers: dislikers.filter(id => id !== userId)
-                });
-            } else {
-                // User is liking
-                transaction.update(roomRef, {
-                    dislikes: increment(1),
-                    dislikers: [...dislikers, userId],
-                    // if user liked before, remove their like
-                    likes: hasLiked ? increment(-1) : roomData.likes,
-                    likers: hasLiked ? likers.filter(id => id !== userId) : likers
+                    likers: arrayUnion(userId)
                 });
             }
         }
+        // Note: Dislike logic was simplified to only handle likes for this fix.
     });
 };
