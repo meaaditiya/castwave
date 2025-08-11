@@ -82,7 +82,7 @@ function ChatMessage({ message, parentMessage, onReply, onFeature, onVote, canCh
                     </AvatarFallback>
                 </Avatar>
             </Link>
-            <div className="flex-1">
+            <div className="flex-1 min-w-0">
                  {parentMessage && (
                     <div className="pl-2 text-xs text-muted-foreground mt-1 mb-1">
                          <div className="flex items-center gap-1">

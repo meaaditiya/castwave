@@ -237,7 +237,6 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
     return <ChatRoomPageSkeleton />;
   }
 
-  // Handle different screens based on non-host participant status
   if (!isHost && myParticipantRecord) {
       if (myParticipantRecord.status === 'pending') {
           return <AwaitingApprovalScreen />;
@@ -284,26 +283,30 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
-      <main className={cn(
+       <main className={cn(
           "flex-1 container py-4 md:py-8 gap-4 md:gap-8 px-2 md:px-8",
           isChatFullscreen ? "grid grid-cols-1 p-0 md:p-0" : "grid grid-cols-1 lg:grid-cols-3"
       )}>
-        <div className={cn("lg:col-span-2 space-y-4", isChatFullscreen && "hidden")}>
+        <div className={cn(
+            "lg:col-span-2 space-y-4", 
+            isChatFullscreen && "hidden"
+        )}>
           <LiveScreen {...chatRoomDetails} />
         </div>
-        <div className={cn(
+
+         <div className={cn(
             "lg:col-span-1 flex flex-col gap-4",
-            isChatFullscreen && "col-span-1"
+            isChatFullscreen ? "col-span-1" : "lg:h-auto"
         )}>
-           <Card className={cn(
+            <Card className={cn(
                "flex flex-col",
                isChatFullscreen 
-                   ? "h-[calc(100vh-4rem)] rounded-none border-0" 
-                   : "h-[calc(100vh-12rem)] md:h-[calc(100vh-10rem)] lg:max-h-[700px] lg:h-auto"
-           )}>
+                   ? "h-screen rounded-none border-0" 
+                   : "h-full min-h-[500px] lg:min-h-0 lg:max-h-[700px]"
+            )}>
               <CardHeader className="flex flex-row items-center justify-between">
                   <CardTitle className="flex items-center gap-2"><MessageSquare className="h-5 w-5"/> Live Chat</CardTitle>
-                  <Button variant="ghost" size="icon" onClick={() => setIsChatFullscreen(!isChatFullscreen)}>
+                   <Button variant="ghost" size="icon" onClick={() => setIsChatFullscreen(!isChatFullscreen)}>
                     {isChatFullscreen ? <Shrink className="h-5 w-5" /> : <Expand className="h-5 w-5" />}
                   </Button>
               </CardHeader>
