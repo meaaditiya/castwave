@@ -23,9 +23,10 @@ import { cn } from '@/lib/utils';
 interface LiveScreenProps extends ChatRoom {
   isHost?: boolean;
   participants: Participant[];
+  className?: string;
 }
 
-export function LiveScreen({ id: chatRoomId, title, host, hostId, isLive, imageHint, isHost = false, featuredMessage, hostReply, participants, activeQuiz, activePoll }: LiveScreenProps) {
+export function LiveScreen({ id: chatRoomId, title, host, hostId, isLive, imageHint, isHost = false, featuredMessage, hostReply, participants, activeQuiz, activePoll, className }: LiveScreenProps) {
   const [isEnding, setIsEnding] = useState(false);
   const [isStarting, setIsStarting] = useState(false);
   const { toast } = useToast();
@@ -123,8 +124,9 @@ export function LiveScreen({ id: chatRoomId, title, host, hostId, isLive, imageH
 
   return (
     <Card className={cn(
-        "overflow-hidden shadow-lg flex flex-col transition-all duration-300 min-h-[550px]",
-        isFullScreen ? "fixed inset-0 z-[100] rounded-none h-screen" : "relative"
+        "overflow-hidden shadow-lg flex flex-col transition-all duration-300",
+        isFullScreen ? "fixed inset-0 z-[100] rounded-none h-screen" : "relative",
+        className
     )}>
        <CardHeader className="flex flex-row items-start justify-between gap-4 p-4 md:p-6">
         <div className="flex flex-row items-center gap-4">
@@ -282,5 +284,3 @@ export function LiveScreen({ id: chatRoomId, title, host, hostId, isLive, imageH
     </Card>
   );
 }
-
-    

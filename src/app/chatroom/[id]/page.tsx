@@ -299,10 +299,10 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
           isChatFullscreen ? "grid grid-cols-1 p-0 md:p-0" : "grid grid-cols-1 lg:grid-cols-3 px-2 sm:px-4 md:px-8"
       )}>
         <div className={cn(
-            "lg:col-span-2 space-y-4 min-h-[650px]", 
+            "lg:col-span-2 space-y-4 h-[650px]", 
             isChatFullscreen && "hidden"
         )}>
-          <LiveScreen {...chatRoomDetails} />
+          <LiveScreen {...chatRoomDetails} className="h-full" />
         </div>
 
         <div className={cn(
