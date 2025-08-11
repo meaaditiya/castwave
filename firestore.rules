@@ -1,101 +1,22 @@
-rules_version = '2';
 
+rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    
-    // Helper function to check if a user is authenticated
-    function isAuthenticated() {
-      return request.auth != null;
-    }
-    
-    // Helper function to check if a user is the owner of a document
-    function isOwner(userId) {
-      return request.auth.uid == userId;
-    }
-
-    // Helper function to check if a user is a participant in a chat room
-    function isParticipant(chatRoomId) {
-      return exists(/databases/$(database)/documents/chatRooms/$(chatRoomId)/participants/$(request.auth.uid));
-    }
-    
-    // Rules for the 'users' collection
     match /users/{userId} {
-      // Anyone can read a user's public profile
-      allow read: if true;
-      
-      // Only the authenticated owner can create or update their own profile
-      allow write: if isAuthenticated() && isOwner(userId);
-      
-      // Followers and Following subcollections
-      match /followers/{followerId} {
-        allow read, write: if isAuthenticated();
-      }
-      match /following/{followingId} {
-        allow read, write: if isAuthenticated();
-      }
+      allow read: if request.auth != null;
+      allow update: if request.auth.uid == userId;
     }
-    
-    // Rules for the 'chatRooms' collection
-    match /chatRooms/{chatRoomId} {
-      // Anyone can read public chat rooms
-      allow read: if resource.data.isPrivate == false || (isAuthenticated() && isParticipant(chatRoomId));
-      
-      // Only authenticated users can create chat rooms
-      allow create: if isAuthenticated();
-
-      // Only the host can update or delete their chat room
-      allow update, delete: if isAuthenticated() && isOwner(resource.data.hostId);
-      
-      // Rules for 'participants' subcollection
-      match /participants/{participantId} {
-        // Any authenticated user can request to join (create their own participant doc)
-        allow create: if isAuthenticated() && isOwner(participantId);
-        
-        // Any authenticated user can read the participant list
-        allow read: if isAuthenticated();
-
-        // Only the host can update participant status
-        allow update: if isAuthenticated() && isOwner(get(/databases/$(database)/documents/chatRooms/$(chatRoomId)).data.hostId);
-        
-        allow delete: if false; // Participants shouldn't be deleted directly
-      }
-      
-      // Rules for 'messages' subcollection
-      match /messages/{messageId} {
-        // Participants can read messages
-        allow read: if isAuthenticated() && isParticipant(chatRoomId);
-        
-        // Approved participants can create (send) and update (vote on) messages
-        allow create, update: if isAuthenticated() && isParticipant(chatRoomId) && get(/databases/$(database)/documents/chatRooms/$(chatRoomId)/participants/$(request.auth.uid)).data.status == 'approved';
-        
-        allow delete: if false; // Messages should not be deleted
-      }
-
-      // Rules for 'polls' subcollection
-      match /polls/{pollId} {
-        allow read: if isAuthenticated() && isParticipant(chatRoomId);
-        
-        // Only host can create, update, or delete polls
-        allow write: if isAuthenticated() && isOwner(get(/databases/$(database)/documents/chatRooms/$(chatRoomId)).data.hostId);
-      }
-      
-       // Rules for WebRTC signaling
-      match /webrtc_signals/{hostId} {
-          // The host can create/delete their own offer
-          allow create, delete: if isAuthenticated() && isOwner(hostId);
-          // Any participant can read the offer
-          allow read: if isAuthenticated() && isParticipant(chatRoomId);
-
-          // Rules for the answers subcollection
-          match /answers/{participantId} {
-              // Participants can create their own answers
-              allow create: if isAuthenticated() && isOwner(participantId);
-              // The host can read the answers
-              allow read: if isAuthenticated() && isOwner(hostId);
-              
-              allow update, delete: if false;
-          }
-      }
+    match /users/{userId}/{subcollection}/{docId} {
+      allow read, write: if request.auth != null;
+    }
+    match /chatRooms/{roomId} {
+      allow read: if request.auth != null && (resource.data.isPrivate == false || resource.data.hostId == request.auth.uid);
+      allow create: if request.auth != null;
+      allow update: if request.auth != null && resource.data.hostId == request.auth.uid;
+      allow delete: if request.auth != null && resource.data.hostId == request.auth.uid;
+    }
+    match /chatRooms/{roomId}/{subcollection}/{docId} {
+      allow read, write: if request.auth != null;
     }
   }
 }

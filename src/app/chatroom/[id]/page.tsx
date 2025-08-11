@@ -209,8 +209,6 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
 
   useEffect(() => {
     if (!currentUser || !chatRoomId) return;
-    const canViewMessages = isHost || myParticipantRecord?.status === 'approved';
-    if (!canViewMessages && chatRoom && !chatRoom.isLive) return; // Non-approved users can't see chat after it ends
 
     const unsubscribeMessages = getMessages(chatRoomId, setChatLog, (error) => {
         console.error("Error fetching messages:", error);
