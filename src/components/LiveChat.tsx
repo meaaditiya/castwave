@@ -377,7 +377,7 @@ export function LiveChat({ chatRoom, messages, participant, canChat, onDeleteMes
       </CardContent>
 
       {chatRoom.isLive || isHost ? (
-        <div className="border-t pt-2 p-2 sm:p-4 mt-auto">
+        <div className="border-t pt-2 p-2 mt-auto">
             {replyingTo && (
                 <div className="text-xs text-muted-foreground bg-muted p-2 rounded-t-md flex justify-between items-center">
                     <span>Replying to <span className="font-bold">{replyingTo.user}</span></span>
@@ -433,5 +433,3 @@ export function LiveChat({ chatRoom, messages, participant, canChat, onDeleteMes
     </>
   );
 }
-
-    

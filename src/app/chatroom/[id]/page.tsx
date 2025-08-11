@@ -299,20 +299,21 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
           isChatFullscreen ? "grid grid-cols-1 p-0 md:p-0" : "grid grid-cols-1 lg:grid-cols-3 px-2 sm:px-4 md:px-8"
       )}>
         <div className={cn(
-            "lg:col-span-2 space-y-4", 
+            "lg:col-span-2 space-y-4 min-h-[650px]", 
             isChatFullscreen && "hidden"
         )}>
           <LiveScreen {...chatRoomDetails} />
         </div>
 
         <div className={cn(
-            isChatFullscreen ? "col-span-1 h-screen p-0 m-0" : "lg:col-span-1"
+            "h-[650px]",
+            isChatFullscreen ? "col-span-1 h-screen p-0 m-0" : ""
         )}>
             <Card className={cn(
-               "flex flex-col h-[650px]",
+               "flex flex-col",
                isChatFullscreen 
                    ? "h-full rounded-none border-0" 
-                   : ""
+                   : "h-full"
             )}>
               <CardHeader className="flex flex-row items-center justify-between">
                   <CardTitle className="flex items-center gap-2"><MessageSquare className="h-5 w-5"/> Live Chat</CardTitle>
@@ -359,5 +360,3 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
     </div>
   );
 }
-
-    
