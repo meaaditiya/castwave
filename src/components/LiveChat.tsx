@@ -109,7 +109,7 @@ function ChatMessage({ message, parentMessage, onReply, onFeature, onVote, canCh
                     </div>
                 )}
                 
-                {message.text && <p className="text-sm text-foreground/90 whitespace-pre-wrap">{message.text}</p>}
+                {message.text && <p className="text-sm text-foreground/90 whitespace-pre-wrap break-words">{message.text}</p>}
                 <div className="flex items-center gap-4 mt-1 text-muted-foreground">
                     <div className="flex items-center gap-1">
                         <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => onVote(message.id!, 'upvotes')} disabled={!canChat || message.voters?.[currentUser?.uid!]}>
