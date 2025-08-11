@@ -112,7 +112,7 @@ export function LiveScreen({ id: chatRoomId, title, host, hostId, isLive, imageH
   return (
     <Card className={cn(
         "overflow-hidden shadow-lg flex flex-col transition-all duration-300",
-        isFullScreen ? "fixed inset-0 z-[100] rounded-none h-screen" : "relative h-full"
+        isFullScreen ? "fixed inset-0 z-[100] rounded-none h-screen" : "relative lg:max-h-[700px] h-full"
     )}>
        <CardHeader className="flex flex-row items-start justify-between gap-4 p-4 md:p-6">
         <div className="flex flex-row items-center gap-4">

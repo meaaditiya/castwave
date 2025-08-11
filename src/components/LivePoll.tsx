@@ -171,7 +171,7 @@ export function LivePoll({ chatRoomId, isHost, currentUserId, activePoll, render
                         {canSeeResults && (
                             <div className="text-sm flex justify-between mb-1">
                                 <span className="font-medium">{option.text}</span>
-                                <span className="text-muted-foreground">{((option.votes / totalVotes) * 100 || 0).toFixed(0)}%</span>
+                                <span className="text-muted-foreground">{totalVotes > 0 ? ((option.votes / totalVotes) * 100).toFixed(0) : 0}%</span>
                             </div>
                         )}
                         <button
@@ -185,9 +185,9 @@ export function LivePoll({ chatRoomId, isHost, currentUserId, activePoll, render
                             disabled={isVoting || userHasVoted || timeLeft <= 0}
                         >
                             {canSeeResults &&
-                                <Progress value={(option.votes / totalVotes) * 100 || 0} className="absolute h-full left-0 top-0 -z-10 bg-accent rounded-md" />
+                                <Progress value={totalVotes > 0 ? (option.votes / totalVotes) * 100 : 0} className="absolute h-full left-0 top-0 -z-10 bg-accent rounded-md" />
                             }
-                           {!canSeeResults ? option.text : null}
+                           {!canSeeResults ? <span className="mx-auto">{option.text}</span> : null}
                            {canSeeResults && <span className="relative z-10 font-medium">{option.text}</span>}
                         </button>
                     </div>

@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -191,7 +192,7 @@ export function LiveQuiz({ chatRoomId, isHost, currentUserId, participants, acti
 
     const currentQuestion = activeQuiz.currentQuestion;
     const isQuestionActive = activeQuiz.status === 'in_progress' && timeLeft > 0;
-    const showLeaderboard = activeQuiz.status === 'in_progress' && timeLeft <= 0;
+    const showLeaderboard = activeQuiz.status === 'in_progress' && timeLeft <= 0 && currentQuestion;
     
     const userAnswer = currentQuestion ? activeQuiz.answers?.[currentQuestion.id]?.[currentUserId] : undefined;
     const userHasAnswered = userAnswer !== undefined;
@@ -254,7 +255,7 @@ export function LiveQuiz({ chatRoomId, isHost, currentUserId, participants, acti
                     <CardFooter className="p-0 pt-4 flex justify-end">
                         {isLastQuestion ?
                             <Button onClick={handleEndQuiz} disabled={isProcessing}>{isProcessing && <Loader2 className="animate-spin mr-2"/>}<Trophy className="mr-2"/>End Quiz & Show Winner</Button> :
-                            <Button onClick={handleNextQuestion} disabled={isProcessing}>{isProcessing && <Loader2 className="animate-spin mr-2"/>}<ArrowRight className="mr-2"/>Next Question</Button>
+                            <Button onClick={handleNextQuestion} disabled={isProcessing || timeLeft > 0}>{isProcessing && <Loader2 className="animate-spin mr-2"/>}<ArrowRight className="mr-2"/>Next Question</Button>
                         }
                     </CardFooter>
                 )}
@@ -290,17 +291,20 @@ export function LiveQuiz({ chatRoomId, isHost, currentUserId, participants, acti
                                     variant="outline"
                                     className={cn(
                                         "w-full h-20 justify-start text-base whitespace-normal p-4 relative",
+                                        "transition-all duration-300",
                                         isAnswering && "opacity-50",
-                                        userHasAnswered && !isThisAnswer && !isCorrectAnswer && "opacity-30",
-                                        wasCorrectSelection && "border-green-500 ring-2 ring-green-500",
-                                        wasIncorrectSelection && "border-destructive ring-2 ring-destructive",
-                                        isCorrectAnswer && "bg-green-500/20 border-green-500",
+                                        userHasAnswered && !isThisAnswer && "opacity-30",
+                                        userHasAnswered && isThisAnswer && "ring-2 ring-primary",
+                                        showResults && isCorrectAnswer && "bg-green-500/20 border-green-500 text-green-800 dark:text-green-300",
+                                        showResults && wasIncorrectSelection && "bg-destructive/20 border-destructive text-destructive",
                                     )}
                                     onClick={() => handleAnswer(index)}
                                     disabled={isAnswering || userHasAnswered || !isQuestionActive}
                                 >
                                     {option.text}
-                                    {isThisAnswer && <div className="absolute top-1 right-1 h-5 w-5 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs">✓</div>}
+                                    {isThisAnswer && !showResults && <div className="absolute top-1 right-1 h-5 w-5 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs">✓</div>}
+                                    {showResults && wasCorrectSelection && <CheckCircle className="absolute top-1 right-1 h-5 w-5 text-green-500" />}
+                                    {showResults && wasIncorrectSelection && <XCircle className="absolute top-1 right-1 h-5 w-5 text-destructive" />}
                                 </Button>
                             )
                         })}
