@@ -23,6 +23,7 @@ interface LiveChatProps {
   chatRoom: ChatRoom;
   messages: Message[];
   participant?: Participant | null; // The current user's participant record, if not host
+  canChat: boolean;
 }
 
 const userColors = [
@@ -82,6 +83,15 @@ function ChatMessage({ message, parentMessage, onReply, onFeature, onVote, canCh
                 </Avatar>
             </Link>
             <div className="flex-1">
+                 {parentMessage && (
+                    <div className="pl-2 text-xs text-muted-foreground mt-1 mb-1">
+                         <div className="flex items-center gap-1">
+                            <Reply className="h-3 w-3"/>
+                            <span className="font-semibold">{parentMessage.user}</span>
+                        </div>
+                        <p className="pl-4 truncate border-l-2 ml-[5px] pl-2 border-muted/50">{parentMessage.text}</p>
+                    </div>
+                )}
                 <div className="flex items-center gap-2">
                     <Link href={`/profile/${message.userId}`} passHref>
                         <span className={`font-bold text-sm ${getUserColor(message.user)} cursor-pointer hover:underline`}>{message.user}</span>
@@ -99,16 +109,6 @@ function ChatMessage({ message, parentMessage, onReply, onFeature, onVote, canCh
                     </div>
                 </div>
 
-                 {parentMessage && (
-                    <div className="pl-2 border-l-2 border-muted/50 text-xs text-muted-foreground mt-1 mb-2">
-                         <div className="flex items-center gap-1">
-                            <Reply className="h-3 w-3"/>
-                            <span className="font-semibold">{parentMessage.user}</span>
-                        </div>
-                        <p className="pl-4 truncate">{parentMessage.text}</p>
-                    </div>
-                )}
-                
                 {message.text && <p className="text-sm text-foreground/90 whitespace-pre-wrap break-words">{message.text}</p>}
                 <div className="flex items-center gap-4 mt-1 text-muted-foreground">
                     <div className="flex items-center gap-1">
@@ -131,7 +131,7 @@ function ChatMessage({ message, parentMessage, onReply, onFeature, onVote, canCh
 }
 
 
-export function LiveChat({ chatRoom, messages, participant }: LiveChatProps) {
+export function LiveChat({ chatRoom, messages, participant, canChat }: LiveChatProps) {
   const [newMessage, setNewMessage] = useState('');
   const [isSending, setIsSending] = useState(false);
   const { currentUser } = useAuth();
@@ -145,8 +145,7 @@ export function LiveChat({ chatRoom, messages, participant }: LiveChatProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   
   const isHost = currentUser?.uid === chatRoom.hostId;
-  const canChat = isHost || participant?.status === 'approved';
-
+  
   const participantMap = useMemo(() => {
     const map = new Map<string, Participant>();
     // Since non-hosts don't get the full list, we'll build what we can
@@ -344,29 +343,32 @@ export function LiveChat({ chatRoom, messages, participant }: LiveChatProps) {
           }
       </div>
 
-      <div className="border-t pt-2 mt-auto">
-          {replyingTo && (
-              <div className="text-xs text-muted-foreground bg-muted p-2 rounded-t-md flex justify-between items-center">
-                  <span>Replying to <span className="font-bold">{replyingTo.user}</span></span>
-                  <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => { setReplyingTo(null); setNewMessage(''); }}>
-                      <X className="h-3 w-3"/>
-                  </Button>
-              </div>
-          )}
-          <form onSubmit={handleSubmit} className="flex gap-2">
-              <Input
-              ref={inputRef}
-              placeholder={canChat ? "Join the conversation..." : "Waiting for host approval..."}
-              value={newMessage}
-              onChange={(e) => setNewMessage(e.target.value)}
-              disabled={!canChat || isSending}
-              className={replyingTo ? 'rounded-t-none' : ''}
-              />
-              <Button type="submit" size="icon" aria-label="Send message" disabled={!canChat || isSending || !newMessage.trim()}>
-              {isSending ? <Loader2 className="animate-spin" /> : <Send />}
-              </Button>
-          </form>
-      </div>
+      {chatRoom.isLive || isHost ? (
+        <div className="border-t pt-2 mt-auto">
+            {replyingTo && (
+                <div className="text-xs text-muted-foreground bg-muted p-2 rounded-t-md flex justify-between items-center">
+                    <span>Replying to <span className="font-bold">{replyingTo.user}</span></span>
+                    <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => { setReplyingTo(null); setNewMessage(''); }}>
+                        <X className="h-3 w-3"/>
+                    </Button>
+                </div>
+            )}
+            <form onSubmit={handleSubmit} className="flex gap-2">
+                <Input
+                ref={inputRef}
+                placeholder={canChat ? "Join the conversation..." : "Waiting for host approval..."}
+                value={newMessage}
+                onChange={(e) => setNewMessage(e.target.value)}
+                disabled={!canChat || isSending}
+                className={replyingTo ? 'rounded-t-none' : ''}
+                />
+                <Button type="submit" size="icon" aria-label="Send message" disabled={!canChat || isSending || !newMessage.trim()}>
+                {isSending ? <Loader2 className="animate-spin" /> : <Send />}
+                </Button>
+            </form>
+        </div>
+      ) : null}
+
        <Dialog open={!!messageToFeature} onOpenChange={(open) => !open && setMessageToFeature(null)}>
         <DialogContent>
           <DialogHeader>

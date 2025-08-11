@@ -1,10 +1,11 @@
+
 "use client";
 
 import Image from 'next/image';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Share2, MicOff, Loader2, Star, MessageSquare, Mic, ArrowLeft, Waves, ListChecks, HelpCircle } from 'lucide-react';
+import { Share2, MicOff, Loader2, Star, MessageSquare, Mic, ArrowLeft, Waves, ListChecks, HelpCircle, Expand, Shrink, Plus } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { endChatRoom, Participant, startChatRoom, ChatRoom } from '@/services/chatRoomService';
@@ -15,6 +16,8 @@ import { useAuth } from '@/context/AuthContext';
 import { Quiz, Poll } from '@/services/pollService';
 import { LivePoll } from './LivePoll';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
+import { Dialog, DialogTrigger } from './ui/dialog';
+import { cn } from '@/lib/utils';
 
 
 interface LiveScreenProps extends ChatRoom {
@@ -32,11 +35,10 @@ export function LiveScreen({ id: chatRoomId, title, host, hostId, isLive, imageH
   const hostProfile = participants.find(p => p.userId === hostId);
   const featuredParticipant = featuredMessage ? participants.find(p => p.userId === featuredMessage.userId) : null;
   const [currentTab, setCurrentTab] = useState<'interaction' | 'featured'>('interaction');
+  const [isFullScreen, setIsFullScreen] = useState(false);
 
   useEffect(() => {
-    if (activeQuiz) {
-        setCurrentTab('interaction');
-    } else if (activePoll) {
+    if (activeQuiz || activePoll) {
         setCurrentTab('interaction');
     }
   }, [activeQuiz, activePoll]);
@@ -108,7 +110,10 @@ export function LiveScreen({ id: chatRoomId, title, host, hostId, isLive, imageH
 
 
   return (
-    <Card className="overflow-hidden shadow-lg h-full flex flex-col">
+    <Card className={cn(
+        "overflow-hidden shadow-lg flex flex-col transition-all duration-300",
+        isFullScreen ? "fixed inset-0 z-[100] rounded-none h-screen" : "relative h-full"
+    )}>
        <CardHeader className="flex flex-row items-start justify-between gap-4 p-4 md:p-6">
         <div className="flex flex-row items-center gap-4">
             <Avatar className="h-16 w-16 border-2 border-primary">
@@ -129,10 +134,17 @@ export function LiveScreen({ id: chatRoomId, title, host, hostId, isLive, imageH
               </div>
             )}
         </div>
-         <Button variant="outline" size="sm" onClick={() => router.back()} className="rounded-full flex-shrink-0">
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Back
-        </Button>
+         <div className="flex items-center gap-2">
+            <Button variant="ghost" size="icon" onClick={() => setIsFullScreen(!isFullScreen)}>
+                {isFullScreen ? <Shrink className="h-5 w-5"/> : <Expand className="h-5 w-5"/>}
+            </Button>
+            {!isFullScreen && (
+                <Button variant="outline" size="sm" onClick={() => router.back()} className="rounded-full flex-shrink-0">
+                    <ArrowLeft className="mr-2 h-4 w-4" />
+                    Back
+                </Button>
+            )}
+         </div>
       </CardHeader>
       <CardContent className="bg-card/50 p-4 md:p-6 flex flex-col justify-center space-y-4 border-t flex-1">
        {isLive ? (
@@ -158,14 +170,30 @@ export function LiveScreen({ id: chatRoomId, title, host, hostId, isLive, imageH
                           activeQuiz={activeQuiz}
                           renderNoQuizContent={renderNoInteractionContent}
                         />
-                    ) : (
+                    ) : activePoll ? (
                          <LivePoll
                           chatRoomId={chatRoomId}
                           isHost={isHost}
                           currentUserId={currentUser!.uid}
                           activePoll={activePoll}
-                          renderNoPollContent={renderNoInteractionContent}
+                          renderNoQuizContent={renderNoInteractionContent}
                         />
+                    ) : (
+                         <div className="flex flex-col items-center justify-center h-full gap-4 text-center">
+                            {renderNoInteractionContent()}
+                            {isHost && (
+                                <div className="flex gap-4 mt-4">
+                                     <LivePoll
+                                        chatRoomId={chatRoomId} isHost={isHost} currentUserId={currentUser!.uid} activePoll={null}
+                                        renderNoPollContent={() => <></>}
+                                     />
+                                      <LiveQuiz
+                                        chatRoomId={chatRoomId} isHost={isHost} currentUserId={currentUser!.uid} participants={participants} activeQuiz={null}
+                                        renderNoQuizContent={() => <></>}
+                                     />
+                                </div>
+                            )}
+                        </div>
                     )}
                  </TabsContent>
                  <TabsContent value="featured" className="flex-1 flex flex-col justify-center items-center min-h-[300px]">

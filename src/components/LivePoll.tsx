@@ -152,7 +152,7 @@ export function LivePoll({ chatRoomId, isHost, currentUserId, activePoll, render
     
     const totalVotes = activePoll.options.reduce((sum, opt) => sum + opt.votes, 0);
     const userHasVoted = activePoll.voters && activePoll.voters[currentUserId] !== undefined;
-    const canSeeResults = activePoll.showResults || isHost || timeLeft <= 0 || userHasVoted;
+    const canSeeResults = isHost || activePoll.showResults || timeLeft <= 0 || userHasVoted;
 
     return (
         <div className="w-full">
@@ -187,7 +187,8 @@ export function LivePoll({ chatRoomId, isHost, currentUserId, activePoll, render
                             {canSeeResults &&
                                 <Progress value={(option.votes / totalVotes) * 100 || 0} className="absolute h-full left-0 top-0 -z-10 bg-accent rounded-md" />
                             }
-                           {!canSeeResults && option.text}
+                           {!canSeeResults ? option.text : null}
+                           {canSeeResults && <span className="relative z-10 font-medium">{option.text}</span>}
                         </button>
                     </div>
                 ))}

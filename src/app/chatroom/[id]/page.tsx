@@ -213,10 +213,11 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
 
     const unsubscribeMessages = getMessages(chatRoomId, setChatLog, (error) => {
         console.error("Error fetching messages:", error);
+        if (!chatRoom?.isLive && !isHost) return;
         toast({variant: 'destructive', title: 'Error', description: 'Could not load messages.'})
     });
     return () => unsubscribeMessages();
-  }, [chatRoomId, currentUser, isHost, isApprovedParticipant, toast]);
+  }, [chatRoomId, currentUser, isHost, isApprovedParticipant, toast, chatRoom?.isLive]);
   
   const handleReRequest = async () => {
     if (!currentUser) return;
@@ -249,7 +250,7 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
       }
   }
 
-  if (!chatRoom.isLive && !isHost) {
+  if (!chatRoom.isLive && !isHost && !isApprovedParticipant) {
       return (
           <div className="min-h-screen flex flex-col">
               <Header />
@@ -310,6 +311,7 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
                   chatRoom={chatRoom}
                   messages={chatLog}
                   participant={myParticipantRecord}
+                  canChat={isHost || isApprovedParticipant}
               />
               <div className="mt-auto border-t">
                   <Accordion type="single" collapsible className="w-full">
