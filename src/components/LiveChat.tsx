@@ -27,6 +27,7 @@ interface LiveChatProps {
   messages: Message[];
   participant?: Participant | null; // The current user's participant record, if not host
   canChat: boolean;
+  onDeleteMessage: (messageId: string) => void;
 }
 
 const userColors = [
@@ -164,7 +165,7 @@ function ChatMessage({ message, parentMessage, onReply, onFeature, onVote, onDel
 }
 
 
-export function LiveChat({ chatRoom, messages, participant, canChat }: LiveChatProps) {
+export function LiveChat({ chatRoom, messages, participant, canChat, onDeleteMessage }: LiveChatProps) {
   const [newMessage, setNewMessage] = useState('');
   const [isSending, setIsSending] = useState(false);
   const { currentUser } = useAuth();
@@ -287,17 +288,6 @@ export function LiveChat({ chatRoom, messages, participant, canChat }: LiveChatP
     }
   };
   
-  const handleDelete = async (messageId: string) => {
-    if (!currentUser) return;
-    try {
-        await deleteMessage(chatRoom.id, messageId, currentUser.uid);
-        toast({ title: 'Message Deleted' });
-    } catch (e: any) {
-        console.error(e);
-        toast({ variant: 'destructive', title: 'Error', description: e.message || 'Could not delete message.' });
-    }
-  }
-
   const handleVote = async (messageId: string, voteType: 'upvotes' | 'downvotes') => {
     if (!currentUser || !canChat) return;
     try {
@@ -348,7 +338,7 @@ export function LiveChat({ chatRoom, messages, participant, canChat }: LiveChatP
                         onReply={handleReplyClick}
                         onFeature={setMessageToFeature}
                         onVote={handleVote}
-                        onDelete={handleDelete}
+                        onDelete={onDeleteMessage}
                         canChat={canChat}
                         isHost={isHost}
                         participantMap={participantMap}
@@ -443,3 +433,5 @@ export function LiveChat({ chatRoom, messages, participant, canChat }: LiveChatP
     </>
   );
 }
+
+    

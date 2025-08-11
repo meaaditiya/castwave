@@ -8,10 +8,10 @@ import { LiveChat } from '@/components/LiveChat';
 import type { Message } from '@/services/chatRoomService';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from '@/components/ui/skeleton';
-import { MicOff, Sparkles, Users, MessageSquare, ShieldQuestion, UserX, ArrowLeft, Expand, Shrink } from 'lucide-react';
+import { MicOff, Sparkles, Users, MessageSquare, ShieldQuestion, UserX, ArrowLeft, Expand, Shrink, X } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
-import { getChatRoomStream, ChatRoom, getMessages, Participant, getParticipants, getParticipantStream, requestToJoinChat, updateParticipantStatus } from '@/services/chatRoomService';
+import { getChatRoomStream, ChatRoom, getMessages, Participant, getParticipants, getParticipantStream, requestToJoinChat, updateParticipantStatus, deleteMessage } from '@/services/chatRoomService';
 import { useToast } from '@/hooks/use-toast';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import Link from 'next/link';
@@ -229,6 +229,17 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
     }
   }
 
+  const handleDeleteMessage = async (messageId: string) => {
+      if (!currentUser) return;
+      try {
+        await deleteMessage(chatRoomId, messageId, currentUser.uid);
+        toast({ title: 'Message Deleted' });
+      } catch (e: any) {
+        console.error(e);
+        toast({ variant: 'destructive', title: 'Error', description: e.message || 'Could not delete message.' });
+      }
+  }
+
   if (authLoading || pageLoading || !chatRoom || (!isHost && !myParticipantRecord)) {
     return <ChatRoomPageSkeleton />;
   }
@@ -285,7 +296,7 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
       <Header />
        <main className={cn(
           "flex-1 container py-4 md:py-8 gap-4 md:gap-8",
-          isChatFullscreen ? "grid grid-cols-1 p-0 md:p-0" : "grid grid-cols-1 lg:grid-cols-3"
+          isChatFullscreen ? "grid grid-cols-1 p-0 md:p-0" : "grid grid-cols-1 lg:grid-cols-3 px-2 sm:px-4 md:px-8"
       )}>
         <div className={cn(
             "lg:col-span-2 space-y-4", 
@@ -298,7 +309,7 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
             isChatFullscreen ? "col-span-1 h-screen p-0 m-0" : "lg:col-span-1"
         )}>
             <Card className={cn(
-               "flex flex-col lg:h-[650px]",
+               "flex flex-col h-[650px]",
                isChatFullscreen 
                    ? "h-full rounded-none border-0" 
                    : ""
@@ -314,6 +325,7 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
                   messages={chatLog}
                   participant={myParticipantRecord}
                   canChat={isHost || isApprovedParticipant}
+                  onDeleteMessage={handleDeleteMessage}
               />
               <div className="mt-auto border-t">
                   <Accordion type="single" collapsible className="w-full">
@@ -347,3 +359,5 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
     </div>
   );
 }
+
+    
