@@ -82,21 +82,21 @@ function ChatMessage({ message, parentMessage, onReply, onFeature, onVote, canCh
                     </AvatarFallback>
                 </Avatar>
             </Link>
-            <div className="flex-1 min-w-0">
+            <div className="flex-1 min-w-0 max-w-full overflow-hidden">
                  {parentMessage && (
                     <div className="pl-2 text-xs text-muted-foreground mt-1 mb-1">
                          <div className="flex items-center gap-1">
                             <Reply className="h-3 w-3"/>
                             <span className="font-semibold">{parentMessage.user}</span>
                         </div>
-                        <p className="pl-4 truncate border-l-2 ml-[5px] pl-2 border-muted/50">{parentMessage.text}</p>
+                        <p className="pl-4 break-words border-l-2 ml-[5px] pl-2 border-muted/50">{parentMessage.text}</p>
                     </div>
                 )}
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                     <Link href={`/profile/${message.userId}`} passHref>
-                        <span className={`font-bold text-sm ${getUserColor(message.user)} cursor-pointer hover:underline`}>{message.user}</span>
+                        <span className={`font-bold text-sm ${getUserColor(message.user)} cursor-pointer hover:underline break-words`}>{message.user}</span>
                     </Link>
-                    <span className="text-xs text-muted-foreground">{formatTimestamp(message.timestamp)}</span>
+                    <span className="text-xs text-muted-foreground whitespace-nowrap">{formatTimestamp(message.timestamp)}</span>
                     <div className="flex items-center">
                         <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => onReply(message)} disabled={!canChat}>
                             <MessageCircle className="h-4 w-4" />
@@ -109,7 +109,11 @@ function ChatMessage({ message, parentMessage, onReply, onFeature, onVote, canCh
                     </div>
                 </div>
 
-                {message.text && <p className="text-sm text-foreground/90 whitespace-pre-wrap break-words">{message.text}</p>}
+                {message.text && 
+                    <p className="text-sm text-foreground/90 whitespace-pre-wrap break-words">
+                        {message.text}
+                    </p>
+                }
                 <div className="flex items-center gap-4 mt-1 text-muted-foreground">
                     <div className="flex items-center gap-1">
                         <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => onVote(message.id!, 'upvotes')} disabled={!canChat || message.voters?.[currentUser?.uid!]}>
