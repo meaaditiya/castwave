@@ -4,7 +4,7 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Send, Loader2, ThumbsUp, ThumbsDown, Star, ArrowDown, MessageCircle, X } from 'lucide-react';
+import { Send, Loader2, ThumbsUp, ThumbsDown, Star, ArrowDown, MessageCircle, X, Reply } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { useAuth } from '@/context/AuthContext';
@@ -48,15 +48,15 @@ const getInitials = (name: string) => {
 }
 
 
-function ChatMessage({ message, onReply, onFeature, onVote, canChat, isHost, participantMap, replies = [] }: {
+function ChatMessage({ message, parentMessage, onReply, onFeature, onVote, canChat, isHost, participantMap }: {
     message: Message,
+    parentMessage?: Message,
     onReply: (message: Message) => void,
     onFeature: (message: Message) => void,
     onVote: (messageId: string, voteType: 'upvotes' | 'downvotes') => void,
     canChat: boolean,
     isHost: boolean,
-    participantMap: Map<string, Participant>,
-    replies: Message[]
+    participantMap: Map<string, Participant>
 }) {
     const { currentUser } = useAuth();
     const userProfile = participantMap.get(message.userId);
@@ -98,6 +98,17 @@ function ChatMessage({ message, onReply, onFeature, onVote, canChat, isHost, par
                         )}
                     </div>
                 </div>
+
+                 {parentMessage && (
+                    <div className="pl-2 border-l-2 border-muted/50 text-xs text-muted-foreground mt-1 mb-2">
+                         <div className="flex items-center gap-1">
+                            <Reply className="h-3 w-3"/>
+                            <span className="font-semibold">{parentMessage.user}</span>
+                        </div>
+                        <p className="pl-4 truncate">{parentMessage.text}</p>
+                    </div>
+                )}
+                
                 {message.text && <p className="text-sm text-foreground/90 whitespace-pre-wrap">{message.text}</p>}
                 <div className="flex items-center gap-4 mt-1 text-muted-foreground">
                     <div className="flex items-center gap-1">
@@ -114,23 +125,6 @@ function ChatMessage({ message, onReply, onFeature, onVote, canChat, isHost, par
                     </div>
                 </div>
 
-                {replies.length > 0 && (
-                    <div className="mt-2 space-y-3 pl-4 border-l-2 border-muted-foreground/20">
-                        {replies.map(reply => (
-                             <ChatMessage
-                                key={reply.id}
-                                message={reply}
-                                onReply={onReply}
-                                onFeature={onFeature}
-                                onVote={onVote}
-                                canChat={canChat}
-                                isHost={isHost}
-                                participantMap={participantMap}
-                                replies={(reply as any).replies || []}
-                            />
-                        ))}
-                    </div>
-                )}
             </div>
         </div>
     )
@@ -160,24 +154,14 @@ export function LiveChat({ chatRoom, messages, participant }: LiveChatProps) {
     return map;
   }, [participant]);
   
-  const threadedMessages = useMemo(() => {
-    const messageMap = new Map<string, Message & { replies: Message[] }>();
-    const topLevelMessages: (Message & { replies: Message[] })[] = [];
-
+  const messageMap = useMemo(() => {
+    const map = new Map<string, Message>();
     messages.forEach(message => {
-        messageMap.set(message.id!, { ...message, replies: [] });
-    });
-
-    messages.forEach(message => {
-        const messageWithReplies = messageMap.get(message.id!)!;
-        if (message.parentId && messageMap.has(message.parentId)) {
-            messageMap.get(message.parentId)!.replies.push(messageWithReplies);
-        } else {
-            topLevelMessages.push(messageWithReplies);
+        if (message.id) {
+            map.set(message.id, message);
         }
     });
-
-    return topLevelMessages;
+    return map;
 }, [messages]);
 
 
@@ -317,29 +301,24 @@ export function LiveChat({ chatRoom, messages, participant }: LiveChatProps) {
       <div className="flex-1 min-h-0 relative">
         <ScrollArea className="h-full pr-4" viewportRef={scrollViewportRef}>
             <div className="space-y-4">
-            {threadedMessages && threadedMessages.map((msg) => (
+            {messages && messages.map((msg) => (
                 <ChatMessage 
                     key={msg.id}
                     message={msg}
+                    parentMessage={msg.parentId ? messageMap.get(msg.parentId) : undefined}
                     onReply={handleReplyClick}
                     onFeature={setMessageToFeature}
                     onVote={handleVote}
                     canChat={canChat}
                     isHost={isHost}
                     participantMap={participantMap}
-                    replies={msg.replies}
                 />
             ))}
-            {messages && messages.length === 0 && canChat && (
+            {messages && messages.length === 0 && (
                     <div className="text-center text-muted-foreground pt-10">
                         <p>No messages yet. Be the first to start the conversation!</p>
                     </div>
                 )}
-             {!canChat && (
-                <div className="text-center text-muted-foreground pt-10">
-                    <p>You must be approved by the host to send messages.</p>
-                </div>
-             )}
             </div>
         </ScrollArea>
         {showNewMessageButton && (
