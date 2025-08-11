@@ -1,4 +1,3 @@
-
 "use client";
 
 import Image from 'next/image';
@@ -13,6 +12,7 @@ import { useRouter } from 'next/navigation';
 import type { Message } from '@/services/chatRoomService';
 import { LiveQuiz } from './LiveQuiz';
 import { useAuth } from '@/context/AuthContext';
+import { getActiveQuiz, Quiz } from '@/services/pollService';
 
 
 interface LiveScreenProps {
@@ -34,9 +34,17 @@ export function LiveScreen({ id: chatRoomId, title, host, hostId, isLive, imageH
   const { toast } = useToast();
   const router = useRouter();
   const { currentUser } = useAuth();
+  const [activeQuiz, setActiveQuiz] = useState<Quiz | null>(null);
   
   const hostProfile = participants.find(p => p.userId === hostId);
   const featuredParticipant = featuredMessage ? participants.find(p => p.userId === featuredMessage.userId) : null;
+
+  useEffect(() => {
+    const unsubscribe = getActiveQuiz(chatRoomId, (quiz) => {
+        setActiveQuiz(quiz);
+    });
+    return () => unsubscribe();
+  }, [chatRoomId]);
 
   const handleShare = () => {
     const url = window.location.href;
@@ -168,6 +176,7 @@ export function LiveScreen({ id: chatRoomId, title, host, hostId, isLive, imageH
               isHost={isHost}
               currentUserId={currentUser!.uid}
               participants={participants}
+              activeQuiz={activeQuiz}
               renderNoQuizContent={renderNoQuizContent}
             />
            </div>

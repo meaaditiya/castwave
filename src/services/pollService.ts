@@ -1,6 +1,6 @@
 
 import { db } from '@/lib/firebase';
-import { collection, addDoc, onSnapshot, query, where, doc, updateDoc, runTransaction, serverTimestamp, getDocs, writeBatch, orderBy, limit } from 'firebase/firestore';
+import { collection, addDoc, onSnapshot, query, where, doc, updateDoc, runTransaction, serverTimestamp, getDocs, writeBatch, orderBy, limit, deleteDoc } from 'firebase/firestore';
 import {nanoid} from 'nanoid';
 
 // --- Simple Poll ---
@@ -155,7 +155,7 @@ export const createQuiz = async (chatRoomId: string, questions: Omit<QuizQuestio
     const activeQuery = query(quizCol, where('status', 'in', ['draft', 'in_progress']));
     const activeSnapshot = await getDocs(activeQuery);
     const batch = writeBatch(db);
-    activeSnapshot.forEach(doc => batch.delete(doc.ref));
+    activeSnapshot.forEach(doc => batch.update(doc.ref, { status: 'ended' }));
     await batch.commit();
 
     const newQuiz: Omit<Quiz, 'id'> = {
@@ -169,7 +169,7 @@ export const createQuiz = async (chatRoomId: string, questions: Omit<QuizQuestio
 
 export const getActiveQuiz = (chatRoomId: string, callback: (quiz: Quiz | null) => void) => {
     const quizCol = collection(db, 'chatRooms', chatRoomId, 'quizzes');
-    const q = query(quizCol, where('status', 'in', ['draft', 'in_progress']), orderBy('__name__'), limit(1));
+    const q = query(quizCol, where('status', 'in', ['draft', 'in_progress', 'ended']), orderBy('__name__', 'desc'), limit(1));
 
     return onSnapshot(q, (snapshot) => {
         if (snapshot.empty) {
@@ -178,6 +178,12 @@ export const getActiveQuiz = (chatRoomId: string, callback: (quiz: Quiz | null) 
         }
         const doc = snapshot.docs[0];
         const data = doc.data() as Quiz;
+        
+        if (data.status === 'ended' && data.currentQuestionIndex === -1) {
+             callback(null);
+             return;
+        }
+
         const quiz: Quiz = {
             ...data,
             id: doc.id,
@@ -198,7 +204,7 @@ export const nextQuizQuestion = async (chatRoomId: string, quizId: string) => {
         const nextIndex = quiz.currentQuestionIndex + 1;
 
         if (nextIndex >= quiz.questions.length) {
-            transaction.update(quizRef, { status: 'ended' });
+            transaction.update(quizRef, { status: 'ended', currentQuestionIndex: -1 });
             return;
         }
 
@@ -235,5 +241,10 @@ export const answerQuizQuestion = async (chatRoomId: string, quizId: string, use
 
 export const endQuiz = async (chatRoomId: string, quizId: string) => {
     const quizRef = doc(db, 'chatRooms', chatRoomId, 'quizzes', quizId);
-    await updateDoc(quizRef, { status: 'ended' });
+    try {
+        await deleteDoc(quizRef);
+    } catch (e) {
+        console.error("Error deleting quiz", e);
+        throw new Error("Could not clear the quiz.");
+    }
 }

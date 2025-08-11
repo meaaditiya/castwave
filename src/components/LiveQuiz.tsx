@@ -1,11 +1,10 @@
-
 "use client";
 
 import { useState, useEffect } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import * as z from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { createQuiz, getActiveQuiz, answerQuizQuestion, nextQuizQuestion, endQuiz, Quiz } from '@/services/pollService';
+import { createQuiz, answerQuizQuestion, nextQuizQuestion, endQuiz, Quiz } from '@/services/pollService';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose, DialogTrigger } from '@/components/ui/dialog';
@@ -24,6 +23,7 @@ interface LiveQuizProps {
     isHost: boolean;
     currentUserId: string;
     participants: Participant[];
+    activeQuiz: Quiz | null;
     renderNoQuizContent: () => React.ReactNode;
 }
 
@@ -45,9 +45,7 @@ const getInitials = (name: string) => {
     return name.substring(0, 2).toUpperCase();
 }
 
-export function LiveQuiz({ chatRoomId, isHost, currentUserId, participants, renderNoQuizContent }: LiveQuizProps) {
-    const [activeQuiz, setActiveQuiz] = useState<Quiz | null>(null);
-    const [isLoading, setIsLoading] = useState(true);
+export function LiveQuiz({ chatRoomId, isHost, currentUserId, participants, activeQuiz, renderNoQuizContent }: LiveQuizProps) {
     const [isCreating, setIsCreating] = useState(false);
     const [isAnswering, setIsAnswering] = useState(false);
     const [timeLeft, setTimeLeft] = useState(0);
@@ -65,15 +63,6 @@ export function LiveQuiz({ chatRoomId, isHost, currentUserId, participants, rend
         control: form.control,
         name: "questions",
     });
-
-    useEffect(() => {
-        setIsLoading(true);
-        const unsubscribe = getActiveQuiz(chatRoomId, (quiz) => {
-            setActiveQuiz(quiz);
-            setIsLoading(false);
-        });
-        return () => unsubscribe();
-    }, [chatRoomId]);
 
     useEffect(() => {
         if (activeQuiz?.currentQuestionStartTime && activeQuiz.currentQuestion) {
@@ -128,10 +117,6 @@ export function LiveQuiz({ chatRoomId, isHost, currentUserId, participants, rend
         await endQuiz(chatRoomId, activeQuiz.id);
     }
     
-    if (isLoading) {
-        return <div className="flex items-center justify-center h-full"><Loader2 className="animate-spin text-primary" /></div>;
-    }
-
     if (!activeQuiz) {
         if (isHost) {
             return (
@@ -157,12 +142,12 @@ export function LiveQuiz({ chatRoomId, isHost, currentUserId, participants, rend
                                                     <FormField control={form.control} name={`questions.${qIndex}.options`} render={() => (
                                                         <FormItem className="mt-2"><FormLabel>Options</FormLabel>
                                                           <div className="space-y-2">
-                                                            <FieldArrayOptions qIndex={qIndex} />
+                                                            <FieldArrayOptions qIndex={qIndex} form={form} />
                                                           </div>
                                                         <FormMessage /></FormItem>
                                                     )} />
                                                     <FormField control={form.control} name={`questions.${qIndex}.correctOption`} render={({ field }) => (
-                                                         <FormItem className="mt-2"><FormLabel>Correct Option</FormLabel><FormControl><Input type="number" min="0" max="3" {...field} /></FormControl><FormMessage /></FormItem>
+                                                         <FormItem className="mt-2"><FormLabel>Correct Option (0-based index)</FormLabel><FormControl><Input type="number" min="0" max="3" {...field} /></FormControl><FormMessage /></FormItem>
                                                     )}/>
                                                      <FormField control={form.control} name={`questions.${qIndex}.timeLimit`} render={({ field }) => (
                                                          <FormItem className="mt-2"><FormLabel>Time Limit (seconds)</FormLabel><FormControl><Input type="number" min="5" max="120" {...field} /></FormControl><FormMessage /></FormItem>
@@ -216,7 +201,7 @@ export function LiveQuiz({ chatRoomId, isHost, currentUserId, participants, rend
                         <p className="text-xl font-bold">{winnerProfile.displayName}</p>
                      </>
                  ) : <p>No winner.</p>}
-                 {isHost && <Button onClick={handleEndQuiz} variant="destructive">Clear Quiz</Button>}
+                 {isHost && <Button onClick={() => handleEndQuiz()} variant="destructive">Clear Quiz</Button>}
              </div>
         )
     }
@@ -309,15 +294,14 @@ export function LiveQuiz({ chatRoomId, isHost, currentUserId, participants, rend
 }
 
 // Helper component to handle nested useFieldArray
-function FieldArrayOptions({ qIndex }: { qIndex: number }) {
-    const { fields, append, remove } = useFieldArray({ name: `questions.${qIndex}.options` });
-    const { control } = useForm<z.infer<typeof quizFormSchema>>();
+function FieldArrayOptions({ qIndex, form }: { qIndex: number, form: any }) {
+    const { fields, append, remove } = useFieldArray({ control: form.control, name: `questions.${qIndex}.options` });
 
     return (
       <div className="space-y-2">
         {fields.map((field, oIndex) => (
           <div key={field.id} className="flex items-center gap-2">
-              <FormField control={control} name={`questions.${qIndex}.options.${oIndex}.text`} render={({ field: f }) => (
+              <FormField control={form.control} name={`questions.${qIndex}.options.${oIndex}.text`} render={({ field: f }) => (
                 <FormItem className="flex-1"><FormControl><Input {...f} placeholder={`Option ${oIndex + 1}`} /></FormControl></FormItem>
               )}/>
             <Button type="button" variant="ghost" size="icon" onClick={() => remove(oIndex)} disabled={fields.length <= 2}>
