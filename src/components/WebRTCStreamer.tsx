@@ -29,6 +29,8 @@ export function WebRTCStreamer({ chatRoomId, onStreamEnd }: WebRTCStreamerProps)
       
       try {
         const screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
+        
+        // Use a separate audio stream from the microphone for better quality
         const audioStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
 
         const combinedStream = new MediaStream([
@@ -41,16 +43,18 @@ export function WebRTCStreamer({ chatRoomId, onStreamEnd }: WebRTCStreamerProps)
           videoRef.current.srcObject = combinedStream;
         }
 
-        // Create offer for this stream
-        const offer = await createOffer(chatRoomId, currentUser.uid, combinedStream);
+        const peer = new Peer({ initiator: true, trickle: false, stream: combinedStream });
 
-        // Listen for answers from participants
-        listenForAnswers(chatRoomId, currentUser.uid, (answer) => {
-            const peer = peersRef.current[answer.userId];
-            if (peer) {
-                peer.signal(answer.signal);
-            }
+        peer.on('signal', async (offerSignal) => {
+            await createOffer(chatRoomId, currentUser.uid, offerSignal);
         });
+
+        listenForAnswers(chatRoomId, currentUser.uid, (answer) => {
+            // Since we are the initiator, we just need to signal the answer
+            peer.signal(answer.signal);
+        });
+
+        peersRef.current[currentUser.uid] = peer; // Store our own peer instance
 
       } catch (err) {
         console.error("Error starting stream:", err);

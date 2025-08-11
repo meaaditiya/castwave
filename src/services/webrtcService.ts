@@ -12,20 +12,13 @@ interface SignalData {
 }
 
 // Host creates an offer
-export const createOffer = (chatRoomId: string, userId: string, stream: MediaStream): Promise<Peer.Instance> => {
-  return new Promise((resolve) => {
-    const peer = new Peer({ initiator: true, trickle: false, stream });
-
-    peer.on('signal', async (offerSignal) => {
-      const offerDocRef = doc(getSignalsCollection(chatRoomId), userId);
-      await setDoc(offerDocRef, {
-        userId,
-        signal: JSON.parse(JSON.stringify(offerSignal)), // Serialize signal data
-        type: 'offer',
-      });
-      resolve(peer);
+export const createOffer = async (chatRoomId: string, userId: string, offerSignal: Peer.SignalData) => {
+    const offerDocRef = doc(getSignalsCollection(chatRoomId), userId);
+    await setDoc(offerDocRef, {
+      userId,
+      signal: JSON.parse(JSON.stringify(offerSignal)), // Serialize signal data
+      type: 'offer',
     });
-  });
 };
 
 // Participant listens for offers
