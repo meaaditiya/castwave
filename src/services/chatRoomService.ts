@@ -1,5 +1,5 @@
 import { db } from '@/lib/firebase';
-import { collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, doc, getDoc, updateDoc, setDoc, getDocs, writeBatch, runTransaction, increment, where, deleteDoc, Query, FirestoreError, arrayUnion, arrayRemove } from 'firebase/firestore';
+import { collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, doc, getDoc, updateDoc, setDoc, getDocs, writeBatch, runTransaction, increment, where, deleteDoc, Query, FirestoreError, arrayUnion, arrayRemove, FieldValue } from 'firebase/firestore';
 import { getUserProfile } from './userService';
 import { Quiz, Poll } from './pollService';
 
@@ -28,8 +28,8 @@ export interface ChatRoom {
     scheduledAt?: any;
     imageUrl?: string;
     imageHint?: string;
-    featuredMessage?: Message;
-    hostReply?: string;
+    featuredMessage?: Message | null;
+    hostReply?: string | null;
     typingUsers?: { [userId: string]: string };
     likes: number;
     dislikes: number;
@@ -209,6 +209,22 @@ export const sendMessage = async (chatRoomId: string, message: Partial<Message>)
     }
 };
 
+export const deleteMessage = async (chatRoomId: string, messageId: string, userId: string) => {
+    const messageRef = doc(db, 'chatRooms', chatRoomId, 'messages', messageId);
+    try {
+        const messageDoc = await getDoc(messageRef);
+        if (messageDoc.exists() && messageDoc.data().userId === userId) {
+            await deleteDoc(messageRef);
+        } else {
+            throw new Error("You do not have permission to delete this message.");
+        }
+    } catch (error) {
+        console.error("Error deleting message: ", error);
+        throw new Error("Could not delete message.");
+    }
+};
+
+
 export const getMessages = (chatRoomId: string, callback: (messages: Message[]) => void, onError?: (error: Error) => void) => {
     const messagesCol = collection(db, 'chatRooms', chatRoomId, 'messages');
     const q = query(messagesCol, orderBy('timestamp', 'asc'));
@@ -321,6 +337,19 @@ export const featureMessage = async (chatRoomId: string, message: Message, hostR
     } catch (e) {
         console.error("Error featuring message: ", e);
         throw new Error("Could not feature message.");
+    }
+}
+
+export const clearFeaturedMessage = async (chatRoomId: string) => {
+    const chatRoomRef = doc(db, 'chatRooms', chatRoomId);
+    try {
+        await updateDoc(chatRoomRef, {
+            featuredMessage: null,
+            hostReply: null
+        });
+    } catch (e) {
+        console.error("Error clearing featured message: ", e);
+        throw new Error("Could not clear featured message.");
     }
 }
 

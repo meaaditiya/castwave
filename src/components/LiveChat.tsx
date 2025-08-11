@@ -1,14 +1,13 @@
-
 "use client";
 
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Send, Loader2, ThumbsUp, ThumbsDown, Star, ArrowDown, MessageCircle, X, Reply } from 'lucide-react';
+import { Send, Loader2, ThumbsUp, ThumbsDown, Star, ArrowDown, MessageCircle, X, Reply, Trash2 } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { useAuth } from '@/context/AuthContext';
-import { sendMessage, voteOnMessage, featureMessage, updateTypingStatus, ChatRoom, Participant } from '@/services/chatRoomService';
+import { sendMessage, voteOnMessage, featureMessage, updateTypingStatus, ChatRoom, Participant, deleteMessage } from '@/services/chatRoomService';
 import { useToast } from '@/hooks/use-toast';
 import type { Message } from '@/services/chatRoomService';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from './ui/dialog';
@@ -19,6 +18,9 @@ import { TypingIndicator } from './TypingIndicator';
 import { CardContent } from './ui/card';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
+import { RemoveScroll } from 'react-remove-scroll';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+
 
 interface LiveChatProps {
   chatRoom: ChatRoom;
@@ -50,12 +52,13 @@ const getInitials = (name: string) => {
 }
 
 
-function ChatMessage({ message, parentMessage, onReply, onFeature, onVote, canChat, isHost, participantMap }: {
+function ChatMessage({ message, parentMessage, onReply, onFeature, onVote, onDelete, canChat, isHost, participantMap }: {
     message: Message,
     parentMessage?: Message,
     onReply: (message: Message) => void,
     onFeature: (message: Message) => void,
     onVote: (messageId: string, voteType: 'upvotes' | 'downvotes') => void,
+    onDelete: (messageId: string) => void,
     canChat: boolean,
     isHost: boolean,
     participantMap: Map<string, Participant>
@@ -72,6 +75,8 @@ function ChatMessage({ message, parentMessage, onReply, onFeature, onVote, canCh
             return '';
         }
     };
+    
+    const isMyMessage = currentUser?.uid === message.userId;
 
     return (
         <div className="flex items-start space-x-3 group w-full">
@@ -106,6 +111,29 @@ function ChatMessage({ message, parentMessage, onReply, onFeature, onVote, canCh
                             <Button size="icon" variant="ghost" className="h-6 w-6 text-amber-500" onClick={() => onFeature(message)}>
                                 <Star className="h-4 w-4" />
                             </Button>
+                        )}
+                        {isMyMessage && (
+                             <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                    <Button size="icon" variant="ghost" className="h-6 w-6 text-destructive">
+                                        <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                        <AlertDialogTitle>Delete Message?</AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                            This action cannot be undone. Are you sure you want to permanently delete this message?
+                                        </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                        <AlertDialogAction onClick={() => onDelete(message.id!)} className="bg-destructive hover:bg-destructive/90">
+                                            Delete
+                                        </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                </AlertDialogContent>
+                            </AlertDialog>
                         )}
                     </div>
                 </div>
@@ -258,6 +286,17 @@ export function LiveChat({ chatRoom, messages, participant, canChat }: LiveChatP
         }
     }
   };
+  
+  const handleDelete = async (messageId: string) => {
+    if (!currentUser) return;
+    try {
+        await deleteMessage(chatRoom.id, messageId, currentUser.uid);
+        toast({ title: 'Message Deleted' });
+    } catch (e: any) {
+        console.error(e);
+        toast({ variant: 'destructive', title: 'Error', description: e.message || 'Could not delete message.' });
+    }
+  }
 
   const handleVote = async (messageId: string, voteType: 'upvotes' | 'downvotes') => {
     if (!currentUser || !canChat) return;
@@ -303,28 +342,31 @@ export function LiveChat({ chatRoom, messages, participant, canChat }: LiveChatP
         </div>
       )}
       <div className="flex-1 min-h-0 relative">
-        <ScrollArea className="h-full pr-4" viewportRef={scrollViewportRef}>
-            <div className="space-y-4">
-            {messages && messages.map((msg) => (
-                <ChatMessage 
-                    key={msg.id}
-                    message={msg}
-                    parentMessage={msg.parentId ? messageMap.get(msg.parentId) : undefined}
-                    onReply={handleReplyClick}
-                    onFeature={setMessageToFeature}
-                    onVote={handleVote}
-                    canChat={canChat}
-                    isHost={isHost}
-                    participantMap={participantMap}
-                />
-            ))}
-            {messages && messages.length === 0 && (
-                    <div className="text-center text-muted-foreground pt-10">
-                        <p>No messages yet. Be the first to start the conversation!</p>
-                    </div>
-                )}
-            </div>
-        </ScrollArea>
+        <RemoveScroll enabled>
+            <ScrollArea className="h-full pr-4" viewportRef={scrollViewportRef}>
+                <div className="space-y-4">
+                {messages && messages.map((msg) => (
+                    <ChatMessage 
+                        key={msg.id}
+                        message={msg}
+                        parentMessage={msg.parentId ? messageMap.get(msg.parentId) : undefined}
+                        onReply={handleReplyClick}
+                        onFeature={setMessageToFeature}
+                        onVote={handleVote}
+                        onDelete={handleDelete}
+                        canChat={canChat}
+                        isHost={isHost}
+                        participantMap={participantMap}
+                    />
+                ))}
+                {messages && messages.length === 0 && (
+                        <div className="text-center text-muted-foreground pt-10">
+                            <p>No messages yet. Be the first to start the conversation!</p>
+                        </div>
+                    )}
+                </div>
+            </ScrollArea>
+        </RemoveScroll>
         {showNewMessageButton && (
             <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20">
                 <Button 

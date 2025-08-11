@@ -1,14 +1,13 @@
-
 "use client";
 
 import Image from 'next/image';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Share2, MicOff, Loader2, Star, MessageSquare, Mic, ArrowLeft, Waves, ListChecks, HelpCircle, Expand, Shrink, Plus } from 'lucide-react';
+import { Share2, MicOff, Loader2, Star, MessageSquare, Mic, ArrowLeft, Waves, ListChecks, HelpCircle, Expand, Shrink, Plus, X } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
-import { endChatRoom, Participant, startChatRoom, ChatRoom } from '@/services/chatRoomService';
+import { endChatRoom, Participant, startChatRoom, ChatRoom, clearFeaturedMessage } from '@/services/chatRoomService';
 import { useRouter } from 'next/navigation';
 import type { Message } from '@/services/chatRoomService';
 import { LiveQuiz } from './LiveQuiz';
@@ -62,6 +61,16 @@ export function LiveScreen({ id: chatRoomId, title, host, hostId, isLive, imageH
       })
     });
   };
+  
+  const handleClearFeatured = async () => {
+    try {
+        await clearFeaturedMessage(chatRoomId);
+        toast({ title: 'Featured message cleared.' });
+    } catch (e: any) {
+        console.error(e);
+        toast({ variant: 'destructive', title: 'Error', description: e.message || "Could not clear featured message." });
+    }
+  }
 
   const handleEndChatRoom = async () => {
     setIsEnding(true);
@@ -200,7 +209,12 @@ export function LiveScreen({ id: chatRoomId, title, host, hostId, isLive, imageH
                  </TabsContent>
                  <TabsContent value="featured" className="flex-1 flex flex-col justify-center items-center pt-4">
                     {featuredMessage && featuredParticipant ? (
-                        <div className="w-full space-y-4 animate-in fade-in-50 duration-500">
+                        <div className="w-full space-y-4 animate-in fade-in-50 duration-500 relative">
+                          {isHost && (
+                            <Button variant="ghost" size="icon" className="absolute -top-2 -right-2 h-7 w-7 rounded-full bg-background" onClick={handleClearFeatured}>
+                                <X className="h-4 w-4" />
+                            </Button>
+                          )}
                           <div className="flex items-start space-x-3">
                               <Avatar className="h-8 w-8 border">
                                   <AvatarImage src={featuredParticipant.photoURL} alt={featuredParticipant.displayName} />
