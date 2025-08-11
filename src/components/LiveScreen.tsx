@@ -146,13 +146,13 @@ export function LiveScreen({ id: chatRoomId, title, host, hostId, isLive, imageH
             )}
          </div>
       </CardHeader>
-      <CardContent className="bg-card/50 p-4 md:p-6 flex flex-col justify-center space-y-4 border-t flex-1">
+      <CardContent className="bg-card/50 p-4 md:p-6 flex flex-col flex-1">
        {isLive ? (
-        <>
-            <Tabs value={currentTab} onValueChange={setCurrentTab} className="w-full">
+        <div className="flex flex-col flex-1">
+            <Tabs value={currentTab} onValueChange={setCurrentTab} className="w-full flex-1 flex flex-col">
                 <TabsList className="grid w-full grid-cols-2">
                     <TabsTrigger value="interaction">
-                        {activeQuiz ? <ListChecks className="mr-2" /> : <HelpCircle className="mr-2" />}
+                        {activeQuiz || activePoll ? <ListChecks className="mr-2" /> : <HelpCircle className="mr-2" />}
                         Interaction
                     </TabsTrigger>
                     <TabsTrigger value="featured">
@@ -160,7 +160,7 @@ export function LiveScreen({ id: chatRoomId, title, host, hostId, isLive, imageH
                         Featured
                     </TabsTrigger>
                 </TabsList>
-                 <TabsContent value="interaction" className="flex-1 flex flex-col justify-center items-center min-h-[300px]">
+                 <TabsContent value="interaction" className="flex-1 flex flex-col justify-center items-center pt-4">
                     {activeQuiz ? (
                         <LiveQuiz
                           chatRoomId={chatRoomId}
@@ -196,7 +196,7 @@ export function LiveScreen({ id: chatRoomId, title, host, hostId, isLive, imageH
                         </div>
                     )}
                  </TabsContent>
-                 <TabsContent value="featured" className="flex-1 flex flex-col justify-center items-center min-h-[300px]">
+                 <TabsContent value="featured" className="flex-1 flex flex-col justify-center items-center pt-4">
                     {featuredMessage && featuredParticipant ? (
                         <div className="w-full space-y-4 animate-in fade-in-50 duration-500">
                           <div className="flex items-start space-x-3">
@@ -248,7 +248,7 @@ export function LiveScreen({ id: chatRoomId, title, host, hostId, isLive, imageH
                     </Button>
                 )}
             </div>
-        </>
+        </div>
        ) : (
         <div className="flex flex-col items-center justify-center text-center space-y-4 flex-1">
             <Waves size={80} className="text-muted-foreground mx-auto" />
