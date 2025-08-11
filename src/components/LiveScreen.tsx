@@ -40,8 +40,10 @@ export function LiveScreen({ id: chatRoomId, title, host, hostId, isLive, imageH
   useEffect(() => {
     if (activeQuiz || activePoll) {
         setCurrentTab('interaction');
+    } else if (featuredMessage) {
+        setCurrentTab('featured');
     }
-  }, [activeQuiz, activePoll]);
+  }, [activeQuiz, activePoll, featuredMessage]);
 
 
   const handleShare = () => {
@@ -112,7 +114,7 @@ export function LiveScreen({ id: chatRoomId, title, host, hostId, isLive, imageH
   return (
     <Card className={cn(
         "overflow-hidden shadow-lg flex flex-col transition-all duration-300",
-        isFullScreen ? "fixed inset-0 z-[100] rounded-none h-screen" : "relative h-full"
+        isFullScreen ? "fixed inset-0 z-[100] rounded-none h-screen" : "relative"
     )}>
        <CardHeader className="flex flex-row items-start justify-between gap-4 p-4 md:p-6">
         <div className="flex flex-row items-center gap-4">
@@ -146,7 +148,7 @@ export function LiveScreen({ id: chatRoomId, title, host, hostId, isLive, imageH
             )}
          </div>
       </CardHeader>
-      <CardContent className="bg-card/50 p-4 md:p-6 flex flex-col flex-1">
+      <CardContent className="bg-card/50 p-4 md:p-6 flex flex-col flex-1 min-h-[400px]">
        {isLive ? (
         <div className="flex flex-col flex-1">
             <Tabs value={currentTab} onValueChange={setCurrentTab} className="w-full flex-1 flex flex-col">
