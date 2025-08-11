@@ -18,6 +18,7 @@ import { useDebouncedCallback } from 'use-debounce';
 import { TypingIndicator } from './TypingIndicator';
 import { CardContent } from './ui/card';
 import Link from 'next/link';
+import { cn } from '@/lib/utils';
 
 interface LiveChatProps {
   chatRoom: ChatRoom;
@@ -82,7 +83,7 @@ function ChatMessage({ message, parentMessage, onReply, onFeature, onVote, canCh
                     </AvatarFallback>
                 </Avatar>
             </Link>
-            <div className="flex-1 min-w-0 max-w-full overflow-hidden">
+            <div className="flex-1 min-w-0">
                  {parentMessage && (
                     <div className="pl-2 text-xs text-muted-foreground mt-1 mb-1">
                          <div className="flex items-center gap-1">
@@ -295,7 +296,7 @@ export function LiveChat({ chatRoom, messages, participant, canChat }: LiveChatP
     .map(([, name]) => name);
 
   return (
-    <CardContent className="flex flex-col flex-1 p-2 sm:p-4 overflow-hidden relative">
+    <CardContent className="flex-1 flex flex-col p-2 sm:p-4 overflow-hidden">
        {!messages && (
         <div className="flex-1 flex items-center justify-center">
           <Loader2 className="h-6 w-6 animate-spin text-primary" />
