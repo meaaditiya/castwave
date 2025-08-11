@@ -294,7 +294,7 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
         </div>
 
         <div className={cn(
-            isChatFullscreen ? "col-span-1 h-screen p-0 m-0" : ""
+            isChatFullscreen ? "col-span-1 h-screen p-0 m-0" : "lg:col-span-1"
         )}>
             <Card className={cn(
                "flex flex-col",
