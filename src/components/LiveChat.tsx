@@ -445,3 +445,5 @@ export function LiveChat({ chatRoom, messages, participant, canChat }: LiveChatP
     </>
   );
 }
+
+    
