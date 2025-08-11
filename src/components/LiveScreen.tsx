@@ -1,3 +1,4 @@
+
 "use client";
 
 import Image from 'next/image';
@@ -157,7 +158,7 @@ export function LiveScreen({ id: chatRoomId, title, host, hostId, isLive, imageH
             )}
          </div>
       </CardHeader>
-      <CardContent className="bg-card/50 p-4 md:p-6 flex flex-col flex-1 min-h-[400px]">
+      <CardContent className="bg-card/50 p-4 md:p-6 flex flex-col flex-1 min-h-[500px]">
        {isLive ? (
         <div className="flex flex-col flex-1">
             <Tabs value={currentTab} onValueChange={setCurrentTab} className="w-full flex-1 flex flex-col">

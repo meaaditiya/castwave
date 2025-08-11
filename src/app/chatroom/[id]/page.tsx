@@ -298,10 +298,10 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
             isChatFullscreen ? "col-span-1 h-screen p-0 m-0" : "lg:col-span-1"
         )}>
             <Card className={cn(
-               "flex flex-col",
+               "flex flex-col lg:h-[650px]",
                isChatFullscreen 
                    ? "h-full rounded-none border-0" 
-                   : "lg:h-[700px]"
+                   : ""
             )}>
               <CardHeader className="flex flex-row items-center justify-between">
                   <CardTitle className="flex items-center gap-2"><MessageSquare className="h-5 w-5"/> Live Chat</CardTitle>
