@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
@@ -18,7 +19,6 @@ import { TypingIndicator } from './TypingIndicator';
 import { CardContent } from './ui/card';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
-import { RemoveScroll } from 'react-remove-scroll';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 
 
@@ -338,31 +338,29 @@ export function LiveChat({ chatRoom, messages, participant, canChat }: LiveChatP
     <>
       <CardContent className="flex-1 flex flex-col p-2 sm:p-4 min-h-0">
         <div className="flex-1 relative min-h-0">
-          <RemoveScroll enabled>
-              <ScrollArea className="h-full pr-4" viewportRef={scrollViewportRef}>
-                  <div className="space-y-4">
-                  {messages && messages.map((msg) => (
-                      <ChatMessage 
-                          key={msg.id}
-                          message={msg}
-                          parentMessage={msg.parentId ? messageMap.get(msg.parentId) : undefined}
-                          onReply={handleReplyClick}
-                          onFeature={setMessageToFeature}
-                          onVote={handleVote}
-                          onDelete={handleDelete}
-                          canChat={canChat}
-                          isHost={isHost}
-                          participantMap={participantMap}
-                      />
-                  ))}
-                  {messages && messages.length === 0 && (
-                          <div className="text-center text-muted-foreground pt-10">
-                              <p>No messages yet. Be the first to start the conversation!</p>
-                          </div>
-                      )}
-                  </div>
-              </ScrollArea>
-          </RemoveScroll>
+            <ScrollArea className="h-full pr-4" viewportRef={scrollViewportRef}>
+                <div className="space-y-4">
+                {messages && messages.map((msg) => (
+                    <ChatMessage 
+                        key={msg.id}
+                        message={msg}
+                        parentMessage={msg.parentId ? messageMap.get(msg.parentId) : undefined}
+                        onReply={handleReplyClick}
+                        onFeature={setMessageToFeature}
+                        onVote={handleVote}
+                        onDelete={handleDelete}
+                        canChat={canChat}
+                        isHost={isHost}
+                        participantMap={participantMap}
+                    />
+                ))}
+                {messages && messages.length === 0 && (
+                        <div className="text-center text-muted-foreground pt-10">
+                            <p>No messages yet. Be the first to start the conversation!</p>
+                        </div>
+                    )}
+                </div>
+            </ScrollArea>
           {showNewMessageButton && (
               <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20">
                   <Button 
@@ -445,5 +443,3 @@ export function LiveChat({ chatRoom, messages, participant, canChat }: LiveChatP
     </>
   );
 }
-
-    
