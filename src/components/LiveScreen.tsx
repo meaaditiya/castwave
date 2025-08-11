@@ -5,7 +5,7 @@ import Image from 'next/image';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Share2, MicOff, Loader2, Star, MessageSquare, Mic, ArrowLeft, Waves } from 'lucide-react';
+import { Share2, MicOff, Loader2, Star, MessageSquare, Mic, ArrowLeft, Waves, ScreenShare } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { endChatRoom, Participant, startChatRoom } from '@/services/chatRoomService';
@@ -13,6 +13,8 @@ import { useRouter } from 'next/navigation';
 import type { Message } from '@/services/chatRoomService';
 import { LivePoll } from './LivePoll';
 import { useAuth } from '@/context/AuthContext';
+import { WebRTCStreamer } from './WebRTCStreamer';
+import { WebRTCViewer } from './WebRTCViewer';
 
 
 interface LiveScreenProps {
@@ -31,6 +33,7 @@ interface LiveScreenProps {
 export function LiveScreen({ id: chatRoomId, title, host, hostId, isLive, imageHint, isHost = false, featuredMessage, hostReply, participants }: LiveScreenProps) {
   const [isEnding, setIsEnding] = useState(false);
   const [isStarting, setIsStarting] = useState(false);
+  const [isStreaming, setIsStreaming] = useState(false);
   const { toast } = useToast();
   const router = useRouter();
   const { currentUser } = useAuth();
@@ -121,6 +124,11 @@ export function LiveScreen({ id: chatRoomId, title, host, hostId, isLive, imageH
       <CardContent className="bg-card/50 p-4 md:p-6 flex flex-col justify-center space-y-4 border-t flex-1">
        {isLive ? (
         <>
+            {isStreaming && isHost && (
+              <WebRTCStreamer chatRoomId={chatRoomId} onStreamEnd={() => setIsStreaming(false)} />
+            )}
+            {!isHost && <WebRTCViewer chatRoomId={chatRoomId} participants={participants} />}
+
            <div className="flex-1 flex flex-col justify-center">
             <LivePoll 
               chatRoomId={chatRoomId}
@@ -174,6 +182,12 @@ export function LiveScreen({ id: chatRoomId, title, host, hostId, isLive, imageH
                     <Share2 className="mr-2" />
                     Share
                 </Button>
+                {isHost && (
+                    <Button variant="outline" onClick={() => setIsStreaming(true)}>
+                        <ScreenShare className="mr-2" />
+                        Share Screen
+                    </Button>
+                )}
                 {isHost && (
                     <Button variant="destructive" onClick={handleEndChatRoom} disabled={isEnding}>
                     {isEnding ? <Loader2 className="animate-spin" /> : <MicOff />}
