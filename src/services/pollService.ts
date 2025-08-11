@@ -1,8 +1,70 @@
-
 import { db } from '@/lib/firebase';
-import { collection, addDoc, onSnapshot, query, where, doc, updateDoc, runTransaction, serverTimestamp, getDocs, writeBatch, orderBy, limit, deleteDoc } from 'firebase/firestore';
+import { collection, addDoc, onSnapshot, query, where, doc, updateDoc, runTransaction, serverTimestamp, getDocs, writeBatch, orderBy, limit, deleteDoc, Timestamp } from 'firebase/firestore';
 import { ChatRoom } from './chatRoomService';
 import {nanoid} from 'nanoid';
+
+// --- Poll ---
+export interface PollOption {
+    text: string;
+    votes: number;
+}
+
+export interface Poll {
+    id: string;
+    question: string;
+    options: PollOption[];
+    endsAt: any;
+    voters: { [userId: string]: number }; // userId: optionIndex
+    showResults: boolean;
+}
+
+export const createPoll = async (chatRoomId: string, question: string, options: string[], duration: number, showResults: boolean) => {
+    const roomRef = doc(db, 'chatRooms', chatRoomId);
+    const newPoll: Poll = {
+        id: nanoid(),
+        question,
+        options: options.map(opt => ({ text: opt, votes: 0 })),
+        endsAt: Timestamp.fromMillis(Date.now() + duration * 1000),
+        voters: {},
+        showResults: showResults,
+    };
+    await updateDoc(roomRef, { activePoll: newPoll, activeQuiz: null });
+}
+
+export const voteOnPoll = async (chatRoomId: string, pollId: string, userId: string, optionIndex: number) => {
+    const roomRef = doc(db, 'chatRooms', chatRoomId);
+    await runTransaction(db, async (transaction) => {
+        const roomDoc = await transaction.get(roomRef);
+        if (!roomDoc.exists()) throw new Error("Room not found");
+        
+        const room = roomDoc.data() as ChatRoom;
+        const poll = room.activePoll;
+
+        if (!poll || poll.id !== pollId) throw new Error("Poll not active");
+        if (poll.voters[userId] !== undefined) throw new Error("You have already voted.");
+
+        poll.options[optionIndex].votes += 1;
+        poll.voters[userId] = optionIndex;
+
+        transaction.update(roomRef, { activePoll: poll });
+    });
+}
+
+export const endPoll = async (chatRoomId: string, pollId: string) => {
+     const roomRef = doc(db, 'chatRooms', chatRoomId);
+      await runTransaction(db, async (transaction) => {
+        const roomDoc = await transaction.get(roomRef);
+        if (!roomDoc.exists()) throw new Error("Room not found");
+        
+        const room = roomDoc.data() as ChatRoom;
+        const poll = room.activePoll;
+
+        if (poll && poll.id === pollId) {
+             transaction.update(roomRef, { activePoll: null });
+        }
+    });
+}
+
 
 // --- Quiz ---
 export interface QuizQuestion {
@@ -47,7 +109,8 @@ export const createQuiz = async (chatRoomId: string, questions: Omit<QuizQuestio
     };
 
     await updateDoc(roomRef, {
-        activeQuiz: newQuiz
+        activeQuiz: newQuiz,
+        activePoll: null,
     });
 }
 
@@ -65,17 +128,10 @@ export const nextQuizQuestion = async (chatRoomId: string) => {
         
         const nextIndex = quiz.currentQuestionIndex + 1;
 
-        if (nextIndex >= quiz.questions.length) {
-            quiz.status = 'ended';
-            quiz.currentQuestionIndex = -1;
-            delete quiz.currentQuestion;
-            delete quiz.currentQuestionStartTime;
-        } else {
-            quiz.currentQuestionIndex = nextIndex;
-            quiz.status = 'in_progress';
-            quiz.currentQuestionStartTime = serverTimestamp();
-            quiz.currentQuestion = quiz.questions[nextIndex];
-        }
+        quiz.status = 'in_progress';
+        quiz.currentQuestionIndex = nextIndex;
+        quiz.currentQuestionStartTime = serverTimestamp();
+        quiz.currentQuestion = quiz.questions[nextIndex];
         
         transaction.update(roomRef, { activeQuiz: quiz });
     });
@@ -108,9 +164,23 @@ export const answerQuizQuestion = async (chatRoomId: string, userId: string, opt
     });
 }
 
-export const endQuiz = async (chatRoomId: string) => {
+export const endQuiz = async (chatRoomId: string, showResults: boolean) => {
     const roomRef = doc(db, 'chatRooms', chatRoomId);
-    await updateDoc(roomRef, {
-        activeQuiz: null
+     await runTransaction(db, async (transaction) => {
+        const roomDoc = await transaction.get(roomRef);
+        if (!roomDoc.exists()) throw new Error("Room not found");
+        
+        const room = roomDoc.data() as ChatRoom;
+        const quiz = room.activeQuiz;
+        if (!quiz) return;
+
+        if (showResults) {
+            quiz.status = 'ended';
+            delete quiz.currentQuestion;
+            delete quiz.currentQuestionStartTime;
+            transaction.update(roomRef, { activeQuiz: quiz });
+        } else {
+            transaction.update(roomRef, { activeQuiz: null });
+        }
     });
 }

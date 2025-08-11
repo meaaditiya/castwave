@@ -51,6 +51,7 @@ export function LiveQuiz({ chatRoomId, isHost, currentUserId, participants, acti
     const [timeLeft, setTimeLeft] = useState(0);
     const { toast } = useToast();
     const [isCreateQuizOpen, setIsCreateQuizOpen] = useState(false);
+    const [isProcessing, setIsProcessing] = useState(false);
 
     const form = useForm<z.infer<typeof quizFormSchema>>({
         resolver: zodResolver(quizFormSchema),
@@ -99,7 +100,7 @@ export function LiveQuiz({ chatRoomId, isHost, currentUserId, participants, acti
         if (!activeQuiz || !activeQuiz.id || !activeQuiz.currentQuestion) return;
         setIsAnswering(true);
         try {
-            await answerQuizQuestion(chatRoomId, activeQuiz.id, currentUserId, optionIndex, timeLeft);
+            await answerQuizQuestion(chatRoomId, currentUserId, optionIndex, timeLeft);
         } catch (error: any) {
             toast({ variant: 'destructive', title: 'Error', description: error.message });
         } finally {
@@ -109,12 +110,32 @@ export function LiveQuiz({ chatRoomId, isHost, currentUserId, participants, acti
 
     const handleNextQuestion = async () => {
         if (!activeQuiz?.id) return;
-        await nextQuizQuestion(chatRoomId, activeQuiz.id);
+        setIsProcessing(true);
+        try {
+           await nextQuizQuestion(chatRoomId);
+        } finally {
+           setIsProcessing(false);
+        }
     };
     
     const handleEndQuiz = async () => {
         if (!activeQuiz?.id) return;
-        await endQuiz(chatRoomId, activeQuiz.id);
+        setIsProcessing(true);
+        try {
+            await endQuiz(chatRoomId, true); // end and show final results
+        } finally {
+            setIsProcessing(false);
+        }
+    }
+
+    const handleClearQuiz = async () => {
+         if (!activeQuiz?.id) return;
+        setIsProcessing(true);
+        try {
+            await endQuiz(chatRoomId, false); // clear quiz
+        } finally {
+            setIsProcessing(false);
+        }
     }
     
     if (!activeQuiz) {
@@ -170,9 +191,10 @@ export function LiveQuiz({ chatRoomId, isHost, currentUserId, participants, acti
 
     const currentQuestion = activeQuiz.currentQuestion;
     const isQuestionActive = activeQuiz.status === 'in_progress' && timeLeft > 0;
-    const showLeaderboard = activeQuiz.status === 'in_progress' && timeLeft === 0;
+    const showLeaderboard = activeQuiz.status === 'in_progress' && timeLeft <= 0;
     
-    const userHasAnswered = currentQuestion && activeQuiz.answers?.[currentQuestion.id]?.[currentUserId] !== undefined;
+    const userAnswer = currentQuestion ? activeQuiz.answers?.[currentQuestion.id]?.[currentUserId] : undefined;
+    const userHasAnswered = userAnswer !== undefined;
     
     const sortedLeaderboard = Object.entries(activeQuiz.leaderboard || {}).sort(([, a], [, b]) => b - a);
 
@@ -181,7 +203,7 @@ export function LiveQuiz({ chatRoomId, isHost, currentUserId, participants, acti
              <div className="flex flex-col items-center justify-center h-full gap-4 text-center">
                  <h3 className="text-xl font-bold">Quiz is Ready!</h3>
                  <p>{activeQuiz.questions.length} questions prepared.</p>
-                 {isHost && <Button onClick={handleNextQuestion}>Start Quiz</Button>}
+                 {isHost && <Button onClick={handleNextQuestion} disabled={isProcessing}>{isProcessing && <Loader2 className="animate-spin mr-2"/>}Start Quiz</Button>}
              </div>
          );
     }
@@ -201,18 +223,19 @@ export function LiveQuiz({ chatRoomId, isHost, currentUserId, participants, acti
                         <p className="text-xl font-bold">{winnerProfile.displayName}</p>
                      </>
                  ) : <p>No winner.</p>}
-                 {isHost && <Button onClick={() => handleEndQuiz()} variant="destructive">Clear Quiz</Button>}
+                 {isHost && <Button onClick={handleClearQuiz} variant="destructive" disabled={isProcessing}>{isProcessing && <Loader2 className="animate-spin mr-2"/>}Clear Quiz</Button>}
              </div>
         )
     }
 
-    if (showLeaderboard) {
+    if (showLeaderboard && currentQuestion) {
+        const isLastQuestion = activeQuiz.questions.length === activeQuiz.currentQuestionIndex + 1;
         return (
             <div className="w-full text-center">
-                <CardHeader className="p-0 mb-4"><CardTitle>Leaderboard</CardTitle></CardHeader>
+                <CardHeader className="p-0 mb-2"><CardTitle>Leaderboard</CardTitle><CardDescription>After question {activeQuiz.currentQuestionIndex + 1}</CardDescription></CardHeader>
                 <CardContent className="p-0">
                     <ScrollArea className="h-64">
-                    <div className="space-y-2">
+                    <div className="space-y-2 pr-4">
                     {sortedLeaderboard.map(([userId, score], index) => {
                         const profile = participants.find(p => p.userId === userId);
                         return (
@@ -229,9 +252,9 @@ export function LiveQuiz({ chatRoomId, isHost, currentUserId, participants, acti
                 </CardContent>
                 {isHost && (
                     <CardFooter className="p-0 pt-4 flex justify-end">
-                        {activeQuiz.questions.length > activeQuiz.currentQuestionIndex + 1 ?
-                            <Button onClick={handleNextQuestion}><ArrowRight className="mr-2"/>Next Question</Button> :
-                            <Button onClick={handleEndQuiz}><Trophy className="mr-2"/>End Quiz & Show Winner</Button>
+                        {isLastQuestion ?
+                            <Button onClick={handleEndQuiz} disabled={isProcessing}>{isProcessing && <Loader2 className="animate-spin mr-2"/>}<Trophy className="mr-2"/>End Quiz & Show Winner</Button> :
+                            <Button onClick={handleNextQuestion} disabled={isProcessing}>{isProcessing && <Loader2 className="animate-spin mr-2"/>}<ArrowRight className="mr-2"/>Next Question</Button>
                         }
                     </CardFooter>
                 )}
@@ -246,37 +269,38 @@ export function LiveQuiz({ chatRoomId, isHost, currentUserId, participants, acti
                 <CardHeader className="p-0 mb-4">
                     <div className="flex justify-between items-start">
                         <div>
-                            <CardTitle className="flex items-center gap-2 text-xl">Quiz</CardTitle>
+                            <CardTitle className="flex items-center gap-2 text-xl">Question {activeQuiz.currentQuestionIndex + 1}</CardTitle>
                             <CardDescription className="mt-1 text-lg">{currentQuestion.question}</CardDescription>
                         </div>
-                        <Badge variant={'default'}>{timeLeft}s</Badge>
+                        {isQuestionActive && <Badge variant={'default'}>{timeLeft}s</Badge>}
                     </div>
                 </CardHeader>
                 <CardContent className="p-0">
                     <div className="grid grid-cols-2 gap-3">
                         {currentQuestion.options.map((option, index) => {
-                           const answeredOption = activeQuiz.answers?.[currentQuestion.id]?.[currentUserId];
-                           const isThisAnswer = answeredOption?.optionIndex === index;
-                           const wasCorrect = isThisAnswer && answeredOption?.isCorrect;
-                           const wasIncorrect = isThisAnswer && !answeredOption?.isCorrect;
+                           const isThisAnswer = userHasAnswered && userAnswer.optionIndex === index;
+                           const showResults = !isQuestionActive;
+                           const isCorrectAnswer = showResults && index === currentQuestion.correctOption;
+                           const wasCorrectSelection = isThisAnswer && userAnswer.isCorrect;
+                           const wasIncorrectSelection = isThisAnswer && !userAnswer.isCorrect;
 
                             return (
                                 <Button
                                     key={index}
                                     variant="outline"
                                     className={cn(
-                                        "w-full h-20 justify-start text-base whitespace-normal p-4",
+                                        "w-full h-20 justify-start text-base whitespace-normal p-4 relative",
                                         isAnswering && "opacity-50",
-                                        userHasAnswered && !isThisAnswer && "opacity-30",
-                                        wasCorrect && "bg-green-500/20 border-green-500",
-                                        wasIncorrect && "bg-red-500/20 border-red-500"
+                                        userHasAnswered && !isThisAnswer && !isCorrectAnswer && "opacity-30",
+                                        wasCorrectSelection && "border-green-500 ring-2 ring-green-500",
+                                        wasIncorrectSelection && "border-destructive ring-2 ring-destructive",
+                                        isCorrectAnswer && "bg-green-500/20 border-green-500",
                                     )}
                                     onClick={() => handleAnswer(index)}
-                                    disabled={isAnswering || userHasAnswered}
+                                    disabled={isAnswering || userHasAnswered || !isQuestionActive}
                                 >
                                     {option.text}
-                                    {wasCorrect && <CheckCircle className="ml-auto text-green-700"/>}
-                                    {wasIncorrect && <XCircle className="ml-auto text-red-700"/>}
+                                    {isThisAnswer && <div className="absolute top-1 right-1 h-5 w-5 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs">✓</div>}
                                 </Button>
                             )
                         })}
@@ -286,7 +310,7 @@ export function LiveQuiz({ chatRoomId, isHost, currentUserId, participants, acti
             )}
              {isHost && (
                 <CardFooter className="flex justify-end gap-2 p-0 pt-4">
-                     <Button variant="destructive" onClick={handleEndQuiz}><TimerOff className="mr-2" /> End Quiz</Button>
+                     <Button variant="destructive" onClick={handleClearQuiz} disabled={isProcessing}><TimerOff className="mr-2" /> End Quiz</Button>
                 </CardFooter>
             )}
         </div>

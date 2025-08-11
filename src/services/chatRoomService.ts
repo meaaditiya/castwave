@@ -1,8 +1,7 @@
-
 import { db } from '@/lib/firebase';
 import { collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, doc, getDoc, updateDoc, setDoc, getDocs, writeBatch, runTransaction, increment, where, deleteDoc, Query, FirestoreError, arrayUnion, arrayRemove } from 'firebase/firestore';
 import { getUserProfile } from './userService';
-import { Quiz } from './pollService';
+import { Quiz, Poll } from './pollService';
 
 export interface Message {
   id?: string;
@@ -37,6 +36,7 @@ export interface ChatRoom {
     likers: string[];
     dislikers: string[];
     activeQuiz?: Quiz;
+    activePoll?: Poll;
 }
 
 export interface ChatRoomInput {

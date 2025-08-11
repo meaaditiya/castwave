@@ -4,7 +4,7 @@ import Image from 'next/image';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Share2, MicOff, Loader2, Star, MessageSquare, Mic, ArrowLeft, Waves } from 'lucide-react';
+import { Share2, MicOff, Loader2, Star, MessageSquare, Mic, ArrowLeft, Waves, ListChecks, HelpCircle } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { endChatRoom, Participant, startChatRoom, ChatRoom } from '@/services/chatRoomService';
@@ -12,7 +12,9 @@ import { useRouter } from 'next/navigation';
 import type { Message } from '@/services/chatRoomService';
 import { LiveQuiz } from './LiveQuiz';
 import { useAuth } from '@/context/AuthContext';
-import { Quiz } from '@/services/pollService';
+import { Quiz, Poll } from '@/services/pollService';
+import { LivePoll } from './LivePoll';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 
 
 interface LiveScreenProps extends ChatRoom {
@@ -20,7 +22,7 @@ interface LiveScreenProps extends ChatRoom {
   participants: Participant[];
 }
 
-export function LiveScreen({ id: chatRoomId, title, host, hostId, isLive, imageHint, isHost = false, featuredMessage, hostReply, participants, activeQuiz }: LiveScreenProps) {
+export function LiveScreen({ id: chatRoomId, title, host, hostId, isLive, imageHint, isHost = false, featuredMessage, hostReply, participants, activeQuiz, activePoll }: LiveScreenProps) {
   const [isEnding, setIsEnding] = useState(false);
   const [isStarting, setIsStarting] = useState(false);
   const { toast } = useToast();
@@ -29,6 +31,16 @@ export function LiveScreen({ id: chatRoomId, title, host, hostId, isLive, imageH
   
   const hostProfile = participants.find(p => p.userId === hostId);
   const featuredParticipant = featuredMessage ? participants.find(p => p.userId === featuredMessage.userId) : null;
+  const [currentTab, setCurrentTab] = useState<'interaction' | 'featured'>('interaction');
+
+  useEffect(() => {
+    if (activeQuiz) {
+        setCurrentTab('interaction');
+    } else if (activePoll) {
+        setCurrentTab('interaction');
+    }
+  }, [activeQuiz, activePoll]);
+
 
   const handleShare = () => {
     const url = window.location.href;
@@ -82,45 +94,16 @@ export function LiveScreen({ id: chatRoomId, title, host, hostId, isLive, imageH
     return name.substring(0, 2).toUpperCase();
   }
 
-  const renderNoQuizContent = () => (
-    <>
-      {featuredMessage && featuredParticipant ? (
-            <div className="w-full space-y-4 animate-in fade-in-50 duration-500">
-              <div className="flex items-start space-x-3">
-                  <Avatar className="h-8 w-8 border">
-                      <AvatarImage src={featuredParticipant.photoURL} alt={featuredParticipant.displayName} />
-                      <AvatarFallback>{getInitials(featuredMessage.user)}</AvatarFallback>
-                  </Avatar>
-                  <div className="bg-muted p-3 rounded-lg rounded-tl-none flex-1">
-                      <p className="text-sm font-bold text-muted-foreground">{featuredMessage.user}</p>
-                      {featuredMessage.text && <p className="text-base">{featuredMessage.text}</p>}
-                  </div>
-              </div>
-              {hostReply && hostProfile && (
-                  <div className="flex items-start space-x-3">
-                        <Avatar className="h-8 w-8 border-2 border-primary">
-                          <AvatarImage src={hostProfile.photoURL} alt={hostProfile.displayName} />
-                          <AvatarFallback className="text-primary font-bold">{getInitials(host)}</AvatarFallback>
-                      </Avatar>
-                      <div className="bg-primary/10 border border-primary/20 p-3 rounded-lg rounded-tl-none flex-1">
-                          <p className="text-sm font-bold text-primary">{host} (Host)</p>
-                          <p className="text-base font-medium text-foreground">{hostReply}</p>
-                      </div>
-                  </div>
-              )}
-          </div>
-      ) : (
-          <div className="text-center text-muted-foreground space-y-2">
-              <MessageSquare className="mx-auto h-12 w-12 text-primary/20" />
-              <p className="font-bold">The Screen is Live!</p>
-              {isHost ? (
-                  <p className="text-sm">Click the <Star className="inline h-4 w-4 text-amber-500" /> icon next to a message in the chat to feature it here, or create a quiz.</p>
-              ) : (
-                  <p className="text-sm">The host can feature important messages here or start a quiz.</p>
-              )}
-          </div>
-      )}
-    </>
+  const renderNoInteractionContent = () => (
+    <div className="text-center text-muted-foreground space-y-2">
+        <MessageSquare className="mx-auto h-12 w-12 text-primary/20" />
+        <p className="font-bold">The Screen is Live!</p>
+        {isHost ? (
+            <p className="text-sm">Create a quiz or poll to engage your audience.</p>
+        ) : (
+            <p className="text-sm">The host can start a quiz or poll at any time.</p>
+        )}
+    </div>
   );
 
 
@@ -154,16 +137,76 @@ export function LiveScreen({ id: chatRoomId, title, host, hostId, isLive, imageH
       <CardContent className="bg-card/50 p-4 md:p-6 flex flex-col justify-center space-y-4 border-t flex-1">
        {isLive ? (
         <>
-           <div className="flex-1 flex flex-col justify-center">
-            <LiveQuiz
-              chatRoomId={chatRoomId}
-              isHost={isHost}
-              currentUserId={currentUser!.uid}
-              participants={participants}
-              activeQuiz={activeQuiz}
-              renderNoQuizContent={renderNoQuizContent}
-            />
-           </div>
+            <Tabs value={currentTab} onValueChange={setCurrentTab} className="w-full">
+                <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="interaction">
+                        {activeQuiz ? <ListChecks className="mr-2" /> : <HelpCircle className="mr-2" />}
+                        Interaction
+                    </TabsTrigger>
+                    <TabsTrigger value="featured">
+                        <Star className="mr-2" />
+                        Featured
+                    </TabsTrigger>
+                </TabsList>
+                 <TabsContent value="interaction" className="flex-1 flex flex-col justify-center items-center min-h-[300px]">
+                    {activeQuiz ? (
+                        <LiveQuiz
+                          chatRoomId={chatRoomId}
+                          isHost={isHost}
+                          currentUserId={currentUser!.uid}
+                          participants={participants}
+                          activeQuiz={activeQuiz}
+                          renderNoQuizContent={renderNoInteractionContent}
+                        />
+                    ) : (
+                         <LivePoll
+                          chatRoomId={chatRoomId}
+                          isHost={isHost}
+                          currentUserId={currentUser!.uid}
+                          activePoll={activePoll}
+                          renderNoPollContent={renderNoInteractionContent}
+                        />
+                    )}
+                 </TabsContent>
+                 <TabsContent value="featured" className="flex-1 flex flex-col justify-center items-center min-h-[300px]">
+                    {featuredMessage && featuredParticipant ? (
+                        <div className="w-full space-y-4 animate-in fade-in-50 duration-500">
+                          <div className="flex items-start space-x-3">
+                              <Avatar className="h-8 w-8 border">
+                                  <AvatarImage src={featuredParticipant.photoURL} alt={featuredParticipant.displayName} />
+                                  <AvatarFallback>{getInitials(featuredMessage.user)}</AvatarFallback>
+                              </Avatar>
+                              <div className="bg-muted p-3 rounded-lg rounded-tl-none flex-1">
+                                  <p className="text-sm font-bold text-muted-foreground">{featuredMessage.user}</p>
+                                  {featuredMessage.text && <p className="text-base">{featuredMessage.text}</p>}
+                              </div>
+                          </div>
+                          {hostReply && hostProfile && (
+                              <div className="flex items-start space-x-3">
+                                    <Avatar className="h-8 w-8 border-2 border-primary">
+                                      <AvatarImage src={hostProfile.photoURL} alt={hostProfile.displayName} />
+                                      <AvatarFallback className="text-primary font-bold">{getInitials(host)}</AvatarFallback>
+                                  </Avatar>
+                                  <div className="bg-primary/10 border border-primary/20 p-3 rounded-lg rounded-tl-none flex-1">
+                                      <p className="text-sm font-bold text-primary">{host} (Host)</p>
+                                      <p className="text-base font-medium text-foreground">{hostReply}</p>
+                                  </div>
+                              </div>
+                          )}
+                      </div>
+                  ) : (
+                       <div className="text-center text-muted-foreground space-y-2">
+                            <Star className="mx-auto h-12 w-12 text-amber-500/20" />
+                            <p className="font-bold">No Featured Message</p>
+                            {isHost ? (
+                                <p className="text-sm">Click the <Star className="inline h-4 w-4 text-amber-500" /> icon next to a message to feature it.</p>
+                            ) : (
+                                <p className="text-sm">The host can feature important messages here.</p>
+                            )}
+                        </div>
+                  )}
+                 </TabsContent>
+            </Tabs>
            
             <div className="flex items-center space-x-4 pt-4 mt-auto justify-center">
                 <Button variant="outline" onClick={handleShare}>
