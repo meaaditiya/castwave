@@ -7,44 +7,28 @@ import { Button } from '@/components/ui/button';
 import { Share2, MicOff, Loader2, Star, MessageSquare, Mic, ArrowLeft, Waves } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
-import { endChatRoom, Participant, startChatRoom } from '@/services/chatRoomService';
+import { endChatRoom, Participant, startChatRoom, ChatRoom } from '@/services/chatRoomService';
 import { useRouter } from 'next/navigation';
 import type { Message } from '@/services/chatRoomService';
 import { LiveQuiz } from './LiveQuiz';
 import { useAuth } from '@/context/AuthContext';
-import { getActiveQuiz, Quiz } from '@/services/pollService';
+import { Quiz } from '@/services/pollService';
 
 
-interface LiveScreenProps {
-  id: string;
-  title: string;
-  host: string;
-  hostId: string;
-  isLive: boolean;
-  imageHint: string;
+interface LiveScreenProps extends ChatRoom {
   isHost?: boolean;
-  featuredMessage?: Message;
-  hostReply?: string;
   participants: Participant[];
 }
 
-export function LiveScreen({ id: chatRoomId, title, host, hostId, isLive, imageHint, isHost = false, featuredMessage, hostReply, participants }: LiveScreenProps) {
+export function LiveScreen({ id: chatRoomId, title, host, hostId, isLive, imageHint, isHost = false, featuredMessage, hostReply, participants, activeQuiz }: LiveScreenProps) {
   const [isEnding, setIsEnding] = useState(false);
   const [isStarting, setIsStarting] = useState(false);
   const { toast } = useToast();
   const router = useRouter();
   const { currentUser } = useAuth();
-  const [activeQuiz, setActiveQuiz] = useState<Quiz | null>(null);
   
   const hostProfile = participants.find(p => p.userId === hostId);
   const featuredParticipant = featuredMessage ? participants.find(p => p.userId === featuredMessage.userId) : null;
-
-  useEffect(() => {
-    const unsubscribe = getActiveQuiz(chatRoomId, (quiz) => {
-        setActiveQuiz(quiz);
-    });
-    return () => unsubscribe();
-  }, [chatRoomId]);
 
   const handleShare = () => {
     const url = window.location.href;

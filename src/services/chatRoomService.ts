@@ -2,6 +2,7 @@
 import { db } from '@/lib/firebase';
 import { collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, doc, getDoc, updateDoc, setDoc, getDocs, writeBatch, runTransaction, increment, where, deleteDoc, Query, FirestoreError, arrayUnion, arrayRemove } from 'firebase/firestore';
 import { getUserProfile } from './userService';
+import { Quiz } from './pollService';
 
 export interface Message {
   id?: string;
@@ -35,6 +36,7 @@ export interface ChatRoom {
     dislikes: number;
     likers: string[];
     dislikers: string[];
+    activeQuiz?: Quiz;
 }
 
 export interface ChatRoomInput {
@@ -376,7 +378,6 @@ export const deleteChatRoomForHost = async (chatRoomId: string, hostId: string) 
         await Promise.all([
             deleteSubcollection(chatRoomId, 'participants'),
             deleteSubcollection(chatRoomId, 'messages'),
-            deleteSubcollection(chatRoomId, 'polls'),
         ]);
 
     } catch (error) {

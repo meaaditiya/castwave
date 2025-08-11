@@ -273,15 +273,9 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
 
   const fullChatLog = chatLog.map(msg => `${msg.user}: ${msg.text}`).join('\n');
   const chatRoomDetails = {
+    ...chatRoom,
     id: chatRoomId,
-    title: chatRoom.title,
-    host: chatRoom.host,
-    hostId: chatRoom.hostId,
-    isLive: chatRoom.isLive,
-    imageHint: 'scientist portrait',
     isHost: isHost,
-    featuredMessage: chatRoom.featuredMessage,
-    hostReply: chatRoom.hostReply,
     participants: participants,
   };
 
