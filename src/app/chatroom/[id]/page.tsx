@@ -5,7 +5,6 @@ import { useState, useEffect, use } from 'react';
 import { Header } from '@/components/Header';
 import { LiveScreen } from '@/components/LiveScreen';
 import { LiveChat } from '@/components/LiveChat';
-import { ParticipantsList } from '@/components/ParticipantsList';
 import type { Message } from '@/services/chatRoomService';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from '@/components/ui/skeleton';
@@ -295,14 +294,13 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
         </div>
 
         <div className={cn(
-            "lg:col-span-1",
-            isChatFullscreen ? "col-span-1 h-screen p-0 m-0" : ""
+            isChatFullscreen ? "col-span-1 h-screen p-0 m-0" : "lg:col-span-1"
         )}>
             <Card className={cn(
                "flex flex-col",
                isChatFullscreen 
                    ? "h-full rounded-none border-0" 
-                   : "lg:h-full"
+                   : "lg:h-[700px]"
             )}>
               <CardHeader className="flex flex-row items-center justify-between">
                   <CardTitle className="flex items-center gap-2"><MessageSquare className="h-5 w-5"/> Live Chat</CardTitle>
