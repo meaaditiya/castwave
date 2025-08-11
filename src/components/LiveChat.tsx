@@ -73,7 +73,7 @@ function ChatMessage({ message, parentMessage, onReply, onFeature, onVote, canCh
     };
 
     return (
-        <div className="flex items-start space-x-3 group">
+        <div className="flex items-start space-x-3 group w-full">
             <Link href={`/profile/${message.userId}`} passHref>
                 <Avatar className="h-8 w-8 cursor-pointer">
                     <AvatarImage src={userProfile?.photoURL} alt={message.user} />

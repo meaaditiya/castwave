@@ -284,7 +284,7 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
     <div className="min-h-screen flex flex-col">
       <Header />
        <main className={cn(
-          "flex-1 container py-4 md:py-8 gap-4 md:gap-8 px-2 md:px-8",
+          "flex-1 container py-4 md:py-8 gap-4 md:gap-8",
           isChatFullscreen ? "grid grid-cols-1 p-0 md:p-0" : "grid grid-cols-1 lg:grid-cols-3"
       )}>
         <div className={cn(
@@ -296,12 +296,12 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
 
          <div className={cn(
             "lg:col-span-1 flex flex-col gap-4",
-            isChatFullscreen ? "col-span-1" : "lg:h-auto"
+            isChatFullscreen ? "col-span-1 h-screen p-0 m-0" : ""
         )}>
             <Card className={cn(
                "flex flex-col",
                isChatFullscreen 
-                   ? "h-screen rounded-none border-0" 
+                   ? "h-full rounded-none border-0" 
                    : "h-full"
             )}>
               <CardHeader className="flex flex-row items-center justify-between">
