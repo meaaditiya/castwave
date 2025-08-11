@@ -316,34 +316,32 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
                   messages={chatLog}
                   participant={myParticipantRecord}
               />
-              {chatRoom.isLive && (
-                  <div className="mt-auto border-t">
-                      <Accordion type="single" collapsible className="w-full">
-                          {isHost && (
-                              <AccordionItem value="participants" className="border-b-0">
-                                  <AccordionTrigger className="px-6 py-4">
-                                      <span className="flex items-center gap-2 text-base font-semibold"><Users className="h-5 w-5" /> Participants</span>
-                                  </AccordionTrigger>
-                                  <AccordionContent>
-                                    <div className="px-2">
-                                      <ParticipantsList chatRoomId={chatRoomId} participants={participants} hostId={chatRoom.hostId} />
-                                    </div>
-                                  </AccordionContent>
-                              </AccordionItem>
-                          )}
-                          <AccordionItem value="summary" className="border-b-0">
+              <div className="mt-auto border-t">
+                  <Accordion type="single" collapsible className="w-full">
+                      {isHost && (
+                          <AccordionItem value="participants" className="border-b-0">
                               <AccordionTrigger className="px-6 py-4">
-                                  <span className="flex items-center gap-2 text-base font-semibold"><Sparkles className="h-5 w-5" /> AI Summary</span>
+                                  <span className="flex items-center gap-2 text-base font-semibold"><Users className="h-5 w-5" /> Participants</span>
                               </AccordionTrigger>
                               <AccordionContent>
-                                <div className="px-4 pb-2">
-                                  <HighlightTool chatLog={fullChatLog} />
+                                <div className="px-2">
+                                  <ParticipantsList chatRoomId={chatRoomId} participants={participants} hostId={chatRoom.hostId} />
                                 </div>
                               </AccordionContent>
                           </AccordionItem>
-                      </Accordion>
-                  </div>
-              )}
+                      )}
+                      <AccordionItem value="summary" className="border-b-0">
+                          <AccordionTrigger className="px-6 py-4">
+                              <span className="flex items-center gap-2 text-base font-semibold"><Sparkles className="h-5 w-5" /> AI Summary</span>
+                          </AccordionTrigger>
+                          <AccordionContent>
+                            <div className="px-4 pb-2">
+                              <HighlightTool chatLog={fullChatLog} />
+                            </div>
+                          </AccordionContent>
+                      </AccordionItem>
+                  </Accordion>
+              </div>
           </Card>
         </div>
       </main>

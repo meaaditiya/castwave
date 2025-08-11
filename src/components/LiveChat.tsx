@@ -364,31 +364,30 @@ export function LiveChat({ chatRoom, messages, participant }: LiveChatProps) {
             <TypingIndicator users={typingUsers} />
           }
       </div>
-       {chatRoom.isLive && (
-        <div className="border-t pt-2 mt-auto">
-            {replyingTo && (
-                <div className="text-xs text-muted-foreground bg-muted p-2 rounded-t-md flex justify-between items-center">
-                    <span>Replying to <span className="font-bold">{replyingTo.user}</span></span>
-                    <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => { setReplyingTo(null); setNewMessage(''); }}>
-                        <X className="h-3 w-3"/>
-                    </Button>
-                </div>
-            )}
-            <form onSubmit={handleSubmit} className="flex gap-2">
-                <Input
-                ref={inputRef}
-                placeholder={canChat ? "Join the conversation..." : "Waiting for host approval..."}
-                value={newMessage}
-                onChange={(e) => setNewMessage(e.target.value)}
-                disabled={!canChat || isSending}
-                className={replyingTo ? 'rounded-t-none' : ''}
-                />
-                <Button type="submit" size="icon" aria-label="Send message" disabled={!canChat || isSending || !newMessage.trim()}>
-                {isSending ? <Loader2 className="animate-spin" /> : <Send />}
-                </Button>
-            </form>
-        </div>
-       )}
+
+      <div className="border-t pt-2 mt-auto">
+          {replyingTo && (
+              <div className="text-xs text-muted-foreground bg-muted p-2 rounded-t-md flex justify-between items-center">
+                  <span>Replying to <span className="font-bold">{replyingTo.user}</span></span>
+                  <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => { setReplyingTo(null); setNewMessage(''); }}>
+                      <X className="h-3 w-3"/>
+                  </Button>
+              </div>
+          )}
+          <form onSubmit={handleSubmit} className="flex gap-2">
+              <Input
+              ref={inputRef}
+              placeholder={canChat ? "Join the conversation..." : "Waiting for host approval..."}
+              value={newMessage}
+              onChange={(e) => setNewMessage(e.target.value)}
+              disabled={!canChat || isSending}
+              className={replyingTo ? 'rounded-t-none' : ''}
+              />
+              <Button type="submit" size="icon" aria-label="Send message" disabled={!canChat || isSending || !newMessage.trim()}>
+              {isSending ? <Loader2 className="animate-spin" /> : <Send />}
+              </Button>
+          </form>
+      </div>
        <Dialog open={!!messageToFeature} onOpenChange={(open) => !open && setMessageToFeature(null)}>
         <DialogContent>
           <DialogHeader>
