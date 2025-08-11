@@ -32,7 +32,7 @@ const nextConfig: NextConfig = {
         headers: [
           {
             key: 'Permissions-Policy',
-            value: 'camera=(), microphone=(), display-capture=(self)',
+            value: 'camera=(self), microphone=(self), display-capture=(self)',
           },
         ],
       },
