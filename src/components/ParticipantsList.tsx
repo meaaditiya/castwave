@@ -11,7 +11,7 @@ import { useState, useMemo } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { Badge } from "./ui/badge";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "./ui/alert-dialog";
-import { writeBatch } from "firebase/firestore";
+import { writeBatch, doc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
 interface ParticipantsListProps {
@@ -61,7 +61,7 @@ export function ParticipantsList({ chatRoomId, participants, hostId }: Participa
             
             participantsToUpdate.forEach(p => {
                  if (p.id) {
-                    const participantRef = db.collection('chatRooms').doc(chatRoomId).collection('participants').doc(p.id);
+                    const participantRef = doc(db, 'chatRooms', chatRoomId, 'participants', p.id);
                     batch.update(participantRef, { status: action });
                  }
             });
@@ -97,9 +97,9 @@ export function ParticipantsList({ chatRoomId, participants, hostId }: Participa
     }
 
     const visibleParticipants = useMemo(() => {
-        const statusOrder = { 'approved': 1, 'pending': 2, 'denied': 3, 'removed': 4 };
-        return [...participants] 
-            .filter(p => p.status !== 'removed') // Don't show removed participants
+        const statusOrder = { 'pending': 1, 'approved': 2, 'denied': 3, 'removed': 4 };
+        return [...participants]
+            .filter(p => p.status !== 'removed' && p.status !== 'denied')
             .sort((a, b) => {
                 if (a.userId === hostId) return -1;
                 if (b.userId === hostId) return 1;
