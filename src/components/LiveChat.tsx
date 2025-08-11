@@ -18,6 +18,10 @@ import { useDebouncedCallback } from 'use-debounce';
 import { TypingIndicator } from './TypingIndicator';
 import { CardContent } from './ui/card';
 import Link from 'next/link';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { Sparkles, Users } from 'lucide-react';
+import { ParticipantsList } from './ParticipantsList';
+import { HighlightTool } from './HighlightTool';
 
 interface LiveChatProps {
   chatRoom: ChatRoom;
@@ -242,11 +246,16 @@ export function LiveChat({ chatRoom, messages, participant }: LiveChatProps) {
 
     setIsSending(true);
 
+    let messageText = newMessage.trim();
+    if (replyingTo && !messageText.startsWith(`@${replyingTo.user}`)) {
+        messageText = `@${replyingTo.user} ${messageText}`;
+    }
+
     try {
         await sendMessage(chatRoom.id, {
             user: currentUser.profile.username,
             userId: currentUser.uid,
-            text: newMessage.trim(),
+            text: messageText,
             parentId: replyingTo ? replyingTo.id : undefined,
         });
         setNewMessage('');
@@ -293,6 +302,7 @@ export function LiveChat({ chatRoom, messages, participant }: LiveChatProps) {
 
   const handleReplyClick = (message: Message) => {
     setReplyingTo(message);
+    setNewMessage(`@${message.user} `);
     inputRef.current?.focus();
   }
   
@@ -361,7 +371,9 @@ export function LiveChat({ chatRoom, messages, participant }: LiveChatProps) {
         {replyingTo && (
             <div className="text-xs text-muted-foreground bg-muted p-2 rounded-t-md flex justify-between items-center">
                 <span>Replying to <span className="font-bold">{replyingTo.user}</span></span>
-                <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => setReplyingTo(null)}><X className="h-3 w-3"/></Button>
+                <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => { setReplyingTo(null); setNewMessage(''); }}>
+                    <X className="h-3 w-3"/>
+                </Button>
             </div>
         )}
         <form onSubmit={handleSubmit} className="flex gap-2">
@@ -409,5 +421,3 @@ export function LiveChat({ chatRoom, messages, participant }: LiveChatProps) {
     </CardContent>
   );
 }
-
-    
