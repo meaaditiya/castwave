@@ -337,7 +337,7 @@ export function LiveChat({ chatRoom, messages, participant, canChat }: LiveChatP
   return (
     <>
       <CardContent className="flex-1 flex flex-col p-2 sm:p-4 min-h-0">
-        <div className="flex-1 min-h-0 relative">
+        <div className="flex-1 relative min-h-0">
           <RemoveScroll enabled>
               <ScrollArea className="h-full pr-4" viewportRef={scrollViewportRef}>
                   <div className="space-y-4">
