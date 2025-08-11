@@ -335,63 +335,61 @@ export function LiveChat({ chatRoom, messages, participant, canChat }: LiveChatP
     .map(([, name]) => name);
 
   return (
-    <CardContent className="flex-1 flex flex-col p-2 sm:p-4 min-h-0">
-       {!messages && (
-        <div className="flex-1 flex items-center justify-center">
-          <Loader2 className="h-6 w-6 animate-spin text-primary" />
+    <>
+      <CardContent className="flex-1 flex flex-col p-2 sm:p-4 min-h-0">
+        <div className="flex-1 min-h-0 relative">
+          <RemoveScroll enabled>
+              <ScrollArea className="h-full pr-4" viewportRef={scrollViewportRef}>
+                  <div className="space-y-4">
+                  {messages && messages.map((msg) => (
+                      <ChatMessage 
+                          key={msg.id}
+                          message={msg}
+                          parentMessage={msg.parentId ? messageMap.get(msg.parentId) : undefined}
+                          onReply={handleReplyClick}
+                          onFeature={setMessageToFeature}
+                          onVote={handleVote}
+                          onDelete={handleDelete}
+                          canChat={canChat}
+                          isHost={isHost}
+                          participantMap={participantMap}
+                      />
+                  ))}
+                  {messages && messages.length === 0 && (
+                          <div className="text-center text-muted-foreground pt-10">
+                              <p>No messages yet. Be the first to start the conversation!</p>
+                          </div>
+                      )}
+                  </div>
+              </ScrollArea>
+          </RemoveScroll>
+          {showNewMessageButton && (
+              <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20">
+                  <Button 
+                      size="sm" 
+                      className="rounded-full shadow-lg animate-in fade-in-50" 
+                      onClick={() => {
+                          scrollToBottom('smooth');
+                          setShowNewMessageButton(false);
+                      }}
+                  >
+                      <ArrowDown className="mr-2 h-4 w-4" />
+                      New Messages
+                  </Button>
+              </div>
+          )}
         </div>
-      )}
-      <div className="flex-1 min-h-0 relative">
-        <RemoveScroll enabled>
-            <ScrollArea className="h-full pr-4" viewportRef={scrollViewportRef}>
-                <div className="space-y-4">
-                {messages && messages.map((msg) => (
-                    <ChatMessage 
-                        key={msg.id}
-                        message={msg}
-                        parentMessage={msg.parentId ? messageMap.get(msg.parentId) : undefined}
-                        onReply={handleReplyClick}
-                        onFeature={setMessageToFeature}
-                        onVote={handleVote}
-                        onDelete={handleDelete}
-                        canChat={canChat}
-                        isHost={isHost}
-                        participantMap={participantMap}
-                    />
-                ))}
-                {messages && messages.length === 0 && (
-                        <div className="text-center text-muted-foreground pt-10">
-                            <p>No messages yet. Be the first to start the conversation!</p>
-                        </div>
-                    )}
-                </div>
-            </ScrollArea>
-        </RemoveScroll>
-        {showNewMessageButton && (
-            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20">
-                <Button 
-                    size="sm" 
-                    className="rounded-full shadow-lg animate-in fade-in-50" 
-                    onClick={() => {
-                        scrollToBottom('smooth');
-                        setShowNewMessageButton(false);
-                    }}
-                >
-                    <ArrowDown className="mr-2 h-4 w-4" />
-                    New Messages
-                </Button>
-            </div>
-        )}
-      </div>
 
-      <div className="h-5 text-xs text-muted-foreground italic px-1 pt-1">
-          {typingUsers.length > 0 && 
-            <TypingIndicator users={typingUsers} />
-          }
-      </div>
+        <div className="h-5 text-xs text-muted-foreground italic px-1 pt-1">
+            {typingUsers.length > 0 && 
+              <TypingIndicator users={typingUsers} />
+            }
+        </div>
+        
+      </CardContent>
 
       {chatRoom.isLive || isHost ? (
-        <div className="border-t pt-2 mt-auto">
+        <div className="border-t pt-2 p-2 sm:p-4 mt-auto">
             {replyingTo && (
                 <div className="text-xs text-muted-foreground bg-muted p-2 rounded-t-md flex justify-between items-center">
                     <span>Replying to <span className="font-bold">{replyingTo.user}</span></span>
@@ -444,6 +442,6 @@ export function LiveChat({ chatRoom, messages, participant, canChat }: LiveChatP
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </CardContent>
+    </>
   );
 }
