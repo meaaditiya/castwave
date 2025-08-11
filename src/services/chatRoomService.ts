@@ -234,7 +234,6 @@ export const getParticipantStream = (chatRoomId: string, userId: string, callbac
 
 export const requestToJoinChat = async (chatRoomId: string, userId: string) => {
     const participantRef = doc(db, `chatRooms/${chatRoomId}/participants`, userId);
-    const userProfile = await getUserProfile(userId);
     
     await runTransaction(db, async (transaction) => {
         const participantDoc = await transaction.get(participantRef);
@@ -251,6 +250,7 @@ export const requestToJoinChat = async (chatRoomId: string, userId: string) => {
                  });
              }
         } else {
+            const userProfile = await getUserProfile(userId);
             transaction.set(participantRef, {
                 userId: userId,
                 displayName: userProfile?.username || 'Anonymous',
@@ -377,7 +377,6 @@ export const deleteChatRoomForHost = async (chatRoomId: string, hostId: string) 
             deleteSubcollection(chatRoomId, 'participants'),
             deleteSubcollection(chatRoomId, 'messages'),
             deleteSubcollection(chatRoomId, 'polls'),
-            deleteSubcollection(chatRoomId, 'webrtc_signals'),
         ]);
 
     } catch (error) {

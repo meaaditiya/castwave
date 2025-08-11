@@ -143,6 +143,7 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
   
   const chatRoomId = resolvedParams.id;
   const isHost = currentUser && chatRoom && currentUser.uid === chatRoom.hostId;
+  const isApprovedParticipant = !isHost && myParticipantRecord?.status === 'approved';
 
   useEffect(() => {
     if (!authLoading && !currentUser) {
@@ -208,14 +209,14 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
 
 
   useEffect(() => {
-    if (!currentUser || !chatRoomId) return;
+    if (!currentUser || !chatRoomId || (!isHost && !isApprovedParticipant)) return;
 
     const unsubscribeMessages = getMessages(chatRoomId, setChatLog, (error) => {
         console.error("Error fetching messages:", error);
         toast({variant: 'destructive', title: 'Error', description: 'Could not load messages.'})
     });
     return () => unsubscribeMessages();
-  }, [chatRoomId, currentUser, isHost, myParticipantRecord, chatRoom, toast]);
+  }, [chatRoomId, currentUser, isHost, isApprovedParticipant, toast]);
   
   const handleReRequest = async () => {
     if (!currentUser) return;

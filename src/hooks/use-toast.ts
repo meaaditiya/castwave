@@ -1,3 +1,4 @@
+
 "use client"
 
 // Inspired by react-hot-toast library
@@ -152,10 +153,16 @@ function toast({ ...props }: Toast) {
     })
   const dismiss = () => dispatch({ type: "DISMISS_TOAST", toastId: id })
 
+  // If variant is destructive, use default styling instead
+  const toastProps = { ...props };
+  if (toastProps.variant === 'destructive') {
+    toastProps.variant = 'default';
+  }
+
   dispatch({
     type: "ADD_TOAST",
     toast: {
-      ...props,
+      ...toastProps,
       id,
       open: true,
       onOpenChange: (open) => {
