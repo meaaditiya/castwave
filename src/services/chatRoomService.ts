@@ -180,7 +180,7 @@ export const endChatRoom = async (chatRoomId: string) => {
 
 export const sendMessage = async (chatRoomId: string, message: Partial<Message>) => {
     try {
-        if (!message.text) {
+        if (!message.text && !message.text?.trim()) {
             throw new Error("Message must have text.");
         }
 
@@ -273,7 +273,7 @@ export const getParticipants = (chatRoomId: string, callback: (participants: Par
     const q = query(participantsCol);
     
     const unsubscribe = onSnapshot(q, (snapshot) => {
-        const participants = snapshot.docs.map(doc => ({ userId: doc.id, ...doc.data() } as Participant));
+        const participants = snapshot.docs.map(doc => ({ id: doc.id, userId: doc.id, ...doc.data() } as Participant));
         callback(participants);
     }, onError);
     return unsubscribe;

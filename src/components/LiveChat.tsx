@@ -18,10 +18,6 @@ import { useDebouncedCallback } from 'use-debounce';
 import { TypingIndicator } from './TypingIndicator';
 import { CardContent } from './ui/card';
 import Link from 'next/link';
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { Sparkles, Users } from 'lucide-react';
-import { ParticipantsList } from './ParticipantsList';
-import { HighlightTool } from './HighlightTool';
 
 interface LiveChatProps {
   chatRoom: ChatRoom;
@@ -130,7 +126,7 @@ function ChatMessage({ message, onReply, onFeature, onVote, canChat, isHost, par
                                 canChat={canChat}
                                 isHost={isHost}
                                 participantMap={participantMap}
-                                replies={[]} // Replies don't have replies in this design
+                                replies={(reply as any).replies || []}
                             />
                         ))}
                     </div>
@@ -173,10 +169,11 @@ export function LiveChat({ chatRoom, messages, participant }: LiveChatProps) {
     });
 
     messages.forEach(message => {
+        const messageWithReplies = messageMap.get(message.id!)!;
         if (message.parentId && messageMap.has(message.parentId)) {
-            messageMap.get(message.parentId)!.replies.push(message);
+            messageMap.get(message.parentId)!.replies.push(messageWithReplies);
         } else {
-            topLevelMessages.push(messageMap.get(message.id!)!);
+            topLevelMessages.push(messageWithReplies);
         }
     });
 
@@ -247,8 +244,8 @@ export function LiveChat({ chatRoom, messages, participant }: LiveChatProps) {
     setIsSending(true);
 
     let messageText = newMessage.trim();
-    if (replyingTo && !messageText.startsWith(`@${replyingTo.user}`)) {
-        messageText = `@${replyingTo.user} ${messageText}`;
+    if (replyingTo && messageText.startsWith(`@${replyingTo.user} `)) {
+        messageText = messageText.substring(`@${replyingTo.user} `.length);
     }
 
     try {
@@ -367,29 +364,31 @@ export function LiveChat({ chatRoom, messages, participant }: LiveChatProps) {
             <TypingIndicator users={typingUsers} />
           }
       </div>
-      <div className="border-t pt-2 mt-auto">
-        {replyingTo && (
-            <div className="text-xs text-muted-foreground bg-muted p-2 rounded-t-md flex justify-between items-center">
-                <span>Replying to <span className="font-bold">{replyingTo.user}</span></span>
-                <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => { setReplyingTo(null); setNewMessage(''); }}>
-                    <X className="h-3 w-3"/>
+       {chatRoom.isLive && (
+        <div className="border-t pt-2 mt-auto">
+            {replyingTo && (
+                <div className="text-xs text-muted-foreground bg-muted p-2 rounded-t-md flex justify-between items-center">
+                    <span>Replying to <span className="font-bold">{replyingTo.user}</span></span>
+                    <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => { setReplyingTo(null); setNewMessage(''); }}>
+                        <X className="h-3 w-3"/>
+                    </Button>
+                </div>
+            )}
+            <form onSubmit={handleSubmit} className="flex gap-2">
+                <Input
+                ref={inputRef}
+                placeholder={canChat ? "Join the conversation..." : "Waiting for host approval..."}
+                value={newMessage}
+                onChange={(e) => setNewMessage(e.target.value)}
+                disabled={!canChat || isSending}
+                className={replyingTo ? 'rounded-t-none' : ''}
+                />
+                <Button type="submit" size="icon" aria-label="Send message" disabled={!canChat || isSending || !newMessage.trim()}>
+                {isSending ? <Loader2 className="animate-spin" /> : <Send />}
                 </Button>
-            </div>
-        )}
-        <form onSubmit={handleSubmit} className="flex gap-2">
-            <Input
-              ref={inputRef}
-              placeholder={canChat ? "Join the conversation..." : "Waiting for host approval..."}
-              value={newMessage}
-              onChange={(e) => setNewMessage(e.target.value)}
-              disabled={!canChat || isSending}
-              className={replyingTo ? 'rounded-t-none' : ''}
-            />
-            <Button type="submit" size="icon" aria-label="Send message" disabled={!canChat || isSending || !newMessage.trim()}>
-              {isSending ? <Loader2 className="animate-spin" /> : <Send />}
-            </Button>
-        </form>
-      </div>
+            </form>
+        </div>
+       )}
        <Dialog open={!!messageToFeature} onOpenChange={(open) => !open && setMessageToFeature(null)}>
         <DialogContent>
           <DialogHeader>
