@@ -18,6 +18,7 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { HighlightTool } from '@/components/HighlightTool';
 import { cn } from '@/lib/utils';
+import { ParticipantsList } from '@/components/ParticipantsList';
 
 
 function ChatRoomPageSkeleton() {
