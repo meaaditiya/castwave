@@ -5,7 +5,7 @@ import Image from 'next/image';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Share2, MicOff, Loader2, Star, MessageSquare, Mic, ArrowLeft, Waves, ListChecks, HelpCircle, Expand, Shrink, Plus, X } from 'lucide-react';
+import { Share2, MicOff, Loader2, Star, MessageSquare, Mic, ArrowLeft, Waves, ListChecks, HelpCircle, Expand, Shrink, Plus, X, Radio } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { endChatRoom, Participant, startChatRoom, ChatRoom, clearFeaturedMessage } from '@/services/chatRoomService';
@@ -18,6 +18,7 @@ import { LivePoll } from './LivePoll';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Dialog, DialogTrigger } from './ui/dialog';
 import { cn } from '@/lib/utils';
+import { AudioChat } from './AudioChat';
 
 
 interface LiveScreenProps extends ChatRoom {
@@ -35,7 +36,7 @@ export function LiveScreen({ id: chatRoomId, title, host, hostId, isLive, imageH
   
   const hostProfile = participants.find(p => p.userId === hostId);
   const featuredParticipant = featuredMessage ? participants.find(p => p.userId === featuredMessage.userId) : null;
-  const [currentTab, setCurrentTab] = useState<'interaction' | 'featured'>('interaction');
+  const [currentTab, setCurrentTab] = useState<'interaction' | 'featured' | 'audio'>('interaction');
   const [isFullScreen, setIsFullScreen] = useState(false);
 
   useEffect(() => {
@@ -125,7 +126,7 @@ export function LiveScreen({ id: chatRoomId, title, host, hostId, isLive, imageH
   return (
     <Card className={cn(
         "overflow-hidden shadow-lg flex flex-col transition-all duration-300",
-        isFullScreen ? "fixed inset-0 z-[100] rounded-none h-screen" : "relative",
+        isFullScreen ? "fixed inset-0 z-[100] rounded-none h-screen" : "relative h-full min-h-[650px]",
         className
     )}>
        <CardHeader className="flex flex-row items-start justify-between gap-4 p-4 md:p-6">
@@ -164,10 +165,14 @@ export function LiveScreen({ id: chatRoomId, title, host, hostId, isLive, imageH
        {isLive ? (
         <div className="flex flex-col flex-1">
             <Tabs value={currentTab} onValueChange={setCurrentTab} className="w-full flex-1 flex flex-col">
-                <TabsList className="grid w-full grid-cols-2">
+                <TabsList className="grid w-full grid-cols-3">
                     <TabsTrigger value="interaction">
                         {activeQuiz || activePoll ? <ListChecks className="mr-2" /> : <HelpCircle className="mr-2" />}
                         Interaction
+                    </TabsTrigger>
+                     <TabsTrigger value="audio">
+                        <Radio className="mr-2" />
+                        Audio
                     </TabsTrigger>
                     <TabsTrigger value="featured">
                         <Star className="mr-2" />
@@ -210,6 +215,15 @@ export function LiveScreen({ id: chatRoomId, title, host, hostId, isLive, imageH
                         </div>
                     )}
                  </TabsContent>
+                  <TabsContent value="audio" className="flex-1 flex flex-col justify-center items-center pt-4">
+                     {currentUser && (
+                       <AudioChat 
+                          chatRoomId={chatRoomId}
+                          isHost={isHost}
+                          participants={participants}
+                       />
+                     )}
+                  </TabsContent>
                  <TabsContent value="featured" className="flex-1 flex flex-col justify-center items-center pt-4">
                     {featuredMessage && featuredParticipant ? (
                         <div className="w-full space-y-4 animate-in fade-in-50 duration-500 relative">
