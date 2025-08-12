@@ -10,7 +10,7 @@ import {
   cleanUpSignals,
 } from '@/services/rtcService';
 import { Button } from './ui/button';
-import { Mic, MicOff, PhoneOff, Phone, Rss } from 'lucide-react';
+import { Mic, MicOff, PhoneOff, Phone, Rss, Volume2, VolumeX } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { Participant } from '@/services/chatRoomService';
 import { cn } from '@/lib/utils';
@@ -39,6 +39,7 @@ export function AudioChat({ chatRoomId, isHost, participants }: AudioChatProps) 
   const [peers, setPeers] = useState<Record<string, Peer.Instance>>({});
   const [isConnected, setIsConnected] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
+  const [isSpeakerOn, setIsSpeakerOn] = useState(true);
   const [speakingPeers, setSpeakingPeers] = useState<Record<string, boolean>>({});
   
   const audioRefs = useRef<Record<string, HTMLAudioElement>>({});
@@ -100,6 +101,7 @@ export function AudioChat({ chatRoomId, isHost, participants }: AudioChatProps) 
       console.log('Got stream from', peerId);
       if (audioRefs.current[peerId]) {
         audioRefs.current[peerId].srcObject = remoteStream;
+        audioRefs.current[peerId].muted = !isSpeakerOn;
         audioRefs.current[peerId].play().catch(e => console.error("Audio play failed", e));
       }
       
@@ -145,7 +147,7 @@ export function AudioChat({ chatRoomId, isHost, participants }: AudioChatProps) 
     });
 
     return peer;
-  }, [chatRoomId, currentUser]);
+  }, [chatRoomId, currentUser, isSpeakerOn]);
 
 
   useEffect(() => {
@@ -206,6 +208,16 @@ export function AudioChat({ chatRoomId, isHost, participants }: AudioChatProps) 
     }
   };
   
+  const toggleSpeaker = () => {
+    const newSpeakerState = !isSpeakerOn;
+    setIsSpeakerOn(newSpeakerState);
+    Object.values(audioRefs.current).forEach(audioEl => {
+        if (audioEl) {
+            audioEl.muted = !newSpeakerState;
+        }
+    });
+  };
+  
   const connectedParticipants = participants.filter(p => p.status === 'approved' && (peers[p.userId] || p.userId === currentUser?.uid));
 
   if (!isConnected) {
@@ -243,6 +255,9 @@ export function AudioChat({ chatRoomId, isHost, participants }: AudioChatProps) 
           </Button>
           <Button onClick={handleLeave} variant="destructive" size="lg" className="rounded-full h-14 w-14">
             <PhoneOff />
+          </Button>
+          <Button onClick={toggleSpeaker} variant="outline" size="lg" className="rounded-full h-14 w-14">
+            {isSpeakerOn ? <Volume2 /> : <VolumeX />}
           </Button>
         </div>
 
