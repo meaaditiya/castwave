@@ -9,7 +9,8 @@ import {
   where,
   Timestamp,
   writeBatch,
-  getDocs
+  getDocs,
+  deleteDoc
 } from 'firebase/firestore';
 
 /**
