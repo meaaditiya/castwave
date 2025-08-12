@@ -84,10 +84,17 @@ export function AudioChat({ chatRoomId, isHost, participants }: AudioChatProps) 
 
 
   const createPeer = useCallback((peerId: string, initiator: boolean, stream: MediaStream) => {
+    console.log(`Creating peer for ${peerId}, initiator: ${initiator}`);
     const peer = new Peer({
       initiator,
       trickle: true,
       stream: stream,
+      config: {
+        iceServers: [
+          { urls: 'stun:stun.l.google.com:19302' },
+          { urls: 'stun:stun1.l.google.com:19302' },
+        ],
+      },
     });
 
     peer.on('signal', (signal) => {
@@ -156,11 +163,15 @@ export function AudioChat({ chatRoomId, isHost, participants }: AudioChatProps) 
     const unsubscribe = listenForSignals(chatRoomId, currentUser.uid, (senderId, signal) => {
         let peer = peersRef.current[senderId];
         if (!peer) {
-            // This is a new connection from another peer
+            // This is a new connection from another peer, we are not the initiator
             peer = createPeer(senderId, false, localStream);
             setPeers(prev => ({ ...prev, [senderId]: peer }));
         }
-        peer.signal(signal);
+        try {
+          peer.signal(signal);
+        } catch(err) {
+            console.error("Error signaling peer", err);
+        }
     });
 
     return () => unsubscribe();
@@ -170,11 +181,12 @@ export function AudioChat({ chatRoomId, isHost, participants }: AudioChatProps) 
   useEffect(() => {
     if (!isConnected || !localStream || !currentUser) return;
     
-    // Call new participants joining the room
     const approvedParticipants = participants.filter(p => p.status === 'approved' && p.userId !== currentUser.uid);
     
     approvedParticipants.forEach(p => {
-        if (!peersRef.current[p.userId]) {
+        // The user with the smaller ID is the initiator. This prevents both from initiating.
+        const shouldInitiate = currentUser.uid < p.userId;
+        if (shouldInitiate && !peersRef.current[p.userId]) {
             console.log(`Attempting to initiate call with ${p.displayName}`);
             const newPeer = createPeer(p.userId, true, localStream);
             setPeers(prev => ({...prev, [p.userId]: newPeer}));
@@ -266,4 +278,4 @@ export function AudioChat({ chatRoomId, isHost, participants }: AudioChatProps) 
       ))}
     </div>
   );
-}   
+}
