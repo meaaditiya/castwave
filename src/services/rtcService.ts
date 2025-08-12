@@ -9,7 +9,6 @@ import {
   Timestamp,
   writeBatch,
   getDocs,
-  deleteDoc,
 } from 'firebase/firestore';
 
 /**
