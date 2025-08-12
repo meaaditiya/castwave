@@ -1,3 +1,4 @@
+
 import { db } from '@/lib/firebase';
 import { collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, doc, getDoc, updateDoc, setDoc, getDocs, writeBatch, runTransaction, increment, where, deleteDoc, Query, FirestoreError, arrayUnion, arrayRemove, FieldValue } from 'firebase/firestore';
 import { getUserProfile } from './userService';
@@ -182,7 +183,7 @@ export const endChatRoom = async (chatRoomId: string) => {
 
 export const sendMessage = async (chatRoomId: string, message: Partial<Message>) => {
     try {
-        if (!message.text && !message.text?.trim()) {
+        if (!message.text || !message.text?.trim()) {
             throw new Error("Message must have text.");
         }
 
@@ -407,6 +408,7 @@ export const deleteChatRoomForHost = async (chatRoomId: string, hostId: string) 
         await Promise.all([
             deleteSubcollection(chatRoomId, 'participants'),
             deleteSubcollection(chatRoomId, 'messages'),
+            deleteSubcollection(chatRoomId, 'rtc_signals')
         ]);
 
     } catch (error) {

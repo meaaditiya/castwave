@@ -3,116 +3,103 @@ import { db } from '@/lib/firebase';
 import {
   collection,
   doc,
-  setDoc,
+  addDoc,
   onSnapshot,
-  deleteDoc,
-  writeBatch,
-  getDocs,
   query,
+  where,
+  Timestamp,
+  writeBatch,
+  getDocs
 } from 'firebase/firestore';
 
-const getRtcSubcollection = (chatRoomId: string, subcollection: string) =>
-  collection(db, 'chatRooms', chatRoomId, 'rtc', subcollection, 'signals');
+/**
+ * A simplified WebRTC signaling service using a single collection for all signals.
+ */
 
-// For the initiator
-export const initiateCall = async (chatRoomId: string, callerId: string, calleeId: string, offer: any) => {
-  const callDoc = doc(getRtcSubcollection(chatRoomId, calleeId), callerId);
-  await setDoc(callDoc, { offer });
-};
+export interface Signal {
+    sender: string;
+    receiver: string;
+    signal: any;
+    timestamp: Timestamp;
+}
 
-// For the receiver
-export const listenForCalls = (chatRoomId: string, userId: string, callback: (callerId: string, offer: any) => void) => {
-  const callsRef = getRtcSubcollection(chatRoomId, userId);
-  return onSnapshot(callsRef, (snapshot) => {
-    snapshot.docChanges().forEach((change) => {
-      if (change.type === 'added') {
-        const data = change.doc.data();
-        if (data.offer) {
-          callback(change.doc.id, data.offer);
-        }
-      }
-    });
-  });
-};
+const getSignalsCollection = (chatRoomId: string) => collection(db, 'chatRooms', chatRoomId, 'rtc_signals');
 
-// For the receiver after creating an answer
-export const answerCall = async (chatRoomId: string, calleeId: string, callerId: string, answer: any) => {
-  const callDoc = doc(getRtcSubcollection(chatRoomId, callerId), calleeId);
-  await setDoc(callDoc, { answer }, { merge: true });
-};
-
-
-// For the initiator to listen for an answer
-export const listenForAnswers = (chatRoomId: string, callerId: string, callback: (answer: any) => void) => {
-  const answersRef = getRtcSubcollection(chatRoomId, callerId);
-  const q = query(answersRef);
-  return onSnapshot(q, (snapshot) => {
-    snapshot.docChanges().forEach((change) => {
-        if (change.type === 'modified') {
-            const data = change.doc.data();
-            if (data.answer) {
-                 callback(data.answer);
-            }
-        }
-    });
-  });
-};
+/**
+ * Sends a signal from the current user to a specific peer.
+ * @param chatRoomId The ID of the chat room.
+ * @param receiverId The ID of the user to receive the signal.
+ * @param signal The WebRTC signal data (offer, answer, or ICE candidate).
+ */
+export const sendSignal = async (chatRoomId: string, senderId: string, receiverId: string, signal: any) => {
+    try {
+        await addDoc(getSignalsCollection(chatRoomId), {
+            sender: senderId,
+            receiver: receiverId,
+            signal: JSON.parse(JSON.stringify(signal)), // Ensure signal is a plain object
+            timestamp: Timestamp.now(),
+        });
+    } catch (e) {
+        console.error("Error sending signal: ", e);
+    }
+}
 
 
-// For both peers to add ICE candidates
-export const addIceCandidate = async (chatRoomId: string, fromId: string, toId: string, candidate: any) => {
-  const candidatesCollection = collection(db, 'chatRooms', chatRoomId, 'rtc', toId, 'candidates', fromId, 'ice');
-  await setDoc(doc(candidatesCollection), { candidate });
-};
+/**
+ * Listens for incoming signals directed at the current user.
+ * @param chatRoomId The ID of the chat room.
+ * @param currentUserId The ID of the user listening for signals.
+ * @param callback A function to handle the incoming signal and sender's ID.
+ * @returns An unsubscribe function to stop listening.
+ */
+export const listenForSignals = (chatRoomId: string, currentUserId: string, callback: (senderId: string, signal: any) => void) => {
+    const signalsRef = getSignalsCollection(chatRoomId);
+    
+    // Listen for signals specifically addressed to the current user.
+    const q = query(
+        signalsRef, 
+        where('receiver', '==', currentUserId),
+    );
 
-
-// For both peers to listen for ICE candidates
-export const listenForIceCandidates = (chatRoomId: string, peerId: string, callback: (candidate: any) => void) => {
-    const candidatesCollection = collection(db, 'chatRooms', chatRoomId, 'rtc', peerId, 'candidates');
-    const q = query(candidatesCollection);
-
-    return onSnapshot(q, (snapshot) => {
-        snapshot.docChanges().forEach(async (change) => {
-            if (change.type === "added") {
-                const subcollectionRef = collection(db, change.doc.ref.path, 'ice');
-                const iceSnapshot = await getDocs(subcollectionRef);
-                iceSnapshot.docChanges().forEach(iceChange => {
-                     if (iceChange.type === 'added') {
-                        callback(iceChange.doc.data().candidate);
-                    }
-                })
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+        snapshot.docChanges().forEach((change) => {
+            if (change.type === 'added') {
+                const data = change.doc.data() as Signal;
+                callback(data.sender, data.signal);
+                // We can delete the signal doc after processing to keep the collection clean
+                deleteDoc(change.doc.ref);
             }
         });
     });
-};
 
+    return unsubscribe;
+}
 
-// To end a call
-export const hangUp = async (chatRoomId: string, userId: string, peerIds: string[]) => {
-  if (peerIds.length === 0) return;
-  const batch = writeBatch(db);
+/**
+ * Cleans up all signaling documents for a given user. Called when a user leaves.
+ * @param chatRoomId The ID of the chat room.
+ * @param userId The ID of the user whose signals should be cleaned up.
+ */
+export const cleanUpSignals = async (chatRoomId: string, userId: string) => {
+    const signalsRef = getSignalsCollection(chatRoomId);
+    
+    // Create queries for signals sent by or to the user.
+    const sentQuery = query(signalsRef, where('sender', '==', userId));
+    const receivedQuery = query(signalsRef, where('receiver', '==', userId));
+    
+    const batch = writeBatch(db);
 
-  // Notify peers that this user is hanging up
-  for (const peerId of peerIds) {
-    const hangupRef = doc(db, 'chatRooms', chatRoomId, 'rtc', peerId, 'hangup', userId);
-    batch.set(hangupRef, { hungup: true });
-  }
+    try {
+        const [sentSnapshot, receivedSnapshot] = await Promise.all([
+            getDocs(sentQuery),
+            getDocs(receivedQuery)
+        ]);
 
-  // Delete own signaling documents
-  const callsRef = getRtcSubcollection(chatRoomId, userId);
-  const callsSnapshot = await getDocs(callsRef);
-  callsSnapshot.forEach(doc => batch.delete(doc.ref));
+        sentSnapshot.forEach(doc => batch.delete(doc.ref));
+        receivedSnapshot.forEach(doc => batch.delete(doc.ref));
 
-  await batch.commit();
-};
-
-export const listenForHangUps = (chatRoomId: string, callback: (peerId: string) => void) => {
-  const hangupCol = collection(db, 'chatRooms', chatRoomId, 'hangup');
-  return onSnapshot(hangupCol, (snapshot) => {
-    snapshot.docChanges().forEach((change) => {
-      if (change.type === 'added') {
-        callback(change.doc.id);
-      }
-    });
-  });
-};
+        await batch.commit();
+    } catch(e) {
+        console.error("Error cleaning up signals: ", e);
+    }
+}

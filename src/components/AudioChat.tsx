@@ -1,22 +1,16 @@
 
 "use client";
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import Peer from 'simple-peer';
 import { useAuth } from '@/context/AuthContext';
 import {
-  initiateCall,
-  listenForCalls,
-  answerCall,
-  listenForAnswers,
-  addIceCandidate,
-  listenForIceCandidates,
-  hangUp,
-  listenForHangUps,
+  sendSignal,
+  listenForSignals,
+  cleanUpSignals,
 } from '@/services/rtcService';
 import { Button } from './ui/button';
-import { Mic, MicOff, PhoneOff, Phone, Loader2, UserCircle, Rss } from 'lucide-react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
+import { Mic, MicOff, PhoneOff, Phone, Rss } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { Participant } from '@/services/chatRoomService';
 import { cn } from '@/lib/utils';
@@ -48,148 +42,12 @@ export function AudioChat({ chatRoomId, isHost, participants }: AudioChatProps) 
   const [speakingPeers, setSpeakingPeers] = useState<Record<string, boolean>>({});
   
   const audioRefs = useRef<Record<string, HTMLAudioElement>>({});
+  const peersRef = useRef<Record<string, Peer.Instance>>({});
 
   useEffect(() => {
-    // Clean up peers on component unmount
-    return () => {
-      if (currentUser) {
-        hangUp(chatRoomId, currentUser.uid, Object.keys(peers));
-      }
-      localStream?.getTracks().forEach(track => track.stop());
-      Object.values(peers).forEach(peer => peer.destroy());
-    };
-  }, [localStream, peers, chatRoomId, currentUser]);
-
-
-  useEffect(() => {
-    if (!isConnected || !currentUser) return;
-  
-    // Listen for new users to call
-    const callNewUsers = async () => {
-      const approvedParticipants = participants.filter(p => p.status === 'approved' && p.userId !== currentUser.uid);
-      for (const p of approvedParticipants) {
-        if (!peers[p.userId] && p.userId !== currentUser.uid) {
-           console.log(`Attempting to call ${p.displayName} (${p.userId})`);
-           createPeer(p.userId, true);
-        }
-      }
-    };
-    callNewUsers();
-
-  }, [participants, isConnected, currentUser]);
-
-
-  useEffect(() => {
-    if (!isConnected || !currentUser || !localStream) return;
-
-    // Listen for incoming calls
-    const unsubscribeCalls = listenForCalls(chatRoomId, currentUser.uid, async (callerId, offer) => {
-      console.log(`Incoming call from ${callerId}`);
-      if (!peers[callerId]) {
-        const newPeer = createPeer(callerId, false);
-        newPeer.signal(offer);
-      }
-    });
-
-    // Listen for hang-ups
-    const unsubscribeHangUps = listenForHangUps(chatRoomId, (peerId) => {
-        if (peers[peerId]) {
-            console.log(`Peer ${peerId} hung up.`);
-            peers[peerId].destroy();
-            setPeers(prev => {
-                const newPeers = { ...prev };
-                delete newPeers[peerId];
-                return newPeers;
-            });
-        }
-    });
-
-
-    return () => {
-      unsubscribeCalls();
-      unsubscribeHangUps();
-    };
-  }, [isConnected, currentUser, localStream, peers]);
-
-  const createPeer = (peerId: string, initiator: boolean) => {
-    const peer = new Peer({
-      initiator,
-      trickle: true,
-      stream: localStream!,
-    });
-
-    peer.on('signal', (data) => {
-      if (data.type === 'offer') {
-        initiateCall(chatRoomId, currentUser!.uid, peerId, data);
-      } else if (data.type === 'answer') {
-        answerCall(chatRoomId, currentUser!.uid, peerId, data);
-      } else if (data.candidate) {
-        addIceCandidate(chatRoomId, currentUser!.uid, peerId, data);
-      }
-    });
-
-    peer.on('stream', (stream) => {
-      console.log('Got stream from', peerId);
-      if (audioRefs.current[peerId]) {
-        audioRefs.current[peerId].srcObject = stream;
-      }
-      
-      const audioContext = new AudioContext();
-      const source = audioContext.createMediaStreamSource(stream);
-      const analyser = audioContext.createAnalyser();
-      analyser.fftSize = 256;
-      source.connect(analyser);
-
-      const dataArray = new Uint8Array(analyser.frequencyBinCount);
-      const checkSpeaking = () => {
-          analyser.getByteFrequencyData(dataArray);
-          const sum = dataArray.reduce((a, b) => a + b, 0);
-          if (sum > 500) { // Threshold may need adjustment
-              setSpeakingPeers(prev => ({...prev, [peerId]: true}));
-              setTimeout(() => setSpeakingPeers(prev => ({...prev, [peerId]: false})), 500);
-          }
-          requestAnimationFrame(checkSpeaking);
-      };
-      checkSpeaking();
-
-    });
-
-    peer.on('close', () => {
-      console.log(`Connection closed with ${peerId}`);
-      setPeers(prev => {
-        const newPeers = { ...prev };
-        delete newPeers[peerId];
-        return newPeers;
-      });
-    });
-
-    peer.on('error', (err) => {
-      console.error(`Error with peer ${peerId}:`, err);
-       toast({ variant: 'destructive', title: "Connection Error", description: `Could not connect to a user.`})
-    });
-    
-    // Listen for the answer from the peer we called
-    if (initiator) {
-        const unsubAnswer = listenForAnswers(chatRoomId, peerId, (answer) => {
-            if (!peer.destroyed) {
-                peer.signal(answer);
-                unsubAnswer(); // Stop listening after getting the answer
-            }
-        });
-    }
-
-    // Listen for ICE candidates from this specific peer
-    const unsubIce = listenForIceCandidates(chatRoomId, peerId, (candidate) => {
-       if (!peer.destroyed) {
-           peer.signal(candidate);
-       } else {
-           unsubIce();
-       }
-    });
-
-    setPeers(prev => ({ ...prev, [peerId]: peer }));
-    return peer;
-  };
+    // Update the ref whenever the state changes
+    peersRef.current = peers;
+  }, [peers]);
 
   const handleJoin = async () => {
     try {
@@ -203,16 +61,140 @@ export function AudioChat({ chatRoomId, isHost, participants }: AudioChatProps) 
     }
   };
 
-  const handleLeave = () => {
+  const handleLeave = useCallback(() => {
     if (currentUser) {
-      hangUp(chatRoomId, currentUser.uid, Object.keys(peers));
+      cleanUpSignals(chatRoomId, currentUser.uid);
     }
     localStream?.getTracks().forEach(track => track.stop());
-    Object.values(peers).forEach(peer => peer.destroy());
     setLocalStream(null);
+    Object.values(peersRef.current).forEach(peer => peer.destroy());
     setPeers({});
     setIsConnected(false);
-  };
+    toast({ title: "Audio Disconnected" });
+  }, [chatRoomId, currentUser, localStream]);
+  
+  useEffect(() => {
+    return () => {
+      // Ensure cleanup runs on component unmount
+      if (isConnected) {
+        handleLeave();
+      }
+    };
+  }, [isConnected, handleLeave]);
+
+
+  const createPeer = useCallback((peerId: string, initiator: boolean, stream: MediaStream) => {
+    const peer = new Peer({
+      initiator,
+      trickle: true,
+      stream: stream,
+    });
+
+    peer.on('signal', (signal) => {
+      if (currentUser) {
+        sendSignal(chatRoomId, currentUser.uid, peerId, signal);
+      }
+    });
+
+    peer.on('stream', (remoteStream) => {
+      console.log('Got stream from', peerId);
+      if (audioRefs.current[peerId]) {
+        audioRefs.current[peerId].srcObject = remoteStream;
+      }
+      
+      const audioContext = new AudioContext();
+      const source = audioContext.createMediaStreamSource(remoteStream);
+      const analyser = audioContext.createAnalyser();
+      analyser.fftSize = 512;
+      source.connect(analyser);
+
+      const dataArray = new Uint8Array(analyser.frequencyBinCount);
+      const checkSpeaking = () => {
+          if (peer.destroyed) return;
+          analyser.getByteFrequencyData(dataArray);
+          const sum = dataArray.reduce((a, b) => a + b, 0);
+          const isSpeaking = sum > 1000;
+
+          setSpeakingPeers(prev => {
+              if (!!prev[peerId] === isSpeaking) return prev;
+              return { ...prev, [peerId]: isSpeaking }
+          });
+          requestAnimationFrame(checkSpeaking);
+      };
+      checkSpeaking();
+
+    });
+    
+     peer.on('close', () => {
+        console.log(`Connection closed with ${peerId}`);
+        setPeers(prev => {
+            const newPeers = { ...prev };
+            delete newPeers[peerId];
+            return newPeers;
+        });
+    });
+
+    peer.on('error', (err) => {
+      console.error(`Error with peer ${peerId}:`, err);
+       setPeers(prev => {
+            const newPeers = { ...prev };
+            delete newPeers[peerId];
+            return newPeers;
+        });
+    });
+
+    return peer;
+  }, [chatRoomId, currentUser]);
+
+
+  useEffect(() => {
+    if (!isConnected || !localStream || !currentUser) return;
+
+    // Listen for signals from other peers
+    const unsubscribe = listenForSignals(chatRoomId, currentUser.uid, (senderId, signal) => {
+        let peer = peersRef.current[senderId];
+        if (!peer) {
+            // This is a new connection from another peer
+            peer = createPeer(senderId, false, localStream);
+            setPeers(prev => ({ ...prev, [senderId]: peer }));
+        }
+        peer.signal(signal);
+    });
+
+    return () => unsubscribe();
+
+  }, [isConnected, localStream, currentUser, chatRoomId, createPeer]);
+  
+  useEffect(() => {
+    if (!isConnected || !localStream || !currentUser) return;
+    
+    // Call new participants joining the room
+    const approvedParticipants = participants.filter(p => p.status === 'approved' && p.userId !== currentUser.uid);
+    
+    approvedParticipants.forEach(p => {
+        if (!peersRef.current[p.userId]) {
+            console.log(`Attempting to initiate call with ${p.displayName}`);
+            const newPeer = createPeer(p.userId, true, localStream);
+            setPeers(prev => ({...prev, [p.userId]: newPeer}));
+        }
+    });
+
+    // Clean up connections for participants who have left
+    const approvedParticipantIds = new Set(approvedParticipants.map(p => p.userId));
+    Object.keys(peersRef.current).forEach(peerId => {
+      if (!approvedParticipantIds.has(peerId)) {
+        console.log(`Cleaning up stale peer connection: ${peerId}`);
+        peersRef.current[peerId].destroy();
+        setPeers(prev => {
+          const newPeers = { ...prev };
+          delete newPeers[peerId];
+          return newPeers;
+        });
+      }
+    });
+
+  }, [participants, isConnected, localStream, currentUser, createPeer]);
+
 
   const toggleMute = () => {
     if (localStream) {
@@ -224,7 +206,6 @@ export function AudioChat({ chatRoomId, isHost, participants }: AudioChatProps) 
   };
   
   const connectedParticipants = participants.filter(p => p.status === 'approved' && (peers[p.userId] || p.userId === currentUser?.uid));
-
 
   if (!isConnected) {
     return (
@@ -240,7 +221,7 @@ export function AudioChat({ chatRoomId, isHost, participants }: AudioChatProps) 
   return (
     <div className="w-full h-full flex flex-col">
        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 mb-4">
-        {connectedParticipants.map(p => (
+        {participants.filter(p => p.status === 'approved').map(p => (
             <div key={p.userId} className={cn(
                 "flex flex-col items-center gap-2 p-3 rounded-lg border text-center transition-all",
                 speakingPeers[p.userId] && "bg-primary/20 border-primary shadow-lg scale-105"

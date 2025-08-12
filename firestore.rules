@@ -1,3 +1,4 @@
+
 rules_version = '2';
 
 service cloud.firestore {
@@ -60,7 +61,7 @@ service cloud.firestore {
 
       // UPDATE: Only the host can update room details (e.g., end session, feature message, update typing status).
       // Also allow any authenticated user to update likes/dislikes array.
-      allow update: if request.auth != null && (isHost(chatRoomId) || request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes', 'dislikes', 'likers', 'dislikers']));
+      allow update: if request.auth != null && (isHost(chatRoomId) || request.resource.data.diff(request.resource.data).affectedKeys().hasOnly(['likes', 'dislikes', 'likers', 'dislikers']));
 
 
       // DELETE: Only the host can delete their own chat room.
@@ -96,28 +97,30 @@ service cloud.firestore {
         // UPDATE: Only approved participants (or the host) can vote on messages.
         allow update: if request.auth != null && isApprovedOrHost(chatRoomId, request.auth.uid);
 
-        // DELETE: A user can only delete their own message.
-        allow delete: if request.auth != null && (
-          isHost(chatRoomId) || request.resource.data.userId == request.auth.uid
-        );
+        // DELETE: Only the host or the message owner can delete a message.
+        allow delete: if request.auth != null && (isHost(chatRoomId) || isOwner(resource.data.userId));
       }
 
-      // -- POLLS --
-      match /polls/{pollId} {
-        // READ/LIST: Only approved participants (or the host) can see polls.
-        allow get, list: if request.auth != null && isApprovedOrHost(chatRoomId, request.auth.uid);
-
-        // CREATE/DELETE: Only the host can create or delete a poll.
-        allow create, delete: if request.auth != null && isHost(chatRoomId);
-
-        // UPDATE: The host can update the poll (end it, toggle visibility). Approved users can vote.
-        allow update: if request.auth != null && isApprovedOrHost(chatRoomId, request.auth.uid);
-      }
+      // -- POLLS & QUIZZES (Handled via chatRoom document updates) --
       
-      // -- RTC --
-      // This rule allows approved participants to manage their WebRTC signaling documents for audio chat.
-      match /rtc/{document=**} {
-        allow read, write, delete: if request.auth != null && isApprovedOrHost(chatRoomId, request.auth.uid);
+      // -- RTC SIGNALS for AUDIO CHAT --
+      match /rtc_signals/{signalId} {
+          // CREATE: An approved participant can send a signal to another user.
+          allow create: if request.auth != null 
+                        && isApprovedOrHost(chatRoomId, request.auth.uid)
+                        && request.resource.data.sender == request.auth.uid;
+
+          // READ: An approved participant can only read signals intended for them.
+          allow read: if request.auth != null
+                      && isApprovedOrHost(chatRoomId, request.auth.uid)
+                      && resource.data.receiver == request.auth.uid;
+
+          // DELETE: An approved participant can delete signals intended for them to clean up.
+          allow delete: if request.auth != null
+                       && isApprovedOrHost(chatRoomId, request.auth.uid)
+                       && resource.data.receiver == request.auth.uid;
+          
+          allow list: if request.auth != null && isApprovedOrHost(chatRoomId, request.auth.uid);
       }
     }
   }
