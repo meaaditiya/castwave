@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from 'react';
@@ -160,11 +161,7 @@ export function AudioChat({ chatRoomId, isHost, participants }: AudioChatProps) 
             peer = createPeer(senderId, false, localStream);
             setPeers(prev => ({ ...prev, [senderId]: peer }));
         }
-        try {
-            peer.signal(signal);
-        } catch (err) {
-            console.error("Error processing signal:", err);
-        }
+        peer.signal(signal);
     });
 
     return () => unsubscribe();
