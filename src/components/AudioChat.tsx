@@ -88,6 +88,12 @@ export function AudioChat({ chatRoomId, isHost, participants }: AudioChatProps) 
       initiator,
       trickle: true,
       stream: stream,
+      config: {
+        iceServers: [
+          { urls: 'stun:stun.l.google.com:19302' },
+          { urls: 'stun:global.stun.twilio.com:3478' }
+        ]
+      }
     });
 
     peer.on('signal', (signal) => {
@@ -160,7 +166,11 @@ export function AudioChat({ chatRoomId, isHost, participants }: AudioChatProps) 
             peer = createPeer(senderId, false, localStream);
             setPeers(prev => ({ ...prev, [senderId]: peer }));
         }
-        peer.signal(signal);
+        try {
+            peer.signal(signal);
+        } catch (err) {
+            console.error("Error processing signal:", err);
+        }
     });
 
     return () => unsubscribe();
