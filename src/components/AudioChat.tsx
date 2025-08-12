@@ -278,4 +278,3 @@ export function AudioChat({ chatRoomId, isHost, participants }: AudioChatProps) 
     </div>
   );
 }
-    
