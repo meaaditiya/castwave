@@ -272,7 +272,7 @@ export function AudioChat({ chatRoomId, isHost, participants }: AudioChatProps) 
     <div className="w-full h-full flex flex-col">
        {remoteScreenStream || localScreenStream ? (
            <div className="mb-4 aspect-video bg-black rounded-lg relative">
-              <video ref={videoRef} className="w-full h-full rounded-lg" autoPlay playsInline />
+              <video ref={videoRef} className="w-full h-full rounded-lg" autoPlay playsInline muted={screenSharerId === currentUser?.uid} />
                <Badge className="absolute bottom-2 right-2">
                  {screenSharerId === currentUser?.uid ? 'You are sharing your screen' : `${participants.find(p => p.userId === screenSharerId)?.displayName || 'Someone'} is sharing their screen`}
                </Badge>
