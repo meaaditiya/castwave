@@ -84,11 +84,16 @@ export function AudioChat({ chatRoomId, isHost, participants }: AudioChatProps) 
 
 
   const createPeer = useCallback((peerId: string, initiator: boolean, stream: MediaStream) => {
-    console.log(`Creating peer for ${peerId}, initiator: ${initiator}`);
     const peer = new Peer({
       initiator,
       trickle: true,
       stream: stream,
+      config: {
+        iceServers: [
+          { urls: 'stun:stun.l.google.com:19302' },
+          { urls: 'stun:stun1.l.google.com:19302' },
+        ],
+      },
     });
 
     peer.on('signal', (signal) => {
@@ -273,3 +278,4 @@ export function AudioChat({ chatRoomId, isHost, participants }: AudioChatProps) 
     </div>
   );
 }
+    
