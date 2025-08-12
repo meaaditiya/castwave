@@ -250,19 +250,7 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
     return <ChatRoomPageSkeleton />;
   }
 
-  if (!isHost && myParticipantRecord) {
-      if (myParticipantRecord.status === 'pending') {
-          return <AwaitingApprovalScreen />;
-      }
-      if (myParticipantRecord.status === 'denied') {
-          return <AccessDeniedScreen onReRequest={handleReRequest} />;
-      }
-      if (myParticipantRecord.status === 'removed') {
-          return <RemovedScreen onReRequest={handleReRequest} />;
-      }
-  }
-
-  if (!chatRoom.isLive && !isHost && !isApprovedParticipant) {
+  if (!isHost && !chatRoom.isLive) {
       return (
           <div className="min-h-screen flex flex-col">
               <Header />
@@ -284,6 +272,18 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
       )
   }
 
+  if (!isHost && myParticipantRecord) {
+      if (myParticipantRecord.status === 'pending') {
+          return <AwaitingApprovalScreen />;
+      }
+      if (myParticipantRecord.status === 'denied') {
+          return <AccessDeniedScreen onReRequest={handleReRequest} />;
+      }
+      if (myParticipantRecord.status === 'removed') {
+          return <RemovedScreen onReRequest={handleReRequest} />;
+      }
+  }
+  
   const fullChatLog = chatLog.map(msg => `${msg.user}: ${msg.text}`).join('\n');
   const chatRoomDetails = {
     ...chatRoom,
