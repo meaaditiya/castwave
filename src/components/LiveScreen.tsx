@@ -39,7 +39,6 @@ export function LiveScreen({ id: chatRoomId, title, host, hostId, isLive, imageH
   const featuredParticipant = featuredMessage ? participants.find(p => p.userId === featuredMessage.userId) : null;
   const [currentTab, setCurrentTab] = useState<'interaction' | 'featured' | 'audio'>('interaction');
   const [isFullScreen, setIsFullScreen] = useState(false);
-  const [showAudioChat, setShowAudioChat] = useState(false);
 
   useEffect(() => {
     if (activeQuiz || activePoll) {
@@ -169,7 +168,7 @@ export function LiveScreen({ id: chatRoomId, title, host, hostId, isLive, imageH
       <CardContent className="bg-card/50 p-4 md:p-6 flex flex-col flex-1 min-h-0">
        {isLive ? (
         <div className="flex flex-col flex-1">
-            <Tabs value={currentTab} onValueChange={setCurrentTab} className="w-full flex-1 flex flex-col">
+            <Tabs value={currentTab} onValueChange={setCurrentTab} className="w-full">
                 <TabsList className="grid w-full grid-cols-3">
                     <TabsTrigger value="interaction">
                         {activeQuiz || activePoll ? <ListChecks className="mr-2" /> : <HelpCircle className="mr-2" />}
@@ -184,8 +183,10 @@ export function LiveScreen({ id: chatRoomId, title, host, hostId, isLive, imageH
                         Featured
                     </TabsTrigger>
                 </TabsList>
-                 <TabsContent value="interaction" className="flex-1 flex flex-col justify-center items-center pt-4">
-                    {activeQuiz ? (
+            </Tabs>
+             <div className="flex-1 flex flex-col justify-center items-center pt-4">
+                <div className={cn("w-full h-full", currentTab === 'interaction' ? 'block' : 'hidden')}>
+                   {activeQuiz ? (
                         <LiveQuiz
                           chatRoomId={chatRoomId}
                           isHost={isHost}
@@ -207,8 +208,8 @@ export function LiveScreen({ id: chatRoomId, title, host, hostId, isLive, imageH
                             {renderNoInteractionContent()}
                         </div>
                     )}
-                 </TabsContent>
-                 <TabsContent value="featured" className="flex-1 flex flex-col justify-center items-center pt-4">
+                </div>
+                 <div className={cn("w-full h-full", currentTab === 'featured' ? 'block' : 'hidden')}>
                     {featuredMessage && featuredParticipant ? (
                         <div className="w-full space-y-4 animate-in fade-in-50 duration-500 relative">
                           {isHost && (
@@ -250,9 +251,8 @@ export function LiveScreen({ id: chatRoomId, title, host, hostId, isLive, imageH
                             )}
                         </div>
                   )}
-                 </TabsContent>
-                 <TabsContent value="audio" className="flex-1 flex flex-col justify-center items-center">
-                    <div className="w-full h-full">
+                 </div>
+                 <div className={cn("w-full h-full", currentTab === 'audio' ? 'block' : 'hidden')}>
                      {currentUser && (
                         <AudioChat 
                             chatRoomId={chatRoomId}
@@ -260,10 +260,8 @@ export function LiveScreen({ id: chatRoomId, title, host, hostId, isLive, imageH
                             participants={participants}
                         />
                      )}
-                     </div>
-                 </TabsContent>
-            </Tabs>
-
+                 </div>
+            </div>
             <div className="flex items-center space-x-4 pt-4 mt-auto justify-center">
                 <Button variant="outline" onClick={handleShare}>
                     <Share2 className="mr-2" />
