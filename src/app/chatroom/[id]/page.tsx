@@ -19,6 +19,8 @@ import { Button } from '@/components/ui/button';
 import { HighlightTool } from '@/components/HighlightTool';
 import { cn } from '@/lib/utils';
 import { ParticipantsList } from '@/components/ParticipantsList';
+import { LivePoll } from '@/components/LivePoll';
+import { LiveQuiz } from '@/components/LiveQuiz';
 
 
 function ChatRoomPageSkeleton() {
@@ -292,6 +294,7 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
 
 
   return (
+    <>
     <div className="min-h-screen flex flex-col">
       <Header />
        <main className={cn(
@@ -304,7 +307,9 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
         )}>
           <LiveScreen 
             {...chatRoomDetails} 
-            className="h-full min-h-[650px]" 
+            className="h-full min-h-[650px]"
+            createPollDialog={<LivePoll chatRoomId={chatRoomId} isHost={isHost} currentUserId={currentUser.uid} activePoll={chatRoom.activePoll} renderNoPollContent={() => <></>} />}
+            createQuizDialog={<LiveQuiz chatRoomId={chatRoomId} isHost={isHost} currentUserId={currentUser.uid} participants={participants} activeQuiz={chatRoom.activeQuiz} renderNoQuizContent={() => <></>} />}
           />
         </div>
 
@@ -361,7 +366,6 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
         </div>
       </main>
     </div>
+    </>
   );
 }
-
-    

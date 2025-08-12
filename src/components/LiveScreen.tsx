@@ -24,9 +24,11 @@ interface LiveScreenProps extends ChatRoom {
   isHost?: boolean;
   participants: Participant[];
   className?: string;
+  createPollDialog: React.ReactNode;
+  createQuizDialog: React.ReactNode;
 }
 
-export function LiveScreen({ id: chatRoomId, title, host, hostId, isLive, imageHint, isHost = false, featuredMessage, hostReply, participants, activeQuiz, activePoll, className }: LiveScreenProps) {
+export function LiveScreen({ id: chatRoomId, title, host, hostId, isLive, imageHint, isHost = false, featuredMessage, hostReply, participants, activeQuiz, activePoll, className, createPollDialog, createQuizDialog }: LiveScreenProps) {
   const [isEnding, setIsEnding] = useState(false);
   const [isStarting, setIsStarting] = useState(false);
   const { toast } = useToast();
@@ -37,6 +39,7 @@ export function LiveScreen({ id: chatRoomId, title, host, hostId, isLive, imageH
   const featuredParticipant = featuredMessage ? participants.find(p => p.userId === featuredMessage.userId) : null;
   const [currentTab, setCurrentTab] = useState<'interaction' | 'featured' | 'audio'>('interaction');
   const [isFullScreen, setIsFullScreen] = useState(false);
+  const [showAudioChat, setShowAudioChat] = useState(false);
 
   useEffect(() => {
     if (activeQuiz || activePoll) {
@@ -110,11 +113,14 @@ export function LiveScreen({ id: chatRoomId, title, host, hostId, isLive, imageH
   }
 
   const renderNoInteractionContent = () => (
-    <div className="text-center text-muted-foreground space-y-2">
+    <div className="text-center text-muted-foreground space-y-4">
         <MessageSquare className="mx-auto h-12 w-12 text-primary/20" />
         <p className="font-bold">The Screen is Live!</p>
         {isHost ? (
-            <p className="text-sm">Create a quiz or poll to engage your audience.</p>
+            <div className="flex items-center justify-center gap-2">
+               {createPollDialog}
+               {createQuizDialog}
+            </div>
         ) : (
             <p className="text-sm">The host can start a quiz or poll at any time.</p>
         )}
