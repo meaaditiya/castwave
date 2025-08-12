@@ -1,4 +1,3 @@
-
 "use client";
 
 import Image from 'next/image';
@@ -200,35 +199,6 @@ export function LiveScreen({ id: chatRoomId, title, host, hostId, isLive, imageH
                     ) : (
                          <div className="flex flex-col items-center justify-center h-full gap-4 text-center">
                             {renderNoInteractionContent()}
-                            {isHost && (
-                                <div className="flex gap-4 mt-4">
-                                     <Dialog>
-                                        <DialogTrigger asChild>
-                                            <Button variant="outline"><Plus className="mr-2" /> Create Poll</Button>
-                                        </DialogTrigger>
-                                        <LivePoll
-                                            chatRoomId={chatRoomId}
-                                            isHost={isHost}
-                                            currentUserId={currentUser!.uid}
-                                            activePoll={null}
-                                            renderNoPollContent={() => <></>}
-                                        />
-                                    </Dialog>
-                                     <Dialog>
-                                        <DialogTrigger asChild>
-                                             <Button variant="outline"><Plus className="mr-2" /> Create Quiz</Button>
-                                        </DialogTrigger>
-                                         <LiveQuiz
-                                            chatRoomId={chatRoomId}
-                                            isHost={isHost}
-                                            currentUserId={currentUser!.uid}
-                                            participants={participants}
-                                            activeQuiz={null}
-                                            renderNoQuizContent={() => <></>}
-                                        />
-                                    </Dialog>
-                                </div>
-                            )}
                         </div>
                     )}
                  </TabsContent>
@@ -275,7 +245,8 @@ export function LiveScreen({ id: chatRoomId, title, host, hostId, isLive, imageH
                         </div>
                   )}
                  </TabsContent>
-                 <TabsContent value="audio" className="flex-1 flex flex-col justify-center items-center pt-4">
+                 <TabsContent value="audio" className="flex-1 flex flex-col justify-center items-center">
+                    <div className="w-full h-full">
                      {currentUser && (
                         <AudioChat 
                             chatRoomId={chatRoomId}
@@ -283,6 +254,7 @@ export function LiveScreen({ id: chatRoomId, title, host, hostId, isLive, imageH
                             participants={participants}
                         />
                      )}
+                     </div>
                  </TabsContent>
             </Tabs>
 
@@ -315,5 +287,3 @@ export function LiveScreen({ id: chatRoomId, title, host, hostId, isLive, imageH
     </Card>
   );
 }
-
-    
