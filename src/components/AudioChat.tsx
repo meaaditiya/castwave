@@ -38,7 +38,7 @@ export function AudioChat({ chatRoomId, isHost, participants }: AudioChatProps) 
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   const [peers, setPeers] = useState<Record<string, Peer.Instance>>({});
   const [isConnected, setIsConnected] = useState(false);
-  const [isMuted, setIsMuted] = useState(false);
+  const [isSelfMuted, setIsSelfMuted] = useState(false);
   const [isSpeakerOn, setIsSpeakerOn] = useState(true);
   const [speakingPeers, setSpeakingPeers] = useState<Record<string, boolean>>({});
   
@@ -53,15 +53,9 @@ export function AudioChat({ chatRoomId, isHost, participants }: AudioChatProps) 
   useEffect(() => {
     if (currentUser) {
         const me = participants.find(p => p.userId === currentUser.uid);
-        if (me) {
-            setMyParticipantInfo(me);
-            // If host mutes us, update local mute state
-            if (me.isMuted && !isMuted) {
-                toggleMute(true); 
-            }
-        }
+        setMyParticipantInfo(me || null);
     }
-  }, [participants, currentUser, isMuted]);
+  }, [participants, currentUser]);
 
   const handleJoin = async () => {
     try {
@@ -174,6 +168,8 @@ export function AudioChat({ chatRoomId, isHost, participants }: AudioChatProps) 
     const unsubscribe = listenForSignals(chatRoomId, currentUser.uid, (senderId, signal) => {
         let peer = peersRef.current[senderId];
         if (!peer) {
+            const shouldInitiate = currentUser.uid < senderId;
+            // if we should not initiate, it means the other peer is initiating, so we set initiator to false
             peer = createPeer(senderId, false, localStream);
             setPeers(prev => ({ ...prev, [senderId]: peer }));
         }
@@ -216,18 +212,25 @@ export function AudioChat({ chatRoomId, isHost, participants }: AudioChatProps) 
     });
 
   }, [participants, isConnected, localStream, currentUser, createPeer]);
-
-  const toggleMute = (forceMute?: boolean) => {
-    if (myParticipantInfo?.isMuted && !isHost) return;
+  
+  // This effect synchronizes the local audio track's enabled state with the mute states
+  useEffect(() => {
     if (localStream) {
-        const newMutedState = forceMute !== undefined ? forceMute : !isMuted;
+        const isHostMuted = myParticipantInfo?.isMuted ?? false;
+        const finalMuteState = isHostMuted || isSelfMuted;
         localStream.getAudioTracks().forEach(track => {
-            track.enabled = !newMutedState;
+            track.enabled = !finalMuteState;
         });
-        setIsMuted(newMutedState);
-        if (currentUser) {
-           updateParticipantMuteStatus(chatRoomId, currentUser.uid, newMutedState);
-        }
+    }
+  }, [isSelfMuted, myParticipantInfo, localStream]);
+
+
+  const toggleSelfMute = () => {
+    // A user can always mute themselves. They can only unmute if not muted by host.
+    if (!myParticipantInfo?.isMuted) {
+       setIsSelfMuted(prev => !prev);
+    } else {
+        setIsSelfMuted(true); // Ensure self-mute is on if host-muted
     }
   };
 
@@ -267,6 +270,8 @@ export function AudioChat({ chatRoomId, isHost, participants }: AudioChatProps) 
     await updateParticipantHandRaiseStatus(chatRoomId, currentUser.uid, newHandRaiseState);
   }
 
+  const isActuallyMuted = isSelfMuted || (myParticipantInfo?.isMuted ?? false);
+
   if (!isConnected) {
     return (
       <div className="flex flex-col items-center justify-center h-full gap-4 text-center">
@@ -288,21 +293,32 @@ export function AudioChat({ chatRoomId, isHost, participants }: AudioChatProps) 
                 speakingPeers[p.userId] && "bg-primary/20 border-primary shadow-lg scale-105",
                 p.handRaised && "border-yellow-500 border-2"
             )}>
-                {p.handRaised && <Hand className="absolute top-1 right-1 h-5 w-5 text-yellow-500" />}
+                {p.handRaised && (
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <span className="absolute top-1 right-1"><Hand className="h-5 w-5 text-yellow-500" /></span>
+                        </TooltipTrigger>
+                        <TooltipContent>Wants to speak</TooltipContent>
+                    </Tooltip>
+                )}
                 <Avatar className="h-16 w-16">
                     <AvatarImage src={p.photoURL} alt={p.displayName}/>
                     <AvatarFallback>{getInitials(p.displayName)}</AvatarFallback>
                 </Avatar>
                 <div className="flex items-center gap-1">
-                    {p.isMuted && <MicOff className="h-4 w-4 text-destructive" />}
+                    {(p.userId === currentUser?.uid ? isActuallyMuted : p.isMuted) && <MicOff className="h-4 w-4 text-destructive" />}
                     <p className="font-semibold text-sm truncate w-full">{p.displayName}</p>
                 </div>
                 {p.userId === currentUser?.uid && <Badge variant="outline">You</Badge>}
                 {isHost && p.userId !== currentUser?.uid && (
-                    <Button size="sm" variant="outline" className="mt-1" onClick={() => handleHostMute(p.userId, !p.isMuted)}>
-                        {p.isMuted ? <Volume2 /> : <MicOff />}
-                        {p.isMuted ? 'Unmute' : 'Mute'}
-                    </Button>
+                     <Tooltip>
+                        <TooltipTrigger asChild>
+                             <Button size="sm" variant="outline" className="mt-1" onClick={() => handleHostMute(p.userId, !p.isMuted)}>
+                                {p.isMuted ? <Volume2 /> : <MicOff />}
+                            </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>{p.isMuted ? 'Unmute User' : 'Mute User'}</TooltipContent>
+                    </Tooltip>
                 )}
             </div>
         ))}
@@ -311,11 +327,11 @@ export function AudioChat({ chatRoomId, isHost, participants }: AudioChatProps) 
        <div className="mt-auto flex items-center justify-center space-x-2 md:space-x-4 pt-4 border-t">
           <Tooltip>
             <TooltipTrigger asChild>
-                <Button onClick={() => toggleMute()} variant={isMuted ? 'destructive' : 'outline'} size="lg" className="rounded-full h-14 w-14" disabled={myParticipantInfo?.isMuted && !isHost}>
-                    {isMuted ? <MicOff /> : <Mic />}
+                <Button onClick={toggleSelfMute} variant={isActuallyMuted ? 'destructive' : 'outline'} size="lg" className="rounded-full h-14 w-14" disabled={myParticipantInfo?.isMuted && !isHost}>
+                    {isActuallyMuted ? <MicOff /> : <Mic />}
                 </Button>
             </TooltipTrigger>
-            <TooltipContent>{isMuted ? 'Unmute' : 'Mute'}</TooltipContent>
+            <TooltipContent>{isActuallyMuted ? 'Muted' : 'Mute'}</TooltipContent>
           </Tooltip>
 
           <Tooltip>
@@ -333,7 +349,7 @@ export function AudioChat({ chatRoomId, isHost, participants }: AudioChatProps) 
                     {isSpeakerOn ? <Volume2 /> : <VolumeX />}
                 </Button>
             </TooltipTrigger>
-            <TooltipContent>{isSpeakerOn ? 'Mute Speaker' : 'Unmute Speaker'}</TooltipContent>
+            <TooltipContent>{isSpeakerOn ? 'Speakers On' : 'Speakers Off'}</TooltipContent>
           </Tooltip>
          
            {!isHost && (
@@ -343,7 +359,7 @@ export function AudioChat({ chatRoomId, isHost, participants }: AudioChatProps) 
                         <Hand />
                     </Button>
                 </TooltipTrigger>
-                <TooltipContent>{myParticipantInfo?.handRaised ? 'Lower Hand' : 'Raise Hand'}</TooltipContent>
+                <TooltipContent>{myParticipantInfo?.handRaised ? 'Lower Hand' : 'Willing to Speak'}</TooltipContent>
             </Tooltip>
            )}
 
