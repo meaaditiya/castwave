@@ -126,7 +126,7 @@ export function LiveScreen({ id: chatRoomId, title, host, hostId, isLive, imageH
   return (
     <Card className={cn(
         "overflow-hidden shadow-lg flex flex-col transition-all duration-300",
-        isFullScreen ? "fixed inset-0 z-[100] rounded-none h-screen" : "relative h-full min-h-[650px]",
+        isFullScreen ? "fixed inset-0 z-[100] rounded-none h-screen" : "relative h-full",
         className
     )}>
        <CardHeader className="flex flex-row items-start justify-between gap-4 p-4 md:p-6">
@@ -202,28 +202,23 @@ export function LiveScreen({ id: chatRoomId, title, host, hostId, isLive, imageH
                             {renderNoInteractionContent()}
                             {isHost && (
                                 <div className="flex gap-4 mt-4">
-                                     <LivePoll
-                                        chatRoomId={chatRoomId} isHost={isHost} currentUserId={currentUser!.uid} activePoll={null}
-                                        renderNoPollContent={() => <></>}
-                                     />
-                                      <LiveQuiz
-                                        chatRoomId={chatRoomId} isHost={isHost} currentUserId={currentUser!.uid} participants={participants} activeQuiz={null}
-                                        renderNoQuizContent={() => <></>}
-                                     />
+                                     <Dialog>
+                                         <LivePoll
+                                            chatRoomId={chatRoomId} isHost={isHost} currentUserId={currentUser!.uid} activePoll={null}
+                                            renderNoPollContent={() => <></>}
+                                         />
+                                     </Dialog>
+                                     <Dialog>
+                                          <LiveQuiz
+                                            chatRoomId={chatRoomId} isHost={isHost} currentUserId={currentUser!.uid} participants={participants} activeQuiz={null}
+                                            renderNoQuizContent={() => <></>}
+                                         />
+                                     </Dialog>
                                 </div>
                             )}
                         </div>
                     )}
                  </TabsContent>
-                  <TabsContent value="audio" className="flex-1 flex flex-col justify-center items-center pt-4">
-                     {currentUser && (
-                       <AudioChat 
-                          chatRoomId={chatRoomId}
-                          isHost={isHost}
-                          participants={participants}
-                       />
-                     )}
-                  </TabsContent>
                  <TabsContent value="featured" className="flex-1 flex flex-col justify-center items-center pt-4">
                     {featuredMessage && featuredParticipant ? (
                         <div className="w-full space-y-4 animate-in fade-in-50 duration-500 relative">
@@ -268,6 +263,17 @@ export function LiveScreen({ id: chatRoomId, title, host, hostId, isLive, imageH
                   )}
                  </TabsContent>
             </Tabs>
+
+            {/* Audio chat is now outside tabs to persist, but visibility is controlled by tab */}
+            <div className={cn("flex-1 flex-col justify-center items-center pt-4", currentTab === 'audio' ? 'flex' : 'hidden')}>
+                {currentUser && (
+                    <AudioChat 
+                        chatRoomId={chatRoomId}
+                        isHost={isHost}
+                        participants={participants}
+                    />
+                )}
+            </div>
            
             <div className="flex items-center space-x-4 pt-4 mt-auto justify-center">
                 <Button variant="outline" onClick={handleShare}>
