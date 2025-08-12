@@ -250,6 +250,8 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
     return <ChatRoomPageSkeleton />;
   }
 
+  // If the user is not the host and the session is not live, show the ended screen.
+  // This is the primary gatekeeper for non-hosts.
   if (!isHost && !chatRoom.isLive) {
       return (
           <div className="min-h-screen flex flex-col">
