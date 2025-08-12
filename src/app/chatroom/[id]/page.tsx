@@ -19,9 +19,6 @@ import { Button } from '@/components/ui/button';
 import { HighlightTool } from '@/components/HighlightTool';
 import { cn } from '@/lib/utils';
 import { ParticipantsList } from '@/components/ParticipantsList';
-import { Dialog, DialogTrigger } from '@/components/ui/dialog';
-import { LivePoll } from '@/components/LivePoll';
-import { LiveQuiz } from '@/components/LiveQuiz';
 
 
 function ChatRoomPageSkeleton() {
@@ -293,36 +290,6 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
     participants: participants,
   };
 
-  const createPollTrigger = (
-      <Dialog>
-        <DialogTrigger asChild>
-          <Button variant="outline" className="mt-4"><Plus className="mr-2" /> Create Poll</Button>
-        </DialogTrigger>
-        <LivePoll
-          chatRoomId={chatRoomId}
-          isHost={isHost}
-          currentUserId={currentUser.uid}
-          activePoll={null}
-          renderNoPollContent={() => <></>}
-        />
-      </Dialog>
-    );
-
-  const createQuizTrigger = (
-      <Dialog>
-          <DialogTrigger asChild>
-              <Button variant="outline" className="mt-4"><Plus className="mr-2" /> Create Quiz</Button>
-          </DialogTrigger>
-          <LiveQuiz
-              chatRoomId={chatRoomId}
-              isHost={isHost}
-              currentUserId={currentUser.uid}
-              participants={participants}
-              activeQuiz={null}
-              renderNoQuizContent={() => <></>}
-          />
-      </Dialog>
-  );
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -337,9 +304,7 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
         )}>
           <LiveScreen 
             {...chatRoomDetails} 
-            className="h-full" 
-            createPollTrigger={createPollTrigger}
-            createQuizTrigger={createQuizTrigger}
+            className="h-full min-h-[650px]" 
           />
         </div>
 
@@ -398,3 +363,5 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
     </div>
   );
 }
+
+    

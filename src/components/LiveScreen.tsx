@@ -25,11 +25,9 @@ interface LiveScreenProps extends ChatRoom {
   isHost?: boolean;
   participants: Participant[];
   className?: string;
-  createPollTrigger?: React.ReactNode;
-  createQuizTrigger?: React.ReactNode;
 }
 
-export function LiveScreen({ id: chatRoomId, title, host, hostId, isLive, imageHint, isHost = false, featuredMessage, hostReply, participants, activeQuiz, activePoll, className, createPollTrigger, createQuizTrigger }: LiveScreenProps) {
+export function LiveScreen({ id: chatRoomId, title, host, hostId, isLive, imageHint, isHost = false, featuredMessage, hostReply, participants, activeQuiz, activePoll, className }: LiveScreenProps) {
   const [isEnding, setIsEnding] = useState(false);
   const [isStarting, setIsStarting] = useState(false);
   const { toast } = useToast();
@@ -204,8 +202,31 @@ export function LiveScreen({ id: chatRoomId, title, host, hostId, isLive, imageH
                             {renderNoInteractionContent()}
                             {isHost && (
                                 <div className="flex gap-4 mt-4">
-                                     {createPollTrigger}
-                                     {createQuizTrigger}
+                                     <Dialog>
+                                        <DialogTrigger asChild>
+                                            <Button variant="outline"><Plus className="mr-2" /> Create Poll</Button>
+                                        </DialogTrigger>
+                                        <LivePoll
+                                            chatRoomId={chatRoomId}
+                                            isHost={isHost}
+                                            currentUserId={currentUser!.uid}
+                                            activePoll={null}
+                                            renderNoPollContent={() => <></>}
+                                        />
+                                    </Dialog>
+                                     <Dialog>
+                                        <DialogTrigger asChild>
+                                             <Button variant="outline"><Plus className="mr-2" /> Create Quiz</Button>
+                                        </DialogTrigger>
+                                         <LiveQuiz
+                                            chatRoomId={chatRoomId}
+                                            isHost={isHost}
+                                            currentUserId={currentUser!.uid}
+                                            participants={participants}
+                                            activeQuiz={null}
+                                            renderNoQuizContent={() => <></>}
+                                        />
+                                    </Dialog>
                                 </div>
                             )}
                         </div>
@@ -254,18 +275,17 @@ export function LiveScreen({ id: chatRoomId, title, host, hostId, isLive, imageH
                         </div>
                   )}
                  </TabsContent>
+                 <TabsContent value="audio" className="flex-1 flex flex-col justify-center items-center pt-4">
+                     {currentUser && (
+                        <AudioChat 
+                            chatRoomId={chatRoomId}
+                            isHost={isHost}
+                            participants={participants}
+                        />
+                     )}
+                 </TabsContent>
             </Tabs>
 
-            <div className={cn("flex-1 flex-col justify-center items-center", currentTab === 'audio' ? 'flex' : 'hidden')}>
-                {currentUser && (
-                    <AudioChat 
-                        chatRoomId={chatRoomId}
-                        isHost={isHost}
-                        participants={participants}
-                    />
-                )}
-            </div>
-           
             <div className="flex items-center space-x-4 pt-4 mt-auto justify-center">
                 <Button variant="outline" onClick={handleShare}>
                     <Share2 className="mr-2" />
@@ -295,3 +315,5 @@ export function LiveScreen({ id: chatRoomId, title, host, hostId, isLive, imageH
     </Card>
   );
 }
+
+    
