@@ -67,6 +67,8 @@ export interface Participant {
     status: 'pending' | 'approved' | 'removed' | 'denied';
     requestCount?: number;
     photoURL?: string;
+    isMuted?: boolean;
+    handRaised?: boolean;
 }
 
 export const createChatRoom = async (input: ChatRoomInput): Promise<{ chatRoomId: string }> => {
@@ -103,6 +105,8 @@ export const createChatRoom = async (input: ChatRoomInput): Promise<{ chatRoomId
                 photoURL: userProfile?.photoURL || '',
                 status: 'approved', // Host is always approved
                 requestCount: 0,
+                isMuted: false,
+                handRaised: false,
             });
         });
         
@@ -276,6 +280,8 @@ export const requestToJoinChat = async (chatRoomId: string, userId: string) => {
                 photoURL: userProfile?.photoURL || '',
                 status: 'pending',
                 requestCount: 1,
+                isMuted: false,
+                handRaised: false,
             });
         }
     });
@@ -297,6 +303,17 @@ export const getParticipants = (chatRoomId: string, callback: (participants: Par
     }, onError);
     return unsubscribe;
 }
+
+export const updateParticipantMuteStatus = async (chatRoomId: string, userId: string, isMuted: boolean) => {
+    const participantRef = doc(db, 'chatRooms', chatRoomId, 'participants', userId);
+    await updateDoc(participantRef, { isMuted });
+};
+
+export const updateParticipantHandRaiseStatus = async (chatRoomId: string, userId: string, handRaised: boolean) => {
+    const participantRef = doc(db, 'chatRooms', chatRoomId, 'participants', userId);
+    await updateDoc(participantRef, { handRaised });
+};
+
 
 export const voteOnMessage = async (chatRoomId: string, messageId: string, userId: string, voteType: 'upvotes' | 'downvotes') => {
     const messageRef = doc(db, 'chatRooms', chatRoomId, 'messages', messageId);

@@ -9,12 +9,13 @@ import {
   cleanUpSignals,
 } from '@/services/rtcService';
 import { Button } from './ui/button';
-import { Mic, MicOff, PhoneOff, Phone, Rss, Volume2, VolumeX } from 'lucide-react';
+import { Mic, MicOff, PhoneOff, Phone, Rss, Volume2, VolumeX, Hand, Volume, Volume1, ScreenShare, Share, StopCircle } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
-import { Participant } from '@/services/chatRoomService';
+import { Participant, updateParticipantMuteStatus, updateParticipantHandRaiseStatus } from '@/services/chatRoomService';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from './ui/badge';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
 
 interface AudioChatProps {
   chatRoomId: string;
@@ -43,11 +44,24 @@ export function AudioChat({ chatRoomId, isHost, participants }: AudioChatProps) 
   
   const audioRefs = useRef<Record<string, HTMLAudioElement>>({});
   const peersRef = useRef<Record<string, Peer.Instance>>({});
+  const [myParticipantInfo, setMyParticipantInfo] = useState<Participant | null>(null);
 
   useEffect(() => {
-    // Update the ref whenever the state changes
     peersRef.current = peers;
   }, [peers]);
+
+  useEffect(() => {
+    if (currentUser) {
+        const me = participants.find(p => p.userId === currentUser.uid);
+        if (me) {
+            setMyParticipantInfo(me);
+            // If host mutes us, update local mute state
+            if (me.isMuted && !isMuted) {
+                toggleMute(true); 
+            }
+        }
+    }
+  }, [participants, currentUser, isMuted]);
 
   const handleJoin = async () => {
     try {
@@ -75,7 +89,6 @@ export function AudioChat({ chatRoomId, isHost, participants }: AudioChatProps) 
   
   useEffect(() => {
     return () => {
-      // Ensure cleanup runs on component unmount
       if (isConnected) {
         handleLeave();
       }
@@ -84,7 +97,6 @@ export function AudioChat({ chatRoomId, isHost, participants }: AudioChatProps) 
 
 
   const createPeer = useCallback((peerId: string, initiator: boolean, stream: MediaStream) => {
-    console.log(`Creating peer for ${peerId}, initiator: ${initiator}`);
     const peer = new Peer({
       initiator,
       trickle: true,
@@ -159,11 +171,9 @@ export function AudioChat({ chatRoomId, isHost, participants }: AudioChatProps) 
   useEffect(() => {
     if (!isConnected || !localStream || !currentUser) return;
 
-    // Listen for signals from other peers
     const unsubscribe = listenForSignals(chatRoomId, currentUser.uid, (senderId, signal) => {
         let peer = peersRef.current[senderId];
         if (!peer) {
-            // This is a new connection from another peer, we are not the initiator
             peer = createPeer(senderId, false, localStream);
             setPeers(prev => ({ ...prev, [senderId]: peer }));
         }
@@ -184,7 +194,6 @@ export function AudioChat({ chatRoomId, isHost, participants }: AudioChatProps) 
     const approvedParticipants = participants.filter(p => p.status === 'approved' && p.userId !== currentUser.uid);
     
     approvedParticipants.forEach(p => {
-        // The user with the smaller ID is the initiator. This prevents both from initiating.
         const shouldInitiate = currentUser.uid < p.userId;
         if (shouldInitiate && !peersRef.current[p.userId]) {
             console.log(`Attempting to initiate call with ${p.displayName}`);
@@ -193,7 +202,6 @@ export function AudioChat({ chatRoomId, isHost, participants }: AudioChatProps) 
         }
     });
 
-    // Clean up connections for participants who have left
     const approvedParticipantIds = new Set(approvedParticipants.map(p => p.userId));
     Object.keys(peersRef.current).forEach(peerId => {
       if (!approvedParticipantIds.has(peerId)) {
@@ -209,16 +217,20 @@ export function AudioChat({ chatRoomId, isHost, participants }: AudioChatProps) 
 
   }, [participants, isConnected, localStream, currentUser, createPeer]);
 
-
-  const toggleMute = () => {
+  const toggleMute = (forceMute?: boolean) => {
+    if (myParticipantInfo?.isMuted && !isHost) return;
     if (localStream) {
-      localStream.getAudioTracks().forEach(track => {
-        track.enabled = !track.enabled;
-      });
-      setIsMuted(!isMuted);
+        const newMutedState = forceMute !== undefined ? forceMute : !isMuted;
+        localStream.getAudioTracks().forEach(track => {
+            track.enabled = !newMutedState;
+        });
+        setIsMuted(newMutedState);
+        if (currentUser) {
+           updateParticipantMuteStatus(chatRoomId, currentUser.uid, newMutedState);
+        }
     }
   };
-  
+
   const toggleSpeaker = () => {
     const newSpeakerState = !isSpeakerOn;
     setIsSpeakerOn(newSpeakerState);
@@ -228,8 +240,32 @@ export function AudioChat({ chatRoomId, isHost, participants }: AudioChatProps) 
         }
     });
   };
+
+  const handleHostMute = async (participantId: string, shouldMute: boolean) => {
+    if (!isHost) return;
+    try {
+        await updateParticipantMuteStatus(chatRoomId, participantId, shouldMute);
+    } catch(e) {
+        toast({variant: 'destructive', title: 'Error', description: 'Could not update mute status.'})
+    }
+  }
+
+  const handleBulkMute = async (shouldMute: boolean) => {
+    if (!isHost) return;
+    try {
+        const participantIds = participants.filter(p => p.userId !== currentUser?.uid && p.status === 'approved').map(p => p.userId);
+        await Promise.all(participantIds.map(id => updateParticipantMuteStatus(chatRoomId, id, shouldMute)));
+        toast({title: `All participants have been ${shouldMute ? 'muted' : 'unmuted'}.`})
+    } catch(e) {
+         toast({variant: 'destructive', title: 'Error', description: 'Could not perform bulk mute/unmute.'})
+    }
+  }
   
-  const connectedParticipants = participants.filter(p => p.status === 'approved' && (peers[p.userId] || p.userId === currentUser?.uid));
+  const handleHandRaise = async () => {
+    if (!currentUser) return;
+    const newHandRaiseState = !myParticipantInfo?.handRaised;
+    await updateParticipantHandRaiseStatus(chatRoomId, currentUser.uid, newHandRaiseState);
+  }
 
   if (!isConnected) {
     return (
@@ -243,39 +279,96 @@ export function AudioChat({ chatRoomId, isHost, participants }: AudioChatProps) 
   }
 
   return (
+    <TooltipProvider>
     <div className="w-full h-full flex flex-col">
        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 mb-4">
         {participants.filter(p => p.status === 'approved').map(p => (
             <div key={p.userId} className={cn(
-                "flex flex-col items-center gap-2 p-3 rounded-lg border text-center transition-all",
-                speakingPeers[p.userId] && "bg-primary/20 border-primary shadow-lg scale-105"
+                "relative flex flex-col items-center gap-2 p-3 rounded-lg border text-center transition-all",
+                speakingPeers[p.userId] && "bg-primary/20 border-primary shadow-lg scale-105",
+                p.handRaised && "border-yellow-500 border-2"
             )}>
-                 <Avatar className="h-16 w-16">
+                {p.handRaised && <Hand className="absolute top-1 right-1 h-5 w-5 text-yellow-500" />}
+                <Avatar className="h-16 w-16">
                     <AvatarImage src={p.photoURL} alt={p.displayName}/>
                     <AvatarFallback>{getInitials(p.displayName)}</AvatarFallback>
                 </Avatar>
-                <p className="font-semibold text-sm truncate w-full">{p.displayName}</p>
+                <div className="flex items-center gap-1">
+                    {p.isMuted && <MicOff className="h-4 w-4 text-destructive" />}
+                    <p className="font-semibold text-sm truncate w-full">{p.displayName}</p>
+                </div>
                 {p.userId === currentUser?.uid && <Badge variant="outline">You</Badge>}
+                {isHost && p.userId !== currentUser?.uid && (
+                    <Button size="sm" variant="outline" className="mt-1" onClick={() => handleHostMute(p.userId, !p.isMuted)}>
+                        {p.isMuted ? <Volume2 /> : <MicOff />}
+                        {p.isMuted ? 'Unmute' : 'Mute'}
+                    </Button>
+                )}
             </div>
         ))}
        </div>
        
-       <div className="mt-auto flex items-center justify-center space-x-4 pt-4 border-t">
-          <Button onClick={toggleMute} variant={isMuted ? 'destructive' : 'outline'} size="lg" className="rounded-full h-14 w-14">
-            {isMuted ? <MicOff /> : <Mic />}
-          </Button>
-          <Button onClick={handleLeave} variant="destructive" size="lg" className="rounded-full h-14 w-14">
-            <PhoneOff />
-          </Button>
-          <Button onClick={toggleSpeaker} variant="outline" size="lg" className="rounded-full h-14 w-14">
-            {isSpeakerOn ? <Volume2 /> : <VolumeX />}
-          </Button>
+       <div className="mt-auto flex items-center justify-center space-x-2 md:space-x-4 pt-4 border-t">
+          <Tooltip>
+            <TooltipTrigger asChild>
+                <Button onClick={() => toggleMute()} variant={isMuted ? 'destructive' : 'outline'} size="lg" className="rounded-full h-14 w-14" disabled={myParticipantInfo?.isMuted && !isHost}>
+                    {isMuted ? <MicOff /> : <Mic />}
+                </Button>
+            </TooltipTrigger>
+            <TooltipContent>{isMuted ? 'Unmute' : 'Mute'}</TooltipContent>
+          </Tooltip>
+
+          <Tooltip>
+             <TooltipTrigger asChild>
+                <Button onClick={handleLeave} variant="destructive" size="lg" className="rounded-full h-14 w-14">
+                    <PhoneOff />
+                </Button>
+            </TooltipTrigger>
+            <TooltipContent>Leave Call</TooltipContent>
+          </Tooltip>
+         
+          <Tooltip>
+            <TooltipTrigger asChild>
+                <Button onClick={toggleSpeaker} variant="outline" size="lg" className="rounded-full h-14 w-14">
+                    {isSpeakerOn ? <Volume2 /> : <VolumeX />}
+                </Button>
+            </TooltipTrigger>
+            <TooltipContent>{isSpeakerOn ? 'Mute Speaker' : 'Unmute Speaker'}</TooltipContent>
+          </Tooltip>
+         
+           {!isHost && (
+            <Tooltip>
+                <TooltipTrigger asChild>
+                    <Button onClick={handleHandRaise} variant={myParticipantInfo?.handRaised ? "default" : "outline"} size="lg" className="rounded-full h-14 w-14">
+                        <Hand />
+                    </Button>
+                </TooltipTrigger>
+                <TooltipContent>{myParticipantInfo?.handRaised ? 'Lower Hand' : 'Raise Hand'}</TooltipContent>
+            </Tooltip>
+           )}
+
+            {isHost && (
+            <>
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                        <Button onClick={() => handleBulkMute(true)} variant="outline" size="lg" className="rounded-full h-14 w-14"><Volume1 /></Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Mute All</TooltipContent>
+                </Tooltip>
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                        <Button onClick={() => handleBulkMute(false)} variant="outline" size="lg" className="rounded-full h-14 w-14"><Volume /></Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Unmute All</TooltipContent>
+                </Tooltip>
+            </>
+           )}
         </div>
 
-      {/* Hidden audio elements for remote streams */}
       {Object.keys(peers).map(peerId => (
         <audio key={peerId} ref={el => { if (el) audioRefs.current[peerId] = el; }} autoPlay playsInline />
       ))}
     </div>
+    </TooltipProvider>
   );
 }
