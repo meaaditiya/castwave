@@ -69,6 +69,7 @@ export interface Participant {
     photoURL?: string;
     isMuted?: boolean;
     handRaised?: boolean;
+    lastReaction?: string;
 }
 
 export const createChatRoom = async (input: ChatRoomInput): Promise<{ chatRoomId: string }> => {
@@ -312,6 +313,18 @@ export const updateParticipantMuteStatus = async (chatRoomId: string, userId: st
 export const updateParticipantHandRaiseStatus = async (chatRoomId: string, userId: string, handRaised: boolean) => {
     const participantRef = doc(db, 'chatRooms', chatRoomId, 'participants', userId);
     await updateDoc(participantRef, { handRaised });
+};
+
+export const sendReaction = async (chatRoomId: string, userId: string, emoji: string) => {
+    const participantRef = doc(db, 'chatRooms', chatRoomId, 'participants', userId);
+    await updateDoc(participantRef, { lastReaction: emoji });
+    // After a delay, clear the reaction
+    setTimeout(async () => {
+        const docSnap = await getDoc(participantRef);
+        if (docSnap.exists() && docSnap.data().lastReaction === emoji) {
+            await updateDoc(participantRef, { lastReaction: null });
+        }
+    }, 3000);
 };
 
 

@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from 'react';
@@ -9,13 +10,14 @@ import {
   cleanUpSignals,
 } from '@/services/rtcService';
 import { Button } from './ui/button';
-import { Mic, MicOff, PhoneOff, Phone, Rss, Volume2, VolumeX, Hand, Volume, Volume1, ScreenShare, Share, StopCircle } from 'lucide-react';
+import { Mic, MicOff, PhoneOff, Phone, Rss, Volume2, VolumeX, Hand, Volume, Volume1, ScreenShare, Share, StopCircle, SmilePlus } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
-import { Participant, updateParticipantMuteStatus, updateParticipantHandRaiseStatus } from '@/services/chatRoomService';
+import { Participant, updateParticipantMuteStatus, updateParticipantHandRaiseStatus, sendReaction } from '@/services/chatRoomService';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from './ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
+import { Popover, PopoverTrigger, PopoverContent } from './ui/popover';
 
 interface AudioChatProps {
   chatRoomId: string;
@@ -32,6 +34,19 @@ const getInitials = (name: string) => {
     return name.substring(0, 2).toUpperCase();
 }
 
+const Reactions = ({ onSelect }: { onSelect: (emoji: string) => void }) => {
+    const emojis = ['👍', '❤️', '😂', '😮', '👏', '🎉'];
+    return (
+        <div className="flex gap-2">
+            {emojis.map(emoji => (
+                <Button key={emoji} variant="outline" size="icon" onClick={() => onSelect(emoji)} className="text-xl">
+                    {emoji}
+                </Button>
+            ))}
+        </div>
+    )
+}
+
 export function AudioChat({ chatRoomId, isHost, participants }: AudioChatProps) {
   const { currentUser } = useAuth();
   const { toast } = useToast();
@@ -41,6 +56,7 @@ export function AudioChat({ chatRoomId, isHost, participants }: AudioChatProps) 
   const [isSelfMuted, setIsSelfMuted] = useState(false);
   const [isSpeakerOn, setIsSpeakerOn] = useState(true);
   const [speakingPeers, setSpeakingPeers] = useState<Record<string, boolean>>({});
+  const [reactions, setReactions] = useState<Record<string, string>>({});
   
   const audioRefs = useRef<Record<string, HTMLAudioElement>>({});
   const peersRef = useRef<Record<string, Peer.Instance>>({});
@@ -54,6 +70,19 @@ export function AudioChat({ chatRoomId, isHost, participants }: AudioChatProps) 
     if (currentUser) {
         const me = participants.find(p => p.userId === currentUser.uid);
         setMyParticipantInfo(me || null);
+
+        participants.forEach(p => {
+            if (p.lastReaction) {
+                setReactions(prev => ({...prev, [p.userId]: p.lastReaction!}));
+                 setTimeout(() => {
+                    setReactions(prev => {
+                        const newReactions = {...prev};
+                        delete newReactions[p.userId];
+                        return newReactions;
+                    });
+                }, 3000);
+            }
+        })
     }
   }, [participants, currentUser]);
 
@@ -168,8 +197,6 @@ export function AudioChat({ chatRoomId, isHost, participants }: AudioChatProps) 
     const unsubscribe = listenForSignals(chatRoomId, currentUser.uid, (senderId, signal) => {
         let peer = peersRef.current[senderId];
         if (!peer) {
-            const shouldInitiate = currentUser.uid < senderId;
-            // if we should not initiate, it means the other peer is initiating, so we set initiator to false
             peer = createPeer(senderId, false, localStream);
             setPeers(prev => ({ ...prev, [senderId]: peer }));
         }
@@ -213,7 +240,6 @@ export function AudioChat({ chatRoomId, isHost, participants }: AudioChatProps) 
 
   }, [participants, isConnected, localStream, currentUser, createPeer]);
   
-  // This effect synchronizes the local audio track's enabled state with the mute states
   useEffect(() => {
     if (localStream) {
         const isHostMuted = myParticipantInfo?.isMuted ?? false;
@@ -226,11 +252,10 @@ export function AudioChat({ chatRoomId, isHost, participants }: AudioChatProps) 
 
 
   const toggleSelfMute = () => {
-    // A user can always mute themselves. They can only unmute if not muted by host.
     if (!myParticipantInfo?.isMuted) {
        setIsSelfMuted(prev => !prev);
     } else {
-        setIsSelfMuted(true); // Ensure self-mute is on if host-muted
+        setIsSelfMuted(true);
     }
   };
 
@@ -270,6 +295,11 @@ export function AudioChat({ chatRoomId, isHost, participants }: AudioChatProps) 
     await updateParticipantHandRaiseStatus(chatRoomId, currentUser.uid, newHandRaiseState);
   }
 
+  const handleSendReaction = async (emoji: string) => {
+    if (!currentUser) return;
+    await sendReaction(chatRoomId, currentUser.uid, emoji);
+  };
+
   const isActuallyMuted = isSelfMuted || (myParticipantInfo?.isMuted ?? false);
 
   if (!isConnected) {
@@ -293,6 +323,12 @@ export function AudioChat({ chatRoomId, isHost, participants }: AudioChatProps) 
                 speakingPeers[p.userId] && "bg-primary/20 border-primary shadow-lg scale-105",
                 p.handRaised && "border-yellow-500 border-2"
             )}>
+                 {reactions[p.userId] && (
+                    <div className="absolute top-0 right-0 -mt-4 -mr-2 text-4xl animate-in fade-in zoom-in-50 slide-in-from-bottom-5 duration-500 z-10"
+                         onAnimationEnd={() => setReactions(prev => { const newReactions = {...prev}; delete newReactions[p.userId]; return newReactions;})}>
+                        {reactions[p.userId]}
+                    </div>
+                )}
                 {p.handRaised && (
                     <Tooltip>
                         <TooltipTrigger asChild>
@@ -362,6 +398,23 @@ export function AudioChat({ chatRoomId, isHost, participants }: AudioChatProps) 
                 <TooltipContent>{myParticipantInfo?.handRaised ? 'Lower Hand' : 'Willing to Speak'}</TooltipContent>
             </Tooltip>
            )}
+
+             <Popover>
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                        <PopoverTrigger asChild>
+                            <Button variant="outline" size="lg" className="rounded-full h-14 w-14">
+                                <SmilePlus />
+                            </Button>
+                        </PopoverTrigger>
+                    </TooltipTrigger>
+                    <TooltipContent>Send Reaction</TooltipContent>
+                </Tooltip>
+                <PopoverContent>
+                    <Reactions onSelect={handleSendReaction} />
+                </PopoverContent>
+            </Popover>
+
 
             {isHost && (
             <>
