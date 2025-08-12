@@ -153,12 +153,18 @@ export function AudioChat({ chatRoomId, isHost, participants }: AudioChatProps) 
 
     const unsubscribe = listenForSignals(chatRoomId, currentUser.uid, (senderId, signal) => {
         let peer = peersRef.current[senderId];
+        const isPolite = currentUser.uid > senderId;
+
+        if (signal.type === 'offer' && peer?.destroyed === false && isPolite) {
+            console.log("Politely ignoring redundant offer");
+            return;
+        }
+
         if (!peer) {
-            const shouldInitiate = currentUser.uid < senderId;
-            if (shouldInitiate) return; 
             peer = createPeer(senderId, false, localStream);
             setPeers(prev => ({ ...prev, [senderId]: peer }));
         }
+
         try {
             peer.signal(signal);
         } catch(err) {
@@ -176,8 +182,7 @@ export function AudioChat({ chatRoomId, isHost, participants }: AudioChatProps) 
     const approvedParticipants = participants.filter(p => p.status === 'approved' && p.userId !== currentUser.uid);
     
     approvedParticipants.forEach(p => {
-        const shouldInitiate = currentUser.uid < p.userId;
-        if (shouldInitiate && !peersRef.current[p.userId]) {
+        if (!peersRef.current[p.userId] && currentUser.uid < p.userId) {
             const newPeer = createPeer(p.userId, true, localStream);
             setPeers(prev => ({...prev, [p.userId]: newPeer}));
         }

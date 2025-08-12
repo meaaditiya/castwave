@@ -1,4 +1,3 @@
-
 import { db } from '@/lib/firebase';
 import {
   collection,
@@ -63,14 +62,18 @@ export const listenForSignals = (chatRoomId: string, currentUserId: string, call
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
+        const batch = writeBatch(db);
         snapshot.docChanges().forEach((change) => {
             if (change.type === 'added') {
                 const data = change.doc.data() as Signal;
                 callback(data.sender, data.signal);
                 // We can delete the signal doc after processing to keep the collection clean
-                deleteDoc(change.doc.ref);
+                batch.delete(change.doc.ref);
             }
         });
+        if (!snapshot.empty) {
+            batch.commit().catch(e => console.error("Error deleting signals:", e));
+        }
     });
 
     return unsubscribe;
