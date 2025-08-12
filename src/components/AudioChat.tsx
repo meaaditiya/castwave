@@ -21,6 +21,7 @@ import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { Participant } from '@/services/chatRoomService';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
+import { Badge } from './ui/badge';
 
 interface AudioChatProps {
   chatRoomId: string;
