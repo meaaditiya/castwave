@@ -8,7 +8,7 @@ import { LiveChat } from '@/components/LiveChat';
 import type { Message } from '@/services/chatRoomService';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from '@/components/ui/skeleton';
-import { MicOff, Sparkles, Users, MessageSquare, ShieldQuestion, UserX, ArrowLeft, Expand, Shrink, X } from 'lucide-react';
+import { MicOff, Sparkles, Users, MessageSquare, ShieldQuestion, UserX, ArrowLeft, Expand, Shrink, X, Plus } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
 import { getChatRoomStream, ChatRoom, getMessages, Participant, getParticipants, getParticipantStream, requestToJoinChat, updateParticipantStatus, deleteMessage } from '@/services/chatRoomService';
@@ -19,6 +19,9 @@ import { Button } from '@/components/ui/button';
 import { HighlightTool } from '@/components/HighlightTool';
 import { cn } from '@/lib/utils';
 import { ParticipantsList } from '@/components/ParticipantsList';
+import { Dialog, DialogTrigger } from '@/components/ui/dialog';
+import { LivePoll } from '@/components/LivePoll';
+import { LiveQuiz } from '@/components/LiveQuiz';
 
 
 function ChatRoomPageSkeleton() {
@@ -290,6 +293,36 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
     participants: participants,
   };
 
+  const createPollTrigger = (
+      <Dialog>
+        <DialogTrigger asChild>
+          <Button variant="outline" className="mt-4"><Plus className="mr-2" /> Create Poll</Button>
+        </DialogTrigger>
+        <LivePoll
+          chatRoomId={chatRoomId}
+          isHost={isHost}
+          currentUserId={currentUser.uid}
+          activePoll={null}
+          renderNoPollContent={() => <></>}
+        />
+      </Dialog>
+    );
+
+  const createQuizTrigger = (
+      <Dialog>
+          <DialogTrigger asChild>
+              <Button variant="outline" className="mt-4"><Plus className="mr-2" /> Create Quiz</Button>
+          </DialogTrigger>
+          <LiveQuiz
+              chatRoomId={chatRoomId}
+              isHost={isHost}
+              currentUserId={currentUser.uid}
+              participants={participants}
+              activeQuiz={null}
+              renderNoQuizContent={() => <></>}
+          />
+      </Dialog>
+  );
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -299,10 +332,15 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
           isChatFullscreen ? "grid grid-cols-1 p-0 md:p-0" : "grid grid-cols-1 lg:grid-cols-3 px-2 sm:px-4 md:px-8"
       )}>
         <div className={cn(
-            "lg:col-span-2 space-y-4 h-[650px]", 
+            "lg:col-span-2 space-y-4", 
             isChatFullscreen && "hidden"
         )}>
-          <LiveScreen {...chatRoomDetails} className="h-full" />
+          <LiveScreen 
+            {...chatRoomDetails} 
+            className="h-full" 
+            createPollTrigger={createPollTrigger}
+            createQuizTrigger={createQuizTrigger}
+          />
         </div>
 
         <div className={cn(

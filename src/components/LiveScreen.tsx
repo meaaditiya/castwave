@@ -25,9 +25,11 @@ interface LiveScreenProps extends ChatRoom {
   isHost?: boolean;
   participants: Participant[];
   className?: string;
+  createPollTrigger?: React.ReactNode;
+  createQuizTrigger?: React.ReactNode;
 }
 
-export function LiveScreen({ id: chatRoomId, title, host, hostId, isLive, imageHint, isHost = false, featuredMessage, hostReply, participants, activeQuiz, activePoll, className }: LiveScreenProps) {
+export function LiveScreen({ id: chatRoomId, title, host, hostId, isLive, imageHint, isHost = false, featuredMessage, hostReply, participants, activeQuiz, activePoll, className, createPollTrigger, createQuizTrigger }: LiveScreenProps) {
   const [isEnding, setIsEnding] = useState(false);
   const [isStarting, setIsStarting] = useState(false);
   const { toast } = useToast();
@@ -202,18 +204,8 @@ export function LiveScreen({ id: chatRoomId, title, host, hostId, isLive, imageH
                             {renderNoInteractionContent()}
                             {isHost && (
                                 <div className="flex gap-4 mt-4">
-                                     <Dialog>
-                                         <LivePoll
-                                            chatRoomId={chatRoomId} isHost={isHost} currentUserId={currentUser!.uid} activePoll={null}
-                                            renderNoPollContent={() => <></>}
-                                         />
-                                     </Dialog>
-                                     <Dialog>
-                                          <LiveQuiz
-                                            chatRoomId={chatRoomId} isHost={isHost} currentUserId={currentUser!.uid} participants={participants} activeQuiz={null}
-                                            renderNoQuizContent={() => <></>}
-                                         />
-                                     </Dialog>
+                                     {createPollTrigger}
+                                     {createQuizTrigger}
                                 </div>
                             )}
                         </div>
@@ -264,8 +256,7 @@ export function LiveScreen({ id: chatRoomId, title, host, hostId, isLive, imageH
                  </TabsContent>
             </Tabs>
 
-            {/* Audio chat is now outside tabs to persist, but visibility is controlled by tab */}
-            <div className={cn("flex-1 flex-col justify-center items-center pt-4", currentTab === 'audio' ? 'flex' : 'hidden')}>
+            <div className={cn("flex-1 flex-col justify-center items-center", currentTab === 'audio' ? 'flex' : 'hidden')}>
                 {currentUser && (
                     <AudioChat 
                         chatRoomId={chatRoomId}
