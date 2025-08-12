@@ -84,6 +84,7 @@ export function AudioChat({ chatRoomId, isHost, participants }: AudioChatProps) 
 
 
   const createPeer = useCallback((peerId: string, initiator: boolean, stream: MediaStream) => {
+    console.log(`Creating peer for ${peerId}, initiator: ${initiator}`);
     const peer = new Peer({
       initiator,
       trickle: true,
