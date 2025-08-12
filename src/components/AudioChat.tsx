@@ -80,7 +80,7 @@ export function AudioChat({ chatRoomId, isHost, participants }: AudioChatProps) 
                         delete newReactions[p.userId];
                         return newReactions;
                     });
-                }, 3000);
+                }, 10000);
             }
         })
     }

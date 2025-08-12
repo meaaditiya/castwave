@@ -324,7 +324,7 @@ export const sendReaction = async (chatRoomId: string, userId: string, emoji: st
         if (docSnap.exists() && docSnap.data().lastReaction === emoji) {
             await updateDoc(participantRef, { lastReaction: null });
         }
-    }, 3000);
+    }, 10000);
 };
 
 
