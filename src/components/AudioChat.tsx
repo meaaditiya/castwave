@@ -100,6 +100,7 @@ export function AudioChat({ chatRoomId, isHost, participants }: AudioChatProps) 
       console.log('Got stream from', peerId);
       if (audioRefs.current[peerId]) {
         audioRefs.current[peerId].srcObject = remoteStream;
+        audioRefs.current[peerId].play().catch(e => console.error("Audio play failed", e));
       }
       
       const audioContext = new AudioContext();
