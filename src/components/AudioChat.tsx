@@ -9,12 +9,13 @@ import {
   cleanUpSignals,
 } from '@/services/rtcService';
 import { Button } from './ui/button';
-import { Mic, MicOff, PhoneOff, Phone, Rss, Volume2, VolumeX } from 'lucide-react';
+import { Mic, MicOff, PhoneOff, Phone, Rss, Volume2, VolumeX, ScreenShare, ScreenShareOff } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { Participant } from '@/services/chatRoomService';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from './ui/badge';
+import { Card, CardContent } from './ui/card';
 
 interface AudioChatProps {
   chatRoomId: string;
@@ -35,6 +36,9 @@ export function AudioChat({ chatRoomId, isHost, participants }: AudioChatProps) 
   const { currentUser } = useAuth();
   const { toast } = useToast();
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
+  const [localScreenStream, setLocalScreenStream] = useState<MediaStream | null>(null);
+  const [remoteScreenStream, setRemoteScreenStream] = useState<MediaStream | null>(null);
+  const [screenSharerId, setScreenSharerId] = useState<string | null>(null);
   const [peers, setPeers] = useState<Record<string, Peer.Instance>>({});
   const [isConnected, setIsConnected] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
@@ -42,10 +46,10 @@ export function AudioChat({ chatRoomId, isHost, participants }: AudioChatProps) 
   const [speakingPeers, setSpeakingPeers] = useState<Record<string, boolean>>({});
   
   const audioRefs = useRef<Record<string, HTMLAudioElement>>({});
+  const videoRef = useRef<HTMLVideoElement>(null);
   const peersRef = useRef<Record<string, Peer.Instance>>({});
 
   useEffect(() => {
-    // Update the ref whenever the state changes
     peersRef.current = peers;
   }, [peers]);
 
@@ -66,25 +70,24 @@ export function AudioChat({ chatRoomId, isHost, participants }: AudioChatProps) 
       cleanUpSignals(chatRoomId, currentUser.uid);
     }
     localStream?.getTracks().forEach(track => track.stop());
+    localScreenStream?.getTracks().forEach(track => track.stop());
     setLocalStream(null);
+    setLocalScreenStream(null);
     Object.values(peersRef.current).forEach(peer => peer.destroy());
     setPeers({});
     setIsConnected(false);
     toast({ title: "Audio Disconnected" });
-  }, [chatRoomId, currentUser, localStream]);
+  }, [chatRoomId, currentUser, localStream, localScreenStream]);
   
   useEffect(() => {
     return () => {
-      // Ensure cleanup runs on component unmount
       if (isConnected) {
         handleLeave();
       }
     };
   }, [isConnected, handleLeave]);
 
-
   const createPeer = useCallback((peerId: string, initiator: boolean, stream: MediaStream) => {
-    console.log(`Creating peer for ${peerId}, initiator: ${initiator}`);
     const peer = new Peer({
       initiator,
       trickle: true,
@@ -99,43 +102,32 @@ export function AudioChat({ chatRoomId, isHost, participants }: AudioChatProps) 
 
     peer.on('signal', (signal) => {
       if (currentUser) {
-        sendSignal(chatRoomId, currentUser.uid, peerId, signal);
+          const signalType = signal.renegotiate ? 'renegotiate' : (signal.sdp ? (signal.sdp.type === 'offer' ? 'offer' : 'answer') : 'candidate');
+          sendSignal(chatRoomId, currentUser.uid, peerId, { ...signal, type: signalType });
       }
     });
 
     peer.on('stream', (remoteStream) => {
-      console.log('Got stream from', peerId);
-      if (audioRefs.current[peerId]) {
-        audioRefs.current[peerId].srcObject = remoteStream;
-        audioRefs.current[peerId].muted = !isSpeakerOn;
-        audioRefs.current[peerId].play().catch(e => console.error("Audio play failed", e));
-      }
-      
-      const audioContext = new AudioContext();
-      const source = audioContext.createMediaStreamSource(remoteStream);
-      const analyser = audioContext.createAnalyser();
-      analyser.fftSize = 512;
-      source.connect(analyser);
-
-      const dataArray = new Uint8Array(analyser.frequencyBinCount);
-      const checkSpeaking = () => {
-          if (peer.destroyed) return;
-          analyser.getByteFrequencyData(dataArray);
-          const sum = dataArray.reduce((a, b) => a + b, 0);
-          const isSpeaking = sum > 1000;
-
-          setSpeakingPeers(prev => {
-              if (!!prev[peerId] === isSpeaking) return prev;
-              return { ...prev, [peerId]: isSpeaking }
-          });
-          requestAnimationFrame(checkSpeaking);
-      };
-      checkSpeaking();
-
+        // A simple way to differentiate: audio streams have audio but no video tracks.
+        if (remoteStream.getVideoTracks().length > 0) {
+            setRemoteScreenStream(remoteStream);
+            const sharer = participants.find(p => remoteStream.id.includes(p.userId));
+            if (sharer) setScreenSharerId(sharer.userId);
+        } else {
+             if (audioRefs.current[peerId]) {
+                audioRefs.current[peerId].srcObject = remoteStream;
+                audioRefs.current[peerId].muted = !isSpeakerOn;
+                audioRefs.current[peerId].play().catch(e => console.error("Audio play failed", e));
+            }
+        }
     });
     
      peer.on('close', () => {
         console.log(`Connection closed with ${peerId}`);
+        if(peerId === screenSharerId) {
+            setRemoteScreenStream(null);
+            setScreenSharerId(null);
+        }
         setPeers(prev => {
             const newPeers = { ...prev };
             delete newPeers[peerId];
@@ -153,22 +145,22 @@ export function AudioChat({ chatRoomId, isHost, participants }: AudioChatProps) 
     });
 
     return peer;
-  }, [chatRoomId, currentUser, isSpeakerOn]);
+  }, [chatRoomId, currentUser, isSpeakerOn, participants, screenSharerId]);
 
 
   useEffect(() => {
     if (!isConnected || !localStream || !currentUser) return;
 
-    // Listen for signals from other peers
     const unsubscribe = listenForSignals(chatRoomId, currentUser.uid, (senderId, signal) => {
         let peer = peersRef.current[senderId];
         if (!peer) {
-            // This is a new connection from another peer, we are not the initiator
+            const shouldInitiate = currentUser.uid < senderId;
+            if (shouldInitiate) return; 
             peer = createPeer(senderId, false, localStream);
             setPeers(prev => ({ ...prev, [senderId]: peer }));
         }
         try {
-          peer.signal(signal);
+            peer.signal(signal);
         } catch(err) {
             console.error("Error signaling peer", err);
         }
@@ -184,20 +176,16 @@ export function AudioChat({ chatRoomId, isHost, participants }: AudioChatProps) 
     const approvedParticipants = participants.filter(p => p.status === 'approved' && p.userId !== currentUser.uid);
     
     approvedParticipants.forEach(p => {
-        // The user with the smaller ID is the initiator. This prevents both from initiating.
         const shouldInitiate = currentUser.uid < p.userId;
         if (shouldInitiate && !peersRef.current[p.userId]) {
-            console.log(`Attempting to initiate call with ${p.displayName}`);
             const newPeer = createPeer(p.userId, true, localStream);
             setPeers(prev => ({...prev, [p.userId]: newPeer}));
         }
     });
 
-    // Clean up connections for participants who have left
     const approvedParticipantIds = new Set(approvedParticipants.map(p => p.userId));
     Object.keys(peersRef.current).forEach(peerId => {
       if (!approvedParticipantIds.has(peerId)) {
-        console.log(`Cleaning up stale peer connection: ${peerId}`);
         peersRef.current[peerId].destroy();
         setPeers(prev => {
           const newPeers = { ...prev };
@@ -209,6 +197,41 @@ export function AudioChat({ chatRoomId, isHost, participants }: AudioChatProps) 
 
   }, [participants, isConnected, localStream, currentUser, createPeer]);
 
+  useEffect(() => {
+    if (remoteScreenStream && videoRef.current) {
+        videoRef.current.srcObject = remoteScreenStream;
+    }
+  }, [remoteScreenStream]);
+
+  const toggleScreenShare = async () => {
+    if (localScreenStream) {
+        localScreenStream.getTracks().forEach(track => track.stop());
+        Object.values(peersRef.current).forEach(peer => {
+            if (peer.streams.includes(localScreenStream)) {
+                peer.removeStream(localScreenStream);
+            }
+        });
+        setLocalScreenStream(null);
+        setScreenSharerId(null);
+        toast({ title: 'Screen sharing stopped' });
+    } else {
+        try {
+            const stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
+            stream.getVideoTracks()[0].addEventListener('ended', () => {
+                toggleScreenShare(); // Stop sharing if user uses browser's stop button
+            });
+            Object.values(peersRef.current).forEach(peer => {
+                peer.addStream(stream);
+            });
+            setLocalScreenStream(stream);
+            if (currentUser) setScreenSharerId(currentUser.uid);
+            toast({ title: 'You are now sharing your screen' });
+        } catch (err) {
+            console.error('Screen share error:', err);
+            toast({ variant: 'destructive', title: 'Could not start screen share' });
+        }
+    }
+  };
 
   const toggleMute = () => {
     if (localStream) {
@@ -228,8 +251,6 @@ export function AudioChat({ chatRoomId, isHost, participants }: AudioChatProps) 
         }
     });
   };
-  
-  const connectedParticipants = participants.filter(p => p.status === 'approved' && (peers[p.userId] || p.userId === currentUser?.uid));
 
   if (!isConnected) {
     return (
@@ -244,7 +265,15 @@ export function AudioChat({ chatRoomId, isHost, participants }: AudioChatProps) 
 
   return (
     <div className="w-full h-full flex flex-col">
-       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 mb-4">
+       {remoteScreenStream || localScreenStream ? (
+           <div className="mb-4 aspect-video bg-black rounded-lg relative">
+              <video ref={videoRef} className="w-full h-full rounded-lg" autoPlay playsInline />
+               <Badge className="absolute bottom-2 right-2">
+                 {screenSharerId === currentUser?.uid ? 'You are sharing your screen' : `${participants.find(p => p.userId === screenSharerId)?.displayName || 'Someone'} is sharing their screen`}
+               </Badge>
+           </div>
+       ) : null}
+       <div className={cn("grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 mb-4", (remoteScreenStream || localScreenStream) && "hidden")}>
         {participants.filter(p => p.status === 'approved').map(p => (
             <div key={p.userId} className={cn(
                 "flex flex-col items-center gap-2 p-3 rounded-lg border text-center transition-all",
@@ -260,9 +289,12 @@ export function AudioChat({ chatRoomId, isHost, participants }: AudioChatProps) 
         ))}
        </div>
        
-       <div className="mt-auto flex items-center justify-center space-x-4 pt-4 border-t">
+       <div className="mt-auto flex items-center justify-center space-x-2 sm:space-x-4 pt-4 border-t">
           <Button onClick={toggleMute} variant={isMuted ? 'destructive' : 'outline'} size="lg" className="rounded-full h-14 w-14">
             {isMuted ? <MicOff /> : <Mic />}
+          </Button>
+           <Button onClick={toggleScreenShare} variant={localScreenStream ? 'default' : 'outline'} size="lg" className="rounded-full h-14 w-14">
+            {localScreenStream ? <ScreenShareOff /> : <ScreenShare />}
           </Button>
           <Button onClick={handleLeave} variant="destructive" size="lg" className="rounded-full h-14 w-14">
             <PhoneOff />
@@ -272,7 +304,6 @@ export function AudioChat({ chatRoomId, isHost, participants }: AudioChatProps) 
           </Button>
         </div>
 
-      {/* Hidden audio elements for remote streams */}
       {Object.keys(peers).map(peerId => (
         <audio key={peerId} ref={el => { if (el) audioRefs.current[peerId] = el; }} autoPlay playsInline />
       ))}
