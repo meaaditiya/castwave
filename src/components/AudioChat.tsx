@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from 'react';
@@ -55,7 +54,7 @@ export function AudioChat({ chatRoomId, isHost, participants }: AudioChatProps) 
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   const [peers, setPeers] = useState<Record<string, Peer.Instance>>({});
   const [isConnected, setIsConnected] = useState(false);
-  const [isSelfMuted, setIsSelfMuted] = useState(false);
+  const [isSelfMuted, setIsSelfMuted] = useState(true);
   const [isSpeakerOn, setIsSpeakerOn] = useState(true);
   const [speakingPeers, setSpeakingPeers] = useState<Record<string, boolean>>({});
   const [reactions, setReactions] = useState<Record<string, string>>({});
@@ -82,6 +81,9 @@ export function AudioChat({ chatRoomId, isHost, participants }: AudioChatProps) 
     if (currentUser) {
         const me = participants.find(p => p.userId === currentUser.uid);
         setMyParticipantInfo(me || null);
+        if (me) {
+            setIsSelfMuted(me.isMuted ?? true);
+        }
 
         participants.forEach(p => {
             if (p.lastReaction) {
@@ -98,13 +100,14 @@ export function AudioChat({ chatRoomId, isHost, participants }: AudioChatProps) 
     }
   }, [participants, currentUser]);
 
-  const startLocalStream = useCallback(async (audio: boolean, video: boolean) => {
+  const startLocalStream = useCallback(async (video: boolean) => {
     try {
       if (localPreviewStream.current) {
         localPreviewStream.current.getTracks().forEach(track => track.stop());
       }
       if (!video) {
         if (localVideoRef.current) localVideoRef.current.srcObject = null;
+        localPreviewStream.current = null;
         return;
       }
       const stream = await navigator.mediaDevices.getUserMedia({ audio: false, video: true });
@@ -123,7 +126,7 @@ export function AudioChat({ chatRoomId, isHost, participants }: AudioChatProps) 
       let isMounted = true;
       const setupPreview = async () => {
           if (showPrejoin && isMounted) {
-              await startLocalStream(prejoinSettings.audio, prejoinSettings.video);
+              await startLocalStream(prejoinSettings.video);
           }
       };
       setupPreview();
@@ -165,7 +168,6 @@ export function AudioChat({ chatRoomId, isHost, participants }: AudioChatProps) 
     } catch (error) {
       console.error('Error accessing media:', error);
       toast({ variant: 'destructive', title: 'Media Access Denied', description: 'Please enable camera/microphone permissions in your browser.' });
-      // Still connect but with no media
       stream = new MediaStream();
       setLocalStream(stream);
       setIsVideoOn(false);
@@ -311,15 +313,16 @@ export function AudioChat({ chatRoomId, isHost, participants }: AudioChatProps) 
   const toggleSelfMute = async () => {
     if (!localStream) return;
     const audioTrack = localStream.getAudioTracks()[0];
+    const newMuteState = !isSelfMuted;
 
     if (audioTrack) {
         if (!myParticipantInfo?.isMuted || isHost) {
-            setIsSelfMuted(prev => !prev);
+             audioTrack.enabled = !newMuteState;
+             setIsSelfMuted(newMuteState);
         } else {
-            setIsSelfMuted(true);
             toast({ title: "You are muted by the host.", description: "You cannot unmute yourself."});
         }
-    } else if (!isSelfMuted) {
+    } else if (newMuteState === false) { // Trying to unmute but no track exists
          try {
             const audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
             const newAudioTrack = audioStream.getAudioTracks()[0];
@@ -382,25 +385,29 @@ export function AudioChat({ chatRoomId, isHost, participants }: AudioChatProps) 
   const isActuallyMuted = isSelfMuted || (!isHost && (myParticipantInfo?.isMuted ?? false));
   
   useEffect(() => {
+    const assignStream = (el: HTMLVideoElement | null, stream: MediaStream | undefined) => {
+      if (el && stream) {
+        el.srcObject = stream;
+      }
+    };
+    
     Object.entries(videoRefs.current).forEach(([id, videoEl]) => {
-      if (!videoEl) return;
       if (id === currentUser?.uid) {
-        if(isVideoOn && localStream) videoEl.srcObject = localStream;
+        assignStream(videoEl, isVideoOn ? localStream : undefined);
       } else {
-        if(videoStreams[id]) videoEl.srcObject = videoStreams[id];
+        assignStream(videoEl, videoStreams[id]);
       }
     });
 
     if (fullscreenUser && videoRefs.current[fullscreenUser]) {
-        const videoEl = videoRefs.current[fullscreenUser]
-        if (!videoEl) return;
+        const videoEl = videoRefs.current[fullscreenUser];
         if (fullscreenUser === currentUser?.uid) {
-             if(isVideoOn && localStream) videoEl.srcObject = localStream;
+             assignStream(videoEl, isVideoOn ? localStream : undefined);
         } else {
-             if(videoStreams[fullscreenUser]) videoEl.srcObject = videoStreams[fullscreenUser];
+             assignStream(videoEl, videoStreams[fullscreenUser]);
         }
     }
-  }, [videoStreams, localStream, isVideoOn, currentUser?.uid, fullscreenUser]);
+  }, [videoStreams, localStream, isVideoOn, currentUser?.uid, fullscreenUser, peers]);
 
   const sortedParticipants = participants.filter(p => p.status === 'approved').sort((a, b) => {
     const aIsSpeaking = speakingPeers[a.userId];
@@ -426,7 +433,10 @@ export function AudioChat({ chatRoomId, isHost, participants }: AudioChatProps) 
                     <Label htmlFor="audio-prejoin">Mic</Label>
                 </div>
                  <div className="flex items-center space-x-2">
-                    <Switch id="video-prejoin" checked={prejoinSettings.video} onCheckedChange={(checked) => setPrejoinSettings(s => ({...s, video: checked}))} />
+                    <Switch id="video-prejoin" checked={prejoinSettings.video} onCheckedChange={(checked) => {
+                        setPrejoinSettings(s => ({...s, video: checked}));
+                        startLocalStream(checked);
+                    }} />
                     <Label htmlFor="video-prejoin">Camera</Label>
                 </div>
             </div>
@@ -453,8 +463,7 @@ export function AudioChat({ chatRoomId, isHost, participants }: AudioChatProps) 
     <div className={cn("w-full h-full flex flex-col", fullscreenUser && "bg-black")}>
        <div className={cn("grid flex-1 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 mb-4", fullscreenUser && "hidden")}>
         {sortedParticipants.map(p => {
-            const stream = (p.userId === currentUser?.uid) ? localStream : videoStreams[p.userId];
-            const hasVideo = (p.userId === currentUser?.uid && isVideoOn) || (videoStreams[p.userId] && videoStreams[p.userId].getVideoTracks().length > 0);
+            const hasVideo = (p.userId === currentUser?.uid && isVideoOn && localStream?.getVideoTracks().length > 0) || (videoStreams[p.userId] && videoStreams[p.userId].getVideoTracks().length > 0);
             
             return (
             <div key={p.userId} className={cn(
@@ -542,11 +551,11 @@ export function AudioChat({ chatRoomId, isHost, participants }: AudioChatProps) 
        <div className="mt-auto flex items-center justify-center flex-wrap gap-2 md:gap-4 pt-4 border-t">
           <Tooltip>
             <TooltipTrigger asChild>
-                <Button onClick={toggleSelfMute} variant={isActuallyMuted ? 'destructive' : 'outline'} size="lg" className="rounded-full h-14 w-14" disabled={!isHost && myParticipantInfo?.isMuted}>
+                <Button onClick={toggleSelfMute} variant={isActuallyMuted ? 'destructive' : 'outline'} size="lg" className="rounded-full h-14 w-14" disabled={!isHost && (myParticipantInfo?.isMuted ?? false)}>
                     {isActuallyMuted ? <MicOff /> : <Mic />}
                 </Button>
             </TooltipTrigger>
-            <TooltipContent>{isActuallyMuted ? (myParticipantInfo?.isMuted && !isHost ? 'Muted by Host' : 'Muted') : 'Mute'}</TooltipContent>
+            <TooltipContent>{isActuallyMuted ? (myParticipantInfo?.isMuted && !isHost ? 'Muted by Host' : 'Muted') : 'Unmute'}</TooltipContent>
           </Tooltip>
           
           <Tooltip>
