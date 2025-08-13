@@ -10,7 +10,7 @@ import {
   cleanUpSignals,
 } from '@/services/rtcService';
 import { Button } from './ui/button';
-import { Mic, MicOff, PhoneOff, Phone, Rss, Volume2, VolumeX, Hand, Volume, Volume1, ScreenShare, Share, StopCircle, SmilePlus, Video, VideoOff, Camera, Expand } from 'lucide-react';
+import { Mic, MicOff, PhoneOff, Phone, Rss, Volume2, VolumeX, Hand, Volume, Volume1, ScreenShare, Share, StopCircle, SmilePlus, Video, VideoOff, Camera, Expand, Shrink } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { Participant, updateParticipantMuteStatus, updateParticipantHandRaiseStatus, sendReaction } from '@/services/chatRoomService';
 import { cn } from '@/lib/utils';
@@ -71,6 +71,8 @@ export function AudioChat({ chatRoomId, isHost, participants }: AudioChatProps) 
   const [showPrejoin, setShowPrejoin] = useState(true);
   const [prejoinSettings, setPrejoinSettings] = useState({ audio: true, video: false });
   const localVideoRef = useRef<HTMLVideoElement>(null);
+  const localPreviewStream = useRef<MediaStream | null>(null);
+
 
   useEffect(() => {
     peersRef.current = peers;
@@ -98,40 +100,65 @@ export function AudioChat({ chatRoomId, isHost, participants }: AudioChatProps) 
 
   const startLocalStream = useCallback(async (audio: boolean, video: boolean) => {
     try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio, video });
-        if (localVideoRef.current && video) {
-            localVideoRef.current.srcObject = stream;
-        }
-        return stream;
+      // Stop any existing preview stream
+      if (localPreviewStream.current) {
+        localPreviewStream.current.getTracks().forEach(track => track.stop());
+      }
+      if (!audio && !video) {
+        if (localVideoRef.current) localVideoRef.current.srcObject = null;
+        return null;
+      }
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: video ? false : audio, video }); // don't grab audio if video is on for preview
+      localPreviewStream.current = stream;
+      if (localVideoRef.current && video) {
+        localVideoRef.current.srcObject = stream;
+      } else if (localVideoRef.current) {
+        localVideoRef.current.srcObject = null;
+      }
+      return stream;
     } catch (error) {
-        console.error("Error accessing media devices:", error);
-        toast({ variant: 'destructive', title: 'Media Access Denied', description: 'Could not access camera or microphone.' });
+        console.error("Error accessing media devices for preview:", error);
+        if (video) {
+             toast({ variant: 'destructive', title: 'Camera Access Denied', description: 'Could not access camera for preview.' });
+             setPrejoinSettings(s => ({...s, video: false}));
+        }
         return null;
     }
   }, [toast]);
   
   useEffect(() => {
-      let stream: MediaStream | null = null;
+      let isMounted = true;
       const setupPreview = async () => {
-          if (showPrejoin) {
-              stream = await startLocalStream(prejoinSettings.audio, prejoinSettings.video);
-              if (stream) {
-                  stream.getAudioTracks().forEach(t => t.enabled = prejoinSettings.audio);
-              }
+          if (showPrejoin && isMounted) {
+              await startLocalStream(prejoinSettings.audio, prejoinSettings.video);
           }
       };
       setupPreview();
       return () => {
-          stream?.getTracks().forEach(track => track.stop());
+          isMounted = false;
+           if (localPreviewStream.current) {
+            localPreviewStream.current.getTracks().forEach(track => track.stop());
+            localPreviewStream.current = null;
+          }
       };
-  }, [showPrejoin, prejoinSettings.video, startLocalStream, prejoinSettings.audio]);
+  }, [showPrejoin, prejoinSettings.video, startLocalStream]);
 
 
   const handleJoin = async () => {
+    // Stop preview stream before getting the real stream
+    if (localPreviewStream.current) {
+        localPreviewStream.current.getTracks().forEach(track => track.stop());
+        localPreviewStream.current = null;
+    }
+    
     setShowPrejoin(false);
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: prejoinSettings.audio, video: prejoinSettings.video });
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+          audio: prejoinSettings.audio, 
+          video: prejoinSettings.video 
+      });
       stream.getAudioTracks().forEach(t => t.enabled = prejoinSettings.audio);
+      stream.getVideoTracks().forEach(t => t.enabled = prejoinSettings.video);
       
       setLocalStream(stream);
       setIsVideoOn(prejoinSettings.video);
@@ -290,24 +317,20 @@ export function AudioChat({ chatRoomId, isHost, participants }: AudioChatProps) 
   const toggleVideo = async () => {
     if (!localStream) return;
     const newVideoState = !isVideoOn;
-    setIsVideoOn(newVideoState);
-
-    if (newVideoState) {
-        try {
+    
+    const videoTrack = localStream.getVideoTracks()[0];
+    if (videoTrack) {
+        videoTrack.enabled = newVideoState;
+        setIsVideoOn(newVideoState);
+    } else if (newVideoState) {
+         try {
             const videoStream = await navigator.mediaDevices.getUserMedia({ video: true });
-            const videoTrack = videoStream.getVideoTracks()[0];
-            localStream.addTrack(videoTrack);
-            Object.values(peersRef.current).forEach(peer => peer.addTrack(videoTrack, localStream));
+            const newVideoTrack = videoStream.getVideoTracks()[0];
+            localStream.addTrack(newVideoTrack);
+            Object.values(peersRef.current).forEach(peer => peer.addTrack(newVideoTrack, localStream));
+            setIsVideoOn(true);
         } catch (error) {
-            setIsVideoOn(false);
             toast({ variant: 'destructive', title: "Camera Access Denied", description: "Please enable camera permissions in your browser."});
-        }
-    } else {
-        const videoTrack = localStream.getVideoTracks()[0];
-        if (videoTrack) {
-            videoTrack.stop();
-            localStream.removeTrack(videoTrack);
-            Object.values(peersRef.current).forEach(peer => peer.removeTrack(videoTrack, localStream));
         }
     }
   };
@@ -349,13 +372,23 @@ export function AudioChat({ chatRoomId, isHost, participants }: AudioChatProps) 
         videoEl.srcObject = videoStreams[id] || null;
       }
     });
-  }, [videoStreams, localStream, isVideoOn, currentUser?.uid]);
+
+    if (fullscreenUser && videoRefs.current[fullscreenUser]) {
+        if (fullscreenUser === currentUser?.uid) {
+             videoRefs.current[fullscreenUser]!.srcObject = isVideoOn ? localStream : null;
+        } else {
+             videoRefs.current[fullscreenUser]!.srcObject = videoStreams[fullscreenUser] || null;
+        }
+    }
+  }, [videoStreams, localStream, isVideoOn, currentUser?.uid, fullscreenUser]);
 
   const sortedParticipants = participants.filter(p => p.status === 'approved').sort((a, b) => {
     const aIsSpeaking = speakingPeers[a.userId];
     const bIsSpeaking = speakingPeers[b.userId];
     if (aIsSpeaking && !bIsSpeaking) return -1;
     if (!aIsSpeaking && bIsSpeaking) return 1;
+    if (a.userId === currentUser?.uid) return -1; // always show self first after speakers
+    if (b.userId === currentUser?.uid) return 1;
     return 0;
   });
 
@@ -363,9 +396,10 @@ export function AudioChat({ chatRoomId, isHost, participants }: AudioChatProps) 
   if (showPrejoin) {
     return (
         <div className="flex flex-col items-center justify-center h-full gap-4 text-center">
-            <video ref={localVideoRef} autoPlay muted className={cn("w-48 h-36 bg-black rounded-md object-cover", !prejoinSettings.video && "hidden")} />
-            {!prejoinSettings.video && <div className="w-48 h-36 bg-muted rounded-md flex items-center justify-center"><Camera className="h-10 w-10 text-muted-foreground" /></div>}
-            
+            <div className="relative w-48 h-36">
+                <video ref={localVideoRef} autoPlay muted className={cn("w-full h-full bg-black rounded-md object-cover", !prejoinSettings.video && "hidden")} />
+                {!prejoinSettings.video && <div className="w-full h-full bg-muted rounded-md flex items-center justify-center"><Camera className="h-10 w-10 text-muted-foreground" /></div>}
+            </div>
             <div className="flex gap-4 items-center">
                 <div className="flex items-center space-x-2">
                     <Switch id="audio-prejoin" checked={prejoinSettings.audio} onCheckedChange={(checked) => setPrejoinSettings(s => ({...s, audio: checked}))} />
@@ -397,9 +431,9 @@ export function AudioChat({ chatRoomId, isHost, participants }: AudioChatProps) 
   return (
     <TooltipProvider>
     <div className={cn("w-full h-full flex flex-col", fullscreenUser && "bg-black")}>
-       <div className={cn("grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 mb-4", fullscreenUser && "hidden")}>
+       <div className={cn("grid flex-1 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 mb-4", fullscreenUser && "hidden")}>
         {sortedParticipants.map(p => {
-            const hasVideo = (p.userId === currentUser?.uid && isVideoOn) || !!videoStreams[p.userId];
+            const hasVideo = (p.userId === currentUser?.uid && isVideoOn) || (videoStreams[p.userId] && videoStreams[p.userId].getVideoTracks().length > 0);
             
             return (
             <div key={p.userId} className={cn(
@@ -479,7 +513,7 @@ export function AudioChat({ chatRoomId, isHost, participants }: AudioChatProps) 
                     className="w-full h-full object-contain"
                 />
                  <Button size="icon" variant="destructive" className="absolute top-4 right-4 z-20" onClick={() => setFullscreenUser(null)}>
-                    <Expand className="h-5 w-5 rotate-180" />
+                    <Shrink className="h-5 w-5" />
                  </Button>
             </div>
         )}
