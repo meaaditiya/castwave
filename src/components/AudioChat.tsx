@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from 'react';
@@ -298,12 +297,22 @@ export function AudioChat({ chatRoomId, isHost, participants }: AudioChatProps) 
   const isActuallyMuted = (isHost && isSelfMuted) || (!isHost && (isSelfMuted || (myParticipantInfo?.isMuted ?? false)));
 
   useEffect(() => {
+    if (currentUser?.uid && localStream) {
+        const localVideoEl = videoRefs.current[currentUser.uid];
+        if (localVideoEl) {
+            if (isVideoOn) {
+                localVideoEl.srcObject = localStream;
+            } else {
+                localVideoEl.srcObject = null;
+            }
+        }
+    }
     Object.entries(videoStreams).forEach(([id, stream]) => {
         if (videoRefs.current[id]) {
             videoRefs.current[id].srcObject = stream;
         }
     });
-  }, [videoStreams]);
+  }, [videoStreams, localStream, isVideoOn, currentUser?.uid]);
 
 
   if (!isConnected) {
@@ -322,9 +331,7 @@ export function AudioChat({ chatRoomId, isHost, participants }: AudioChatProps) 
     <div className="w-full h-full flex flex-col">
        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 mb-4">
         {participants.filter(p => p.status === 'approved').map(p => {
-            const remoteStream = videoStreams[p.userId];
-            const localVideoStream = isVideoOn && p.userId === currentUser?.uid ? localStream : null;
-            const hasVideo = !!remoteStream || !!localVideoStream;
+            const hasVideo = (p.userId === currentUser?.uid && isVideoOn) || !!videoStreams[p.userId];
             
             return (
             <div key={p.userId} className={cn(
@@ -335,7 +342,6 @@ export function AudioChat({ chatRoomId, isHost, participants }: AudioChatProps) 
                  {hasVideo ? (
                     <video 
                         ref={el => {if(el) videoRefs.current[p.userId] = el}}
-                        srcObject={remoteStream || localVideoStream} 
                         autoPlay 
                         muted={p.userId === currentUser?.uid} 
                         className="w-full h-full object-cover absolute top-0 left-0"
@@ -460,5 +466,3 @@ export function AudioChat({ chatRoomId, isHost, participants }: AudioChatProps) 
     </TooltipProvider>
   );
 }
-
-    
