@@ -100,29 +100,22 @@ export function AudioChat({ chatRoomId, isHost, participants }: AudioChatProps) 
 
   const startLocalStream = useCallback(async (audio: boolean, video: boolean) => {
     try {
-      // Stop any existing preview stream
       if (localPreviewStream.current) {
         localPreviewStream.current.getTracks().forEach(track => track.stop());
       }
-      if (!audio && !video) {
+      if (!video) {
         if (localVideoRef.current) localVideoRef.current.srcObject = null;
-        return null;
+        return;
       }
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: video ? false : audio, video }); // don't grab audio if video is on for preview
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: false, video: true });
       localPreviewStream.current = stream;
-      if (localVideoRef.current && video) {
+      if (localVideoRef.current) {
         localVideoRef.current.srcObject = stream;
-      } else if (localVideoRef.current) {
-        localVideoRef.current.srcObject = null;
       }
-      return stream;
     } catch (error) {
         console.error("Error accessing media devices for preview:", error);
-        if (video) {
-             toast({ variant: 'destructive', title: 'Camera Access Denied', description: 'Could not access camera for preview.' });
-             setPrejoinSettings(s => ({...s, video: false}));
-        }
-        return null;
+        toast({ variant: 'destructive', title: 'Camera Access Denied', description: 'Could not access camera for preview.' });
+        setPrejoinSettings(s => ({...s, video: false}));
     }
   }, [toast]);
   
@@ -145,29 +138,39 @@ export function AudioChat({ chatRoomId, isHost, participants }: AudioChatProps) 
 
 
   const handleJoin = async () => {
-    // Stop preview stream before getting the real stream
     if (localPreviewStream.current) {
         localPreviewStream.current.getTracks().forEach(track => track.stop());
         localPreviewStream.current = null;
     }
     
     setShowPrejoin(false);
+    
+    let stream: MediaStream;
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-          audio: prejoinSettings.audio, 
-          video: prejoinSettings.video 
-      });
-      stream.getAudioTracks().forEach(t => t.enabled = prejoinSettings.audio);
-      stream.getVideoTracks().forEach(t => t.enabled = prejoinSettings.video);
-      
+      if (prejoinSettings.audio || prejoinSettings.video) {
+        stream = await navigator.mediaDevices.getUserMedia({ 
+            audio: prejoinSettings.audio, 
+            video: prejoinSettings.video 
+        });
+      } else {
+        stream = new MediaStream(); // Create an empty stream if no devices are requested
+      }
+
       setLocalStream(stream);
-      setIsVideoOn(prejoinSettings.video);
-      setIsSelfMuted(!prejoinSettings.audio);
+      setIsVideoOn(prejoinSettings.video && stream.getVideoTracks().length > 0);
+      setIsSelfMuted(!prejoinSettings.audio || stream.getAudioTracks().length === 0);
       setIsConnected(true);
       toast({ title: "Connected!", description: "You have joined the call." });
+
     } catch (error) {
       console.error('Error accessing media:', error);
       toast({ variant: 'destructive', title: 'Media Access Denied', description: 'Please enable camera/microphone permissions in your browser.' });
+      // Still connect but with no media
+      stream = new MediaStream();
+      setLocalStream(stream);
+      setIsVideoOn(false);
+      setIsSelfMuted(true);
+      setIsConnected(true);
     }
   };
 
@@ -305,24 +308,39 @@ export function AudioChat({ chatRoomId, isHost, participants }: AudioChatProps) 
   }, [isSelfMuted, myParticipantInfo, localStream, isHost]);
 
 
-  const toggleSelfMute = () => {
-    if (!myParticipantInfo?.isMuted || isHost) {
-       setIsSelfMuted(prev => !prev);
-    } else {
-        setIsSelfMuted(true);
-        toast({ title: "You are muted by the host.", description: "You cannot unmute yourself."});
+  const toggleSelfMute = async () => {
+    if (!localStream) return;
+    const audioTrack = localStream.getAudioTracks()[0];
+
+    if (audioTrack) {
+        if (!myParticipantInfo?.isMuted || isHost) {
+            setIsSelfMuted(prev => !prev);
+        } else {
+            setIsSelfMuted(true);
+            toast({ title: "You are muted by the host.", description: "You cannot unmute yourself."});
+        }
+    } else if (!isSelfMuted) {
+         try {
+            const audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            const newAudioTrack = audioStream.getAudioTracks()[0];
+            localStream.addTrack(newAudioTrack);
+            Object.values(peersRef.current).forEach(peer => peer.addTrack(newAudioTrack, localStream));
+            setIsSelfMuted(false);
+        } catch (error) {
+            toast({ variant: 'destructive', title: "Mic Access Denied", description: "Please enable mic permissions."});
+        }
     }
   };
 
   const toggleVideo = async () => {
     if (!localStream) return;
-    const newVideoState = !isVideoOn;
-    
     const videoTrack = localStream.getVideoTracks()[0];
+    
     if (videoTrack) {
+        const newVideoState = !isVideoOn;
         videoTrack.enabled = newVideoState;
         setIsVideoOn(newVideoState);
-    } else if (newVideoState) {
+    } else if (!isVideoOn) {
          try {
             const videoStream = await navigator.mediaDevices.getUserMedia({ video: true });
             const newVideoTrack = videoStream.getVideoTracks()[0];
@@ -330,7 +348,7 @@ export function AudioChat({ chatRoomId, isHost, participants }: AudioChatProps) 
             Object.values(peersRef.current).forEach(peer => peer.addTrack(newVideoTrack, localStream));
             setIsVideoOn(true);
         } catch (error) {
-            toast({ variant: 'destructive', title: "Camera Access Denied", description: "Please enable camera permissions in your browser."});
+            toast({ variant: 'destructive', title: "Camera Access Denied", description: "Please enable camera permissions."});
         }
     }
   };
@@ -367,17 +385,19 @@ export function AudioChat({ chatRoomId, isHost, participants }: AudioChatProps) 
     Object.entries(videoRefs.current).forEach(([id, videoEl]) => {
       if (!videoEl) return;
       if (id === currentUser?.uid) {
-        videoEl.srcObject = isVideoOn ? localStream : null;
+        if(isVideoOn && localStream) videoEl.srcObject = localStream;
       } else {
-        videoEl.srcObject = videoStreams[id] || null;
+        if(videoStreams[id]) videoEl.srcObject = videoStreams[id];
       }
     });
 
     if (fullscreenUser && videoRefs.current[fullscreenUser]) {
+        const videoEl = videoRefs.current[fullscreenUser]
+        if (!videoEl) return;
         if (fullscreenUser === currentUser?.uid) {
-             videoRefs.current[fullscreenUser]!.srcObject = isVideoOn ? localStream : null;
+             if(isVideoOn && localStream) videoEl.srcObject = localStream;
         } else {
-             videoRefs.current[fullscreenUser]!.srcObject = videoStreams[fullscreenUser] || null;
+             if(videoStreams[fullscreenUser]) videoEl.srcObject = videoStreams[fullscreenUser];
         }
     }
   }, [videoStreams, localStream, isVideoOn, currentUser?.uid, fullscreenUser]);
@@ -387,7 +407,7 @@ export function AudioChat({ chatRoomId, isHost, participants }: AudioChatProps) 
     const bIsSpeaking = speakingPeers[b.userId];
     if (aIsSpeaking && !bIsSpeaking) return -1;
     if (!aIsSpeaking && bIsSpeaking) return 1;
-    if (a.userId === currentUser?.uid) return -1; // always show self first after speakers
+    if (a.userId === currentUser?.uid) return -1;
     if (b.userId === currentUser?.uid) return 1;
     return 0;
   });
@@ -433,6 +453,7 @@ export function AudioChat({ chatRoomId, isHost, participants }: AudioChatProps) 
     <div className={cn("w-full h-full flex flex-col", fullscreenUser && "bg-black")}>
        <div className={cn("grid flex-1 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 mb-4", fullscreenUser && "hidden")}>
         {sortedParticipants.map(p => {
+            const stream = (p.userId === currentUser?.uid) ? localStream : videoStreams[p.userId];
             const hasVideo = (p.userId === currentUser?.uid && isVideoOn) || (videoStreams[p.userId] && videoStreams[p.userId].getVideoTracks().length > 0);
             
             return (
