@@ -429,5 +429,3 @@ export function LiveChat({ chatRoomId, chatRoom, messages, participant, canChat,
     </>
   );
 }
-
-    
