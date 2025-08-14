@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -11,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose, DialogTrigger } from '@/components/ui/dialog';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { Loader2, Plus, Trash2, Trophy, Eye, EyeOff, TimerOff, ArrowRight, CheckCircle, XCircle } from 'lucide-react';
+import { Loader2, Plus, Trash2, Trophy, Eye, EyeOff, TimerOff, ArrowRight, CheckCircle, XCircle, Medal } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from './ui/badge';
 import { ScrollArea } from './ui/scroll-area';
@@ -101,7 +100,7 @@ export function LiveQuiz({ chatRoomId, isHost, currentUserId, participants, acti
         if (!activeQuiz || !activeQuiz.id || !activeQuiz.currentQuestion) return;
         setIsAnswering(true);
         try {
-            await answerQuizQuestion(chatRoomId, currentUserId, optionIndex, timeLeft);
+            await answerQuizQuestion(chatRoomId, currentUserId, optionIndex);
         } catch (error: any) {
             toast({ variant: 'destructive', title: 'Error', description: error.message });
         } finally {
@@ -210,21 +209,31 @@ export function LiveQuiz({ chatRoomId, isHost, currentUserId, participants, acti
     }
     
     if (activeQuiz.status === 'ended') {
-        const winnerId = sortedLeaderboard[0] ? sortedLeaderboard[0][0] : null;
-        const winnerProfile = winnerId ? participants.find(p => p.userId === winnerId) : null;
+        const podium = sortedLeaderboard.slice(0, 3);
+        const podiumColors = ["text-yellow-500", "text-gray-400", "text-amber-700"];
         
         return (
              <div className="flex flex-col items-center justify-center h-full gap-2 text-center">
                  <Trophy className="w-16 h-16 text-yellow-500"/>
                  <h3 className="text-2xl font-bold">Quiz Finished!</h3>
-                 {winnerProfile ? (
-                     <>
-                        <p className="text-lg">Winner is</p>
-                        <Avatar className="h-20 w-20 border-4 border-yellow-500"><AvatarImage src={winnerProfile.photoURL} /><AvatarFallback>{getInitials(winnerProfile.displayName)}</AvatarFallback></Avatar>
-                        <p className="text-xl font-bold">{winnerProfile.displayName}</p>
-                     </>
-                 ) : <p>No winner.</p>}
-                 {isHost && <Button onClick={handleClearQuiz} variant="destructive" disabled={isProcessing}>{isProcessing && <Loader2 className="animate-spin mr-2"/>}Clear Quiz</Button>}
+                 {podium.length > 0 ? (
+                    <div className="w-full max-w-sm mt-4 space-y-2">
+                        {podium.map(([userId, score], index) => {
+                             const profile = participants.find(p => p.userId === userId);
+                             return (
+                                <div key={userId} className="flex items-center gap-4 p-2 rounded-md bg-muted/50">
+                                    <Medal className={cn("h-8 w-8", podiumColors[index])} />
+                                    <Avatar className="h-10 w-10"><AvatarImage src={profile?.photoURL} /><AvatarFallback>{getInitials(profile?.displayName || '??')}</AvatarFallback></Avatar>
+                                    <div className="text-left flex-1">
+                                        <p className="font-bold">{profile?.displayName}</p>
+                                        <p className="text-sm text-muted-foreground">{score} pts</p>
+                                    </div>
+                                </div>
+                             )
+                        })}
+                    </div>
+                 ) : <p>No scores recorded.</p>}
+                 {isHost && <Button onClick={handleClearQuiz} variant="destructive" disabled={isProcessing} className="mt-4">{isProcessing && <Loader2 className="animate-spin mr-2"/>}Clear Quiz</Button>}
              </div>
         )
     }

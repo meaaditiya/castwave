@@ -137,7 +137,7 @@ export const nextQuizQuestion = async (chatRoomId: string) => {
     });
 };
 
-export const answerQuizQuestion = async (chatRoomId: string, userId: string, optionIndex: number, score: number) => {
+export const answerQuizQuestion = async (chatRoomId: string, userId: string, optionIndex: number) => {
     const roomRef = doc(db, 'chatRooms', chatRoomId);
 
     await runTransaction(db, async (transaction) => {
@@ -147,13 +147,25 @@ export const answerQuizQuestion = async (chatRoomId: string, userId: string, opt
         const room = roomDoc.data() as ChatRoom;
         const quiz = room.activeQuiz;
         
-        if (!quiz || !quiz.currentQuestion) throw new Error("No active question.");
+        if (!quiz || !quiz.currentQuestion || !quiz.currentQuestionStartTime) throw new Error("No active question.");
         if (quiz.answers?.[quiz.currentQuestion.id]?.[userId]) throw new Error("You have already answered.");
         
         const question = quiz.currentQuestion;
-        const isCorrect = question.correctOption === optionIndex;
-        const calculatedScore = isCorrect ? Math.round(score * 10) : 0;
+        const startTime = quiz.currentQuestionStartTime.toDate().getTime();
+        const answerTime = new Date().getTime();
+        const timeTaken = (answerTime - startTime) / 1000; // time in seconds
 
+        if (timeTaken > question.timeLimit) {
+            throw new Error("Time is up for this question.");
+        }
+
+        const isCorrect = question.correctOption === optionIndex;
+
+        // Score is 1000 for a correct answer, minus points for time taken. Max score is 1000, min is 0.
+        // Bonus for speed: full points for instant answer, decreasing over time.
+        const timePenalty = (timeTaken / question.timeLimit) * 500; // Max penalty of 500
+        const calculatedScore = isCorrect ? Math.max(0, 1000 - Math.round(timePenalty)) : 0;
+        
         if (!quiz.answers) quiz.answers = {};
         if (!quiz.answers[question.id]) quiz.answers[question.id] = {};
         
@@ -163,6 +175,7 @@ export const answerQuizQuestion = async (chatRoomId: string, userId: string, opt
         transaction.update(roomRef, { activeQuiz: quiz });
     });
 }
+
 
 export const endQuiz = async (chatRoomId: string, showResults: boolean) => {
     const roomRef = doc(db, 'chatRooms', chatRoomId);

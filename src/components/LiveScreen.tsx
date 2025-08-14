@@ -4,7 +4,7 @@ import Image from 'next/image';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Share2, MicOff, Loader2, Star, MessageSquare, Mic, ArrowLeft, Waves, ListChecks, HelpCircle, Expand, Shrink, Plus, X, Radio } from 'lucide-react';
+import { Share2, MicOff, Loader2, Star, MessageSquare, Mic, ArrowLeft, Waves, ListChecks, HelpCircle, Expand, Shrink, Plus, X, Radio, MessageCircleQuestion } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { endChatRoom, Participant, startChatRoom, ChatRoom, clearFeaturedMessage } from '@/services/chatRoomService';
@@ -18,6 +18,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Dialog, DialogTrigger } from './ui/dialog';
 import { cn } from '@/lib/utils';
 import { AudioChat } from './AudioChat';
+import { QnaTool } from './QnaTool';
 
 
 interface LiveScreenProps extends ChatRoom {
@@ -37,7 +38,7 @@ export function LiveScreen({ id: chatRoomId, title, host, hostId, isLive, imageH
   
   const hostProfile = participants.find(p => p.userId === hostId);
   const featuredParticipant = featuredMessage ? participants.find(p => p.userId === featuredMessage.userId) : null;
-  const [currentTab, setCurrentTab] = useState<'interaction' | 'featured' | 'audio'>('interaction');
+  const [currentTab, setCurrentTab] = useState<'interaction' | 'qna' | 'featured' | 'audio'>('interaction');
   const [isFullScreen, setIsFullScreen] = useState(false);
 
   useEffect(() => {
@@ -169,10 +170,14 @@ export function LiveScreen({ id: chatRoomId, title, host, hostId, isLive, imageH
        {isLive ? (
         <div className="flex flex-col flex-1">
             <Tabs value={currentTab} onValueChange={setCurrentTab} className="w-full">
-                <TabsList className="grid w-full grid-cols-3">
+                <TabsList className="grid w-full grid-cols-4">
                     <TabsTrigger value="interaction">
                         {activeQuiz || activePoll ? <ListChecks className="mr-2" /> : <HelpCircle className="mr-2" />}
                         Interaction
+                    </TabsTrigger>
+                     <TabsTrigger value="qna">
+                        <MessageCircleQuestion className="mr-2" />
+                        Q&A
                     </TabsTrigger>
                      <TabsTrigger value="audio">
                         <Radio className="mr-2" />
@@ -209,6 +214,15 @@ export function LiveScreen({ id: chatRoomId, title, host, hostId, isLive, imageH
                         </div>
                     )}
                 </div>
+                <div className={cn("w-full h-full", currentTab === 'qna' ? 'block' : 'hidden')}>
+                     {currentUser && (
+                        <QnaTool
+                            chatRoomId={chatRoomId}
+                            isHost={isHost}
+                            currentUserId={currentUser.uid}
+                        />
+                     )}
+                 </div>
                  <div className={cn("w-full h-full", currentTab === 'featured' ? 'block' : 'hidden')}>
                     {featuredMessage && featuredParticipant ? (
                         <div className="w-full space-y-4 animate-in fade-in-50 duration-500 relative">
