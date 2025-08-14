@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from 'react';
@@ -20,6 +19,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/t
 import { Popover, PopoverTrigger, PopoverContent } from './ui/popover';
 import { Switch } from './ui/switch';
 import { Label } from './ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 
 interface AudioChatProps {
   chatRoomId: string;
@@ -67,6 +67,9 @@ export function AudioChat({ chatRoomId, isHost, participants }: AudioChatProps) 
   const peersRef = useRef<Record<string, Peer.Instance>>({});
   const [myParticipantInfo, setMyParticipantInfo] = useState<Participant | null>(null);
 
+  const [audioOutputDevices, setAudioOutputDevices] = useState<MediaDeviceInfo[]>([]);
+  const [selectedAudioOutput, setSelectedAudioOutput] = useState<string>('default');
+
   // Pre-join state
   const [showPrejoin, setShowPrejoin] = useState(true);
   const [prejoinSettings, setPrejoinSettings] = useState({ audio: true, video: false });
@@ -77,6 +80,19 @@ export function AudioChat({ chatRoomId, isHost, participants }: AudioChatProps) 
   useEffect(() => {
     peersRef.current = peers;
   }, [peers]);
+
+  useEffect(() => {
+    const getDevices = async () => {
+        try {
+            const devices = await navigator.mediaDevices.enumerateDevices();
+            const audioOutputs = devices.filter(d => d.kind === 'audiooutput');
+            setAudioOutputDevices(audioOutputs);
+        } catch (error) {
+            console.error("Could not enumerate audio devices:", error);
+        }
+    };
+    getDevices();
+  }, []);
 
   useEffect(() => {
     if (currentUser) {
@@ -341,12 +357,13 @@ export function AudioChat({ chatRoomId, isHost, participants }: AudioChatProps) 
     const videoTrack = localStream.getVideoTracks()[0];
     
     if (videoTrack) {
-        videoTrack.enabled = !isVideoOn;
-        setIsVideoOn(!isVideoOn);
+        const newVideoState = !isVideoOn;
+        videoTrack.enabled = newVideoState;
+        setIsVideoOn(newVideoState);
     } else if (!isVideoOn) {
          try {
             const videoStream = await navigator.mediaDevices.getUserMedia({ video: true });
-            const newVideoTrack = videoStream.getAudioTracks()[0];
+            const newVideoTrack = videoStream.getTracks()[0];
             localStream.addTrack(newVideoTrack);
             Object.values(peersRef.current).forEach(peer => peer.addTrack(newVideoTrack, localStream));
             setIsVideoOn(true);
@@ -390,6 +407,8 @@ export function AudioChat({ chatRoomId, isHost, participants }: AudioChatProps) 
         if(el.srcObject !== stream) {
           el.srcObject = stream;
         }
+        (el as any).setSinkId(selectedAudioOutput).catch((err: any) => console.warn("Error setting audio output:", err));
+        el.muted = el.id === `video-${currentUser?.uid}`;
       } else if (el) {
         el.srcObject = null;
       }
@@ -411,7 +430,7 @@ export function AudioChat({ chatRoomId, isHost, participants }: AudioChatProps) 
              assignStream(videoEl, videoStreams[fullscreenUser]);
         }
     }
-  }, [videoStreams, localStream, isVideoOn, currentUser?.uid, fullscreenUser, peers, participants]);
+  }, [videoStreams, localStream, isVideoOn, currentUser?.uid, fullscreenUser, peers, participants, selectedAudioOutput]);
 
   const sortedParticipants = participants.filter(p => p.status === 'approved' && p.isPresent).sort((a, b) => {
     const aIsSpeaking = speakingPeers[a.userId];
@@ -476,11 +495,12 @@ export function AudioChat({ chatRoomId, isHost, participants }: AudioChatProps) 
                 p.handRaised && "border-yellow-500 border-2"
             )}>
                  {hasVideo ? (
-                    <video 
+                    <video
+                        id={`video-${p.userId}`}
                         ref={el => videoRefs.current[p.userId] = el}
                         autoPlay 
                         playsInline
-                        muted={p.userId === currentUser?.uid} 
+                        muted={p.userId === currentUser?.uid || !isSpeakerOn} 
                         className="w-full h-full object-cover absolute top-0 left-0"
                     />
                  ) : (
@@ -540,6 +560,7 @@ export function AudioChat({ chatRoomId, isHost, participants }: AudioChatProps) 
         {fullscreenUser && (
             <div className="flex-1 relative mb-4">
                  <video 
+                    id={`video-${fullscreenUser}`}
                     ref={el => videoRefs.current[fullscreenUser] = el}
                     autoPlay
                     playsInline
@@ -570,6 +591,43 @@ export function AudioChat({ chatRoomId, isHost, participants }: AudioChatProps) 
             </TooltipTrigger>
             <TooltipContent>{isVideoOn ? 'Stop Video' : 'Start Video'}</TooltipContent>
           </Tooltip>
+
+          <Popover>
+            <Tooltip>
+                <TooltipTrigger asChild>
+                    <PopoverTrigger asChild>
+                        <Button variant="outline" size="lg" className="rounded-full h-14 w-14">
+                            {isSpeakerOn ? <Volume2 /> : <VolumeX />}
+                        </Button>
+                    </PopoverTrigger>
+                </TooltipTrigger>
+                <TooltipContent>Speaker Settings</TooltipContent>
+            </Tooltip>
+            <PopoverContent>
+                <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                        <Label htmlFor="speaker-mute">Speaker</Label>
+                        <Switch id="speaker-mute" checked={isSpeakerOn} onCheckedChange={setIsSpeakerOn} />
+                    </div>
+                    {audioOutputDevices.length > 0 && (
+                         <div className="space-y-2">
+                            <Label htmlFor="audio-output">Output Device</Label>
+                            <Select value={selectedAudioOutput} onValueChange={setSelectedAudioOutput}>
+                                <SelectTrigger id="audio-output">
+                                    <SelectValue placeholder="Select output device" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="default">Default</SelectItem>
+                                    {audioOutputDevices.map(device => (
+                                        <SelectItem key={device.deviceId} value={device.deviceId}>{device.label}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    )}
+                </div>
+            </PopoverContent>
+          </Popover>
 
           <Tooltip>
              <TooltipTrigger asChild>
