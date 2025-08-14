@@ -38,7 +38,7 @@ const userColors = [
 const getUserColor = (userName: string) => {
     if (!userName) return userColors[0];
     let hash = 0;
-    for (let i = 0; i < userName.length; i++) {
+    for (let i = 0; < userName.length; i++) {
         hash = userName.charCodeAt(i) + ((hash << 5) - hash);
     }
     return userColors[Math.abs(hash % userColors.length)];

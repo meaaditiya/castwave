@@ -128,10 +128,16 @@ export const nextQuizQuestion = async (chatRoomId: string) => {
         
         const nextIndex = quiz.currentQuestionIndex + 1;
 
-        quiz.status = 'in_progress';
-        quiz.currentQuestionIndex = nextIndex;
-        quiz.currentQuestionStartTime = serverTimestamp();
-        quiz.currentQuestion = quiz.questions[nextIndex];
+        if (nextIndex >= quiz.questions.length) {
+            quiz.status = 'ended';
+            delete quiz.currentQuestion;
+            delete quiz.currentQuestionStartTime;
+        } else {
+            quiz.status = 'in_progress';
+            quiz.currentQuestionIndex = nextIndex;
+            quiz.currentQuestionStartTime = serverTimestamp();
+            quiz.currentQuestion = quiz.questions[nextIndex];
+        }
         
         transaction.update(roomRef, { activeQuiz: quiz });
     });
@@ -178,8 +184,8 @@ export const answerQuizQuestion = async (chatRoomId: string, userId: string, opt
 
 
 export const endQuiz = async (chatRoomId: string, showResults: boolean) => {
-    const roomRef = doc(db, 'chatRooms', chatRoomId);
-     await runTransaction(db, async (transaction) => {
+     const roomRef = doc(db, 'chatRooms', chatRoomId);
+      await runTransaction(db, async (transaction) => {
         const roomDoc = await transaction.get(roomRef);
         if (!roomDoc.exists()) throw new Error("Room not found");
         

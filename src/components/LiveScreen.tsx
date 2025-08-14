@@ -117,14 +117,8 @@ export function LiveScreen({ id: chatRoomId, title, host, hostId, isLive, imageH
         <p className="font-bold">The Screen is Live!</p>
         {isHost ? (
              <div className="flex items-center justify-center gap-2">
-                <Dialog>
-                    <DialogTrigger asChild><Button><Plus className="mr-2"/>Create Poll</Button></DialogTrigger>
-                    <LivePoll chatRoomId={chatRoomId} isHost={isHost} currentUserId={currentUser!.uid} activePoll={activePoll} renderNoPollContent={() => <></>} />
-                </Dialog>
-                 <Dialog>
-                    <DialogTrigger asChild><Button><Plus className="mr-2"/>Create Quiz</Button></DialogTrigger>
-                    <LiveQuiz chatRoomId={chatRoomId} isHost={isHost} currentUserId={currentUser!.uid} participants={participants} activeQuiz={activeQuiz} renderNoQuizContent={() => <></>} />
-                </Dialog>
+                <LivePoll chatRoomId={chatRoomId} isHost={isHost} currentUserId={currentUser!.uid} activePoll={activePoll} renderNoPollContent={() => <></>} />
+                <LiveQuiz chatRoomId={chatRoomId} isHost={isHost} currentUserId={currentUser!.uid} participants={participants} activeQuiz={activeQuiz} renderNoQuizContent={() => <></>} />
             </div>
         ) : (
             <p className="text-sm">The host can start a quiz or poll at any time.</p>
