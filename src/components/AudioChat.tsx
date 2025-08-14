@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from 'react';
@@ -340,13 +341,12 @@ export function AudioChat({ chatRoomId, isHost, participants }: AudioChatProps) 
     const videoTrack = localStream.getVideoTracks()[0];
     
     if (videoTrack) {
-        const newVideoState = !isVideoOn;
-        videoTrack.enabled = newVideoState;
-        setIsVideoOn(newVideoState);
+        videoTrack.enabled = !isVideoOn;
+        setIsVideoOn(!isVideoOn);
     } else if (!isVideoOn) {
          try {
             const videoStream = await navigator.mediaDevices.getUserMedia({ video: true });
-            const newVideoTrack = videoStream.getVideoTracks()[0];
+            const newVideoTrack = videoStream.getAudioTracks()[0];
             localStream.addTrack(newVideoTrack);
             Object.values(peersRef.current).forEach(peer => peer.addTrack(newVideoTrack, localStream));
             setIsVideoOn(true);

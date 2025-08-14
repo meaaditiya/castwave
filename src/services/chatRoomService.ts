@@ -1,3 +1,4 @@
+
 import { db } from '@/lib/firebase';
 import { collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, doc, getDoc, updateDoc, setDoc, getDocs, writeBatch, runTransaction, increment, where, deleteDoc, Query, FirestoreError, arrayUnion, arrayRemove, FieldValue } from 'firebase/firestore';
 import { getUserProfile } from './userService';
@@ -265,7 +266,7 @@ export const requestToJoinChat = async (chatRoomId: string, userId: string) => {
 
         if (participantDoc.exists()) {
              const participant = participantDoc.data() as Participant;
-             if ((participant.requestCount || 0) >= 5) { // Increased limit
+             if ((participant.requestCount || 0) >= 5) {
                  throw new Error("You have reached the maximum number of join requests.");
              }
              // If user was denied, removed, or previously approved but left, reset to pending
