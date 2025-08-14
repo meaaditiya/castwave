@@ -184,7 +184,7 @@ export function LiveScreen({ id: chatRoomId, title, host, hostId, isLive, imageH
                     </TabsTrigger>
                 </TabsList>
             </Tabs>
-             <div className="flex-1 flex flex-col justify-center items-center pt-4">
+             <div className="flex-1 flex flex-col justify-center items-center pt-4 min-h-0">
                 <div className={cn("w-full h-full", currentTab === 'interaction' ? 'block' : 'hidden')}>
                    {activeQuiz ? (
                         <LiveQuiz

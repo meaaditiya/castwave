@@ -55,7 +55,6 @@ export function AudioChat({ chatRoomId, isHost, participants }: AudioChatProps) 
   const [peers, setPeers] = useState<Record<string, Peer.Instance>>({});
   const [isConnected, setIsConnected] = useState(false);
   const [isSelfMuted, setIsSelfMuted] = useState(true);
-  const [isSpeakerOn, setIsSpeakerOn] = useState(true);
   const [speakingPeers, setSpeakingPeers] = useState<Record<string, boolean>>({});
   const [reactions, setReactions] = useState<Record<string, string>>({});
   const [isVideoOn, setIsVideoOn] = useState(false);
@@ -346,7 +345,7 @@ export function AudioChat({ chatRoomId, isHost, participants }: AudioChatProps) 
     } else if (!isVideoOn) {
          try {
             const videoStream = await navigator.mediaDevices.getUserMedia({ video: true });
-            const newVideoTrack = videoStream.getVideoTracks()[0];
+            const newVideoTrack = videoStream.getAudioTracks()[0];
             localStream.addTrack(newVideoTrack);
             Object.values(peersRef.current).forEach(peer => peer.addTrack(newVideoTrack, localStream));
             setIsVideoOn(true);
@@ -385,29 +384,25 @@ export function AudioChat({ chatRoomId, isHost, participants }: AudioChatProps) 
   const isActuallyMuted = isSelfMuted || (!isHost && (myParticipantInfo?.isMuted ?? false));
   
   useEffect(() => {
-    const assignStream = (el: HTMLVideoElement | null, stream: MediaStream | undefined) => {
-      if (el && stream) {
+    const assignStream = (el: HTMLVideoElement | null, stream: MediaStream | null) => {
+      if (el && el.srcObject !== stream) {
         el.srcObject = stream;
       }
     };
     
-    Object.entries(videoRefs.current).forEach(([id, videoEl]) => {
-      if (id === currentUser?.uid) {
-        assignStream(videoEl, isVideoOn ? localStream : undefined);
-      } else {
-        assignStream(videoEl, videoStreams[id]);
-      }
+    // Assign local stream to my video element
+    if (currentUser && videoRefs.current[currentUser.uid]) {
+        assignStream(videoRefs.current[currentUser.uid], isVideoOn ? localStream : null);
+    }
+    
+    // Assign remote streams to other video elements
+    Object.keys(videoRefs.current).forEach(userId => {
+        if (userId !== currentUser?.uid) {
+            assignStream(videoRefs.current[userId], videoStreams[userId] || null);
+        }
     });
 
-    if (fullscreenUser && videoRefs.current[fullscreenUser]) {
-        const videoEl = videoRefs.current[fullscreenUser];
-        if (fullscreenUser === currentUser?.uid) {
-             assignStream(videoEl, isVideoOn ? localStream : undefined);
-        } else {
-             assignStream(videoEl, videoStreams[fullscreenUser]);
-        }
-    }
-  }, [videoStreams, localStream, isVideoOn, currentUser?.uid, fullscreenUser, peers]);
+  }, [videoStreams, localStream, isVideoOn, currentUser, peers, participants]);
 
   const sortedParticipants = participants.filter(p => p.status === 'approved').sort((a, b) => {
     const aIsSpeaking = speakingPeers[a.userId];
