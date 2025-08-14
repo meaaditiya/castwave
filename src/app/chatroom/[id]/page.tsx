@@ -308,14 +308,14 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
         </div>
 
         <div className={cn(
-            "lg:col-span-1 h-full flex flex-col",
+            "lg:col-span-1 flex flex-col",
             isChatFullscreen ? "col-span-1 h-screen p-0 m-0" : "min-h-[500px]"
         )}>
             <Card className={cn(
                "flex flex-col flex-1",
                isChatFullscreen 
                    ? "h-full rounded-none border-0" 
-                   : "h-full min-h-0"
+                   : "min-h-0"
             )}>
               <div className="p-4 flex flex-row items-center justify-between border-b">
                   <span className="font-semibold">Live Interaction</span>
@@ -331,7 +331,6 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
                   canChat={isHost || isApprovedParticipant}
                   onDeleteMessage={handleDeleteMessage}
                   isHost={isHost}
-                  currentUser={currentUser}
               />
               <div className="mt-auto border-t">
                   <Accordion type="single" collapsible className="w-full">

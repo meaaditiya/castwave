@@ -4,7 +4,7 @@ import Image from 'next/image';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Share2, MicOff, Loader2, Star, MessageSquare, Mic, ArrowLeft, Waves, ListChecks, HelpCircle, Expand, Shrink, Plus, X, Radio, MessageCircleQuestion } from 'lucide-react';
+import { Share2, MicOff, Loader2, Star, MessageSquare, Mic, ArrowLeft, Waves, ListChecks, HelpCircle, Expand, Shrink, Plus, X, Radio } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { endChatRoom, Participant, startChatRoom, ChatRoom, clearFeaturedMessage } from '@/services/chatRoomService';
@@ -43,6 +43,8 @@ export function LiveScreen({ id: chatRoomId, title, host, hostId, isLive, imageH
         setCurrentTab('featured');
     } else if (activePoll || activeQuiz) {
         setCurrentTab('interaction');
+    } else {
+        setCurrentTab('audio');
     }
   }, [activeQuiz, activePoll, featuredMessage]);
 
@@ -172,7 +174,7 @@ export function LiveScreen({ id: chatRoomId, title, host, hostId, isLive, imageH
       <CardContent className="bg-card/50 p-4 md:p-6 flex flex-col flex-1 min-h-0">
        {isLive ? (
         <div className="flex flex-col flex-1">
-            <Tabs value={currentTab} onValueChange={(value) => setCurrentTab(value as any)} className="w-full">
+            <Tabs value={currentTab} onValueChange={(value) => setCurrentTab(value as any)} className="w-full flex-1 flex flex-col">
                 <TabsList className="grid w-full grid-cols-3">
                     <TabsTrigger value="interaction">
                         {activeQuiz || activePoll ? <ListChecks className="mr-2" /> : <HelpCircle className="mr-2" />}
@@ -203,7 +205,7 @@ export function LiveScreen({ id: chatRoomId, title, host, hostId, isLive, imageH
                           isHost={isHost}
                           currentUserId={currentUser!.uid}
                           activePoll={activePoll}
-                          renderNoQuizContent={renderNoInteractionContent}
+                          renderNoPollContent={renderNoInteractionContent}
                         />
                     ) : (
                          <div className="flex flex-col items-center justify-center h-full gap-4 text-center">
