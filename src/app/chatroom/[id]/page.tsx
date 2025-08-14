@@ -310,8 +310,6 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
           <LiveScreen 
             {...chatRoomDetails} 
             className="h-full min-h-[650px]"
-            createPollDialog={<LivePoll chatRoomId={chatRoomId} isHost={isHost} currentUserId={currentUser.uid} activePoll={chatRoom.activePoll} renderNoPollContent={() => <></>} />}
-            createQuizDialog={<LiveQuiz chatRoomId={chatRoomId} isHost={isHost} currentUserId={currentUser.uid} participants={participants} activeQuiz={chatRoom.activeQuiz} renderNoQuizContent={() => <></>} />}
           />
         </div>
 
@@ -325,18 +323,20 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
                    ? "h-full rounded-none border-0" 
                    : "h-full"
             )}>
-              <CardHeader className="flex flex-row items-center justify-between">
-                  <CardTitle className="flex items-center gap-2"><MessageSquare className="h-5 w-5"/> Live Chat</CardTitle>
+              <div className="p-4 flex flex-row items-center justify-between border-b">
+                  <span className="font-semibold">Live Interaction</span>
                    <Button variant="ghost" size="icon" onClick={() => setIsChatFullscreen(!isChatFullscreen)}>
                     {isChatFullscreen ? <Shrink className="h-5 w-5" /> : <Expand className="h-5 w-5" />}
                   </Button>
-              </CardHeader>
+              </div>
               <LiveChat 
+                  chatRoomId={chatRoomId}
                   chatRoom={chatRoom}
                   messages={chatLog}
                   participant={myParticipantRecord}
                   canChat={isHost || isApprovedParticipant}
                   onDeleteMessage={handleDeleteMessage}
+                  isHost={isHost}
               />
               <div className="mt-auto border-t">
                   <Accordion type="single" collapsible className="w-full">
