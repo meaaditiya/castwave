@@ -19,8 +19,6 @@ import { Button } from '@/components/ui/button';
 import { HighlightTool } from '@/components/HighlightTool';
 import { cn } from '@/lib/utils';
 import { ParticipantsList } from '@/components/ParticipantsList';
-import { LivePoll } from '@/components/LivePoll';
-import { LiveQuiz } from '@/components/LiveQuiz';
 
 
 function ChatRoomPageSkeleton() {

@@ -19,7 +19,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
 import { cn } from '@/lib/utils';
 import { AudioChat } from './AudioChat';
-import { QnaTool } from './QnaTool';
 
 
 interface LiveScreenProps extends ChatRoom {
@@ -37,7 +36,7 @@ export function LiveScreen({ id: chatRoomId, title, host, hostId, isLive, imageH
   
   const hostProfile = participants.find(p => p.userId === hostId);
   const featuredParticipant = featuredMessage ? participants.find(p => p.userId === featuredMessage.userId) : null;
-  const [currentTab, setCurrentTab] = useState<'interaction' | 'audio'>('interaction');
+  const [currentTab, setCurrentTab] = useState<'interaction' | 'audio' | 'featured'>('interaction');
   const [isFullScreen, setIsFullScreen] = useState(false);
 
   useEffect(() => {
