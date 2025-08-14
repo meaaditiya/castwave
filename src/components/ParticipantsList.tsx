@@ -1,3 +1,4 @@
+
 "use client";
 
 import { Participant, updateParticipantStatus } from "@/services/chatRoomService";
@@ -98,6 +99,7 @@ export function ParticipantsList({ chatRoomId, participants, hostId }: Participa
     const visibleParticipants = useMemo(() => {
         const statusOrder = { 'pending': 1, 'approved': 2, 'denied': 3, 'removed': 4 };
         return [...participants]
+            .filter(p => p.status !== 'removed' && p.status !== 'denied')
             .sort((a, b) => {
                 if (a.userId === hostId) return -1;
                 if (b.userId === hostId) return 1;

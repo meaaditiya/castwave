@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, use } from 'react';
@@ -10,7 +11,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { MicOff, Sparkles, Users, MessageSquare, ShieldQuestion, UserX, ArrowLeft, Expand, Shrink, X, Plus } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
-import { getChatRoomStream, ChatRoom, getMessages, Participant, getParticipants, getParticipantStream, requestToJoinChat, updateParticipantStatus, deleteMessage, leaveChatRoom } from '@/services/chatRoomService';
+import { getChatRoomStream, ChatRoom, getMessages, Participant, getParticipants, getParticipantStream, requestToJoinChat, updateParticipantStatus, deleteMessage } from '@/services/chatRoomService';
 import { useToast } from '@/hooks/use-toast';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import Link from 'next/link';
@@ -220,23 +221,6 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
     return () => unsubscribeMessages();
   }, [chatRoomId, currentUser, isHost, isApprovedParticipant, toast, chatRoom?.isLive]);
   
-    useEffect(() => {
-        const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-            if (currentUser && !isHost) {
-                leaveChatRoom(chatRoomId, currentUser.uid);
-            }
-        };
-
-        window.addEventListener('beforeunload', handleBeforeUnload);
-
-        return () => {
-            window.removeEventListener('beforeunload', handleBeforeUnload);
-            if (currentUser && !isHost) {
-                leaveChatRoom(chatRoomId, currentUser.uid);
-            }
-        };
-    }, [chatRoomId, currentUser, isHost]);
-
   const handleReRequest = async () => {
     if (!currentUser) return;
     try {
@@ -266,6 +250,8 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
     return <ChatRoomPageSkeleton />;
   }
 
+  // If the user is not the host and the session is not live, show the ended screen.
+  // This is the primary gatekeeper for non-hosts.
   if (!isHost && !chatRoom.isLive) {
       return (
           <div className="min-h-screen flex flex-col">
@@ -310,6 +296,7 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
 
 
   return (
+    <>
     <div className="min-h-screen flex flex-col">
       <Header />
        <main className={cn(
@@ -321,21 +308,22 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
             isChatFullscreen && "hidden"
         )}>
           <LiveScreen 
-            {...chatRoomDetails}
+            {...chatRoomDetails} 
+            className="h-full min-h-[650px]"
             createPollDialog={<LivePoll chatRoomId={chatRoomId} isHost={isHost} currentUserId={currentUser.uid} activePoll={chatRoom.activePoll} renderNoPollContent={() => <></>} />}
             createQuizDialog={<LiveQuiz chatRoomId={chatRoomId} isHost={isHost} currentUserId={currentUser.uid} participants={participants} activeQuiz={chatRoom.activeQuiz} renderNoQuizContent={() => <></>} />}
           />
         </div>
 
         <div className={cn(
-            "lg:col-span-1",
-            isChatFullscreen && "col-span-1 h-screen p-0 m-0"
+            "h-[650px]",
+            isChatFullscreen ? "col-span-1 h-screen p-0 m-0" : ""
         )}>
             <Card className={cn(
-               "flex flex-col min-h-[500px]",
+               "flex flex-col",
                isChatFullscreen 
                    ? "h-full rounded-none border-0" 
-                   : "h-full lg:min-h-0"
+                   : "h-full"
             )}>
               <CardHeader className="flex flex-row items-center justify-between">
                   <CardTitle className="flex items-center gap-2"><MessageSquare className="h-5 w-5"/> Live Chat</CardTitle>
@@ -380,5 +368,6 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
         </div>
       </main>
     </div>
+    </>
   );
 }

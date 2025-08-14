@@ -178,7 +178,7 @@ export function LiveScreen({ id: chatRoomId, title, host, hostId, isLive, imageH
                         <Radio className="mr-2" />
                         Audio
                     </TabsTrigger>
-                    <TabsTrigger value="featured" disabled={!featuredMessage}>
+                    <TabsTrigger value="featured">
                         <Star className="mr-2" />
                         Featured
                     </TabsTrigger>
