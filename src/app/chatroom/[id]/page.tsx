@@ -247,8 +247,6 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
     return <ChatRoomPageSkeleton />;
   }
 
-  // If the user is not the host and the session is not live, show the ended screen.
-  // This is the primary gatekeeper for non-hosts.
   if (!isHost && !chatRoom.isLive) {
       return (
           <div className="min-h-screen flex flex-col">
@@ -310,14 +308,14 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
         </div>
 
         <div className={cn(
-            "lg:col-span-1",
-            isChatFullscreen ? "col-span-1 h-screen p-0 m-0" : ""
+            "lg:col-span-1 h-full flex flex-col",
+            isChatFullscreen ? "col-span-1 h-screen p-0 m-0" : "min-h-[500px]"
         )}>
             <Card className={cn(
-               "flex flex-col",
+               "flex flex-col flex-1",
                isChatFullscreen 
                    ? "h-full rounded-none border-0" 
-                   : "h-full"
+                   : "h-full min-h-0"
             )}>
               <div className="p-4 flex flex-row items-center justify-between border-b">
                   <span className="font-semibold">Live Interaction</span>
@@ -333,6 +331,7 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
                   canChat={isHost || isApprovedParticipant}
                   onDeleteMessage={handleDeleteMessage}
                   isHost={isHost}
+                  currentUser={currentUser}
               />
               <div className="mt-auto border-t">
                   <Accordion type="single" collapsible className="w-full">

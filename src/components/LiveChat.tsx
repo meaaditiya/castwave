@@ -21,15 +21,18 @@ import { cn } from '@/lib/utils';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { QnaTool } from './QnaTool';
+import type { AppUser } from '@/context/AuthContext';
+
 
 interface LiveChatProps {
   chatRoomId: string;
   chatRoom: ChatRoom;
   messages: Message[];
-  participant?: Participant | null; // The current user's participant record, if not host
+  participant?: Participant | null; 
   canChat: boolean;
   onDeleteMessage: (messageId: string) => void;
   isHost: boolean;
+  currentUser: AppUser | null;
 }
 
 const userColors = [
@@ -167,10 +170,9 @@ function ChatMessage({ message, parentMessage, onReply, onFeature, onVote, onDel
 }
 
 
-export function LiveChat({ chatRoomId, chatRoom, messages, participant, canChat, onDeleteMessage, isHost }: LiveChatProps) {
+export function LiveChat({ chatRoomId, chatRoom, messages, participant, canChat, onDeleteMessage, isHost, currentUser }: LiveChatProps) {
   const [newMessage, setNewMessage] = useState('');
   const [isSending, setIsSending] = useState(false);
-  const { currentUser } = useAuth();
   const { toast } = useToast();
   const scrollViewportRef = useRef<HTMLDivElement>(null);
   const [showNewMessageButton, setShowNewMessageButton] = useState(false);
@@ -183,7 +185,6 @@ export function LiveChat({ chatRoomId, chatRoom, messages, participant, canChat,
   
   const participantMap = useMemo(() => {
     const map = new Map<string, Participant>();
-    // Since non-hosts don't get the full list, we'll build what we can
     if (participant) map.set(participant.userId, participant);
     return map;
   }, [participant]);
@@ -227,14 +228,11 @@ export function LiveChat({ chatRoomId, chatRoom, messages, participant, canChat,
     const viewport = scrollViewportRef.current;
     if (!viewport) return;
   
-    // A bit of tolerance to consider it "at the bottom"
     const isScrolledToBottom = viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight <= 150;
   
-    // If a new message comes in and we are already at the bottom, scroll down.
     if (isScrolledToBottom) {
       scrollToBottom('smooth');
     } else {
-      // If we are not at the bottom, show the "new message" button.
       if(messages.length > 0) {
         setShowNewMessageButton(true);
       }

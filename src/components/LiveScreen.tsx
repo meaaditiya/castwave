@@ -39,7 +39,11 @@ export function LiveScreen({ id: chatRoomId, title, host, hostId, isLive, imageH
   const [isFullScreen, setIsFullScreen] = useState(false);
 
   useEffect(() => {
-    // This could be simplified if we want a default tab logic
+    if (featuredMessage) {
+        setCurrentTab('featured');
+    } else if (activePoll || activeQuiz) {
+        setCurrentTab('interaction');
+    }
   }, [activeQuiz, activePoll, featuredMessage]);
 
 
@@ -110,9 +114,15 @@ export function LiveScreen({ id: chatRoomId, title, host, hostId, isLive, imageH
         <MessageSquare className="mx-auto h-12 w-12 text-primary/20" />
         <p className="font-bold">The Screen is Live!</p>
         {isHost ? (
-            <div className="flex items-center justify-center gap-2">
-               <LivePoll chatRoomId={chatRoomId} isHost={isHost} currentUserId={currentUser!.uid} activePoll={activePoll} renderNoPollContent={() => <></>} />
-               <LiveQuiz chatRoomId={chatRoomId} isHost={isHost} currentUserId={currentUser!.uid} participants={participants} activeQuiz={activeQuiz} renderNoQuizContent={() => <></>} />
+             <div className="flex items-center justify-center gap-2">
+                <Dialog>
+                    <DialogTrigger asChild><Button><Plus className="mr-2"/>Create Poll</Button></DialogTrigger>
+                    <LivePoll chatRoomId={chatRoomId} isHost={isHost} currentUserId={currentUser!.uid} activePoll={activePoll} renderNoPollContent={() => <></>} />
+                </Dialog>
+                 <Dialog>
+                    <DialogTrigger asChild><Button><Plus className="mr-2"/>Create Quiz</Button></DialogTrigger>
+                    <LiveQuiz chatRoomId={chatRoomId} isHost={isHost} currentUserId={currentUser!.uid} participants={participants} activeQuiz={activeQuiz} renderNoQuizContent={() => <></>} />
+                </Dialog>
             </div>
         ) : (
             <p className="text-sm">The host can start a quiz or poll at any time.</p>
@@ -123,7 +133,7 @@ export function LiveScreen({ id: chatRoomId, title, host, hostId, isLive, imageH
 
   return (
     <Card className={cn(
-        "overflow-hidden shadow-lg flex flex-col transition-all duration-300 h-full",
+        "overflow-hidden shadow-lg flex flex-col transition-all duration-300",
         isFullScreen ? "fixed inset-0 z-[100] rounded-none h-screen" : "relative",
         className
     )}>
@@ -193,7 +203,7 @@ export function LiveScreen({ id: chatRoomId, title, host, hostId, isLive, imageH
                           isHost={isHost}
                           currentUserId={currentUser!.uid}
                           activePoll={activePoll}
-                          renderNoPollContent={renderNoInteractionContent}
+                          renderNoQuizContent={renderNoInteractionContent}
                         />
                     ) : (
                          <div className="flex flex-col items-center justify-center h-full gap-4 text-center">
