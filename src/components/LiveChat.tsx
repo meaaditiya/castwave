@@ -16,20 +16,18 @@ import { Textarea } from './ui/textarea';
 import { format } from 'date-fns';
 import { useDebouncedCallback } from 'use-debounce';
 import { TypingIndicator } from './TypingIndicator';
-import { CardContent, CardHeader, CardTitle } from './ui/card';
+import { CardContent } from './ui/card';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 
 
 interface LiveChatProps {
-  chatRoomId: string;
   chatRoom: ChatRoom;
   messages: Message[];
-  participant?: Participant | null; 
+  participant?: Participant | null; // The current user's participant record, if not host
   canChat: boolean;
   onDeleteMessage: (messageId: string) => void;
-  isHost: boolean;
 }
 
 const userColors = [
@@ -167,7 +165,7 @@ function ChatMessage({ message, parentMessage, onReply, onFeature, onVote, onDel
 }
 
 
-export function LiveChat({ chatRoomId, chatRoom, messages, participant, canChat, onDeleteMessage, isHost }: LiveChatProps) {
+export function LiveChat({ chatRoom, messages, participant, canChat, onDeleteMessage }: LiveChatProps) {
   const [newMessage, setNewMessage] = useState('');
   const [isSending, setIsSending] = useState(false);
   const { currentUser } = useAuth();
@@ -180,8 +178,11 @@ export function LiveChat({ chatRoomId, chatRoom, messages, participant, canChat,
   const [replyingTo, setReplyingTo] = useState<Message | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   
+  const isHost = currentUser?.uid === chatRoom.hostId;
+  
   const participantMap = useMemo(() => {
     const map = new Map<string, Participant>();
+    // Since non-hosts don't get the full list, we'll build what we can
     if (participant) map.set(participant.userId, participant);
     return map;
   }, [participant]);
@@ -224,11 +225,14 @@ export function LiveChat({ chatRoomId, chatRoom, messages, participant, canChat,
     const viewport = scrollViewportRef.current;
     if (!viewport) return;
   
+    // A bit of tolerance to consider it "at the bottom"
     const isScrolledToBottom = viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight <= 150;
   
+    // If a new message comes in and we are already at the bottom, scroll down.
     if (isScrolledToBottom) {
       scrollToBottom('smooth');
     } else {
+      // If we are not at the bottom, show the "new message" button.
       if(messages.length > 0) {
         setShowNewMessageButton(true);
       }
@@ -322,9 +326,9 @@ export function LiveChat({ chatRoomId, chatRoom, messages, participant, canChat,
 
   return (
     <>
-      <div className="flex-1 flex flex-col p-0 min-h-0 mt-2">
-        <div className="flex-1 relative min-h-0 px-2 sm:px-4">
-            <ScrollArea className="h-full pr-2" viewportRef={scrollViewportRef}>
+      <CardContent className="flex-1 flex flex-col p-2 sm:p-4 min-h-0">
+        <div className="flex-1 relative min-h-0">
+            <ScrollArea className="h-full pr-4" viewportRef={scrollViewportRef}>
                 <div className="space-y-4">
                 {messages && messages.map((msg) => (
                     <ChatMessage 
@@ -347,56 +351,56 @@ export function LiveChat({ chatRoomId, chatRoom, messages, participant, canChat,
                     )}
                 </div>
             </ScrollArea>
-        {showNewMessageButton && (
-            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20">
-                <Button 
-                    size="sm" 
-                    className="rounded-full shadow-lg animate-in fade-in-50" 
-                    onClick={() => {
-                        scrollToBottom('smooth');
-                        setShowNewMessageButton(false);
-                    }}
-                >
-                    <ArrowDown className="mr-2 h-4 w-4" />
-                    New Messages
-                </Button>
-            </div>
-        )}
+          {showNewMessageButton && (
+              <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20">
+                  <Button 
+                      size="sm" 
+                      className="rounded-full shadow-lg animate-in fade-in-50" 
+                      onClick={() => {
+                          scrollToBottom('smooth');
+                          setShowNewMessageButton(false);
+                      }}
+                  >
+                      <ArrowDown className="mr-2 h-4 w-4" />
+                      New Messages
+                  </Button>
+              </div>
+          )}
         </div>
 
-        <div className="h-5 text-xs text-muted-foreground italic px-4 pt-1">
+        <div className="h-5 text-xs text-muted-foreground italic px-1 pt-1">
             {typingUsers.length > 0 && 
-            <TypingIndicator users={typingUsers} />
+              <TypingIndicator users={typingUsers} />
             }
         </div>
         
-        {chatRoom.isLive || isHost ? (
-            <div className="border-t pt-2 p-2 mt-auto">
-                {replyingTo && (
-                    <div className="text-xs text-muted-foreground bg-muted p-2 rounded-t-md flex justify-between items-center">
-                        <span>Replying to <span className="font-bold">{replyingTo.user}</span></span>
-                        <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => { setReplyingTo(null); setNewMessage(''); }}>
-                            <X className="h-3 w-3"/>
-                        </Button>
-                    </div>
-                )}
-                <form onSubmit={handleSubmit} className="flex gap-2">
-                    <Input
-                    ref={inputRef}
-                    placeholder={canChat ? "Join the conversation..." : "Waiting for host approval..."}
-                    value={newMessage}
-                    onChange={(e) => setNewMessage(e.target.value)}
-                    disabled={!canChat || isSending}
-                    className={replyingTo ? 'rounded-t-none' : ''}
-                    />
-                    <Button type="submit" size="icon" aria-label="Send message" disabled={!canChat || isSending || !newMessage.trim()}>
-                    {isSending ? <Loader2 className="animate-spin" /> : <Send />}
-                    </Button>
-                </form>
-            </div>
-        ) : null}
-      </div>
+      </CardContent>
 
+      {chatRoom.isLive || isHost ? (
+        <div className="border-t pt-2 p-2 mt-auto">
+            {replyingTo && (
+                <div className="text-xs text-muted-foreground bg-muted p-2 rounded-t-md flex justify-between items-center">
+                    <span>Replying to <span className="font-bold">{replyingTo.user}</span></span>
+                    <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => { setReplyingTo(null); setNewMessage(''); }}>
+                        <X className="h-3 w-3"/>
+                    </Button>
+                </div>
+            )}
+            <form onSubmit={handleSubmit} className="flex gap-2">
+                <Input
+                ref={inputRef}
+                placeholder={canChat ? "Join the conversation..." : "Waiting for host approval..."}
+                value={newMessage}
+                onChange={(e) => setNewMessage(e.target.value)}
+                disabled={!canChat || isSending}
+                className={replyingTo ? 'rounded-t-none' : ''}
+                />
+                <Button type="submit" size="icon" aria-label="Send message" disabled={!canChat || isSending || !newMessage.trim()}>
+                {isSending ? <Loader2 className="animate-spin" /> : <Send />}
+                </Button>
+            </form>
+        </div>
+      ) : null}
 
        <Dialog open={!!messageToFeature} onOpenChange={(open) => !open && setMessageToFeature(null)}>
         <DialogContent>

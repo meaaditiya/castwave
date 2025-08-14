@@ -19,6 +19,8 @@ import { Button } from '@/components/ui/button';
 import { HighlightTool } from '@/components/HighlightTool';
 import { cn } from '@/lib/utils';
 import { ParticipantsList } from '@/components/ParticipantsList';
+import { LivePoll } from '@/components/LivePoll';
+import { LiveQuiz } from '@/components/LiveQuiz';
 
 
 function ChatRoomPageSkeleton() {
@@ -248,6 +250,8 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
     return <ChatRoomPageSkeleton />;
   }
 
+  // If the user is not the host and the session is not live, show the ended screen.
+  // This is the primary gatekeeper for non-hosts.
   if (!isHost && !chatRoom.isLive) {
       return (
           <div className="min-h-screen flex flex-col">
@@ -305,33 +309,34 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
         )}>
           <LiveScreen 
             {...chatRoomDetails} 
+            className="h-full min-h-[650px]"
+            createPollDialog={<LivePoll chatRoomId={chatRoomId} isHost={isHost} currentUserId={currentUser.uid} activePoll={chatRoom.activePoll} renderNoPollContent={() => <></>} />}
+            createQuizDialog={<LiveQuiz chatRoomId={chatRoomId} isHost={isHost} currentUserId={currentUser.uid} participants={participants} activeQuiz={chatRoom.activeQuiz} renderNoQuizContent={() => <></>} />}
           />
         </div>
 
         <div className={cn(
-            "lg:col-span-1 flex flex-col",
-            isChatFullscreen ? "col-span-1 h-screen p-0 m-0" : "min-h-[500px]"
+            "h-[650px]",
+            isChatFullscreen ? "col-span-1 h-screen p-0 m-0" : ""
         )}>
             <Card className={cn(
-               "flex flex-col flex-1",
+               "flex flex-col",
                isChatFullscreen 
                    ? "h-full rounded-none border-0" 
-                   : "min-h-0"
+                   : "h-full"
             )}>
-              <div className="p-4 flex flex-row items-center justify-between border-b">
-                  <span className="font-semibold">Live Interaction</span>
+              <CardHeader className="flex flex-row items-center justify-between">
+                  <CardTitle className="flex items-center gap-2"><MessageSquare className="h-5 w-5"/> Live Chat</CardTitle>
                    <Button variant="ghost" size="icon" onClick={() => setIsChatFullscreen(!isChatFullscreen)}>
                     {isChatFullscreen ? <Shrink className="h-5 w-5" /> : <Expand className="h-5 w-5" />}
                   </Button>
-              </div>
+              </CardHeader>
               <LiveChat 
-                  chatRoomId={chatRoomId}
                   chatRoom={chatRoom}
                   messages={chatLog}
                   participant={myParticipantRecord}
                   canChat={isHost || isApprovedParticipant}
                   onDeleteMessage={handleDeleteMessage}
-                  isHost={isHost}
               />
               <div className="mt-auto border-t">
                   <Accordion type="single" collapsible className="w-full">
