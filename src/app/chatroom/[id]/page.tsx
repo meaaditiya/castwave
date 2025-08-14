@@ -310,7 +310,6 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
 
 
   return (
-    <>
     <div className="min-h-screen flex flex-col">
       <Header />
        <main className={cn(
@@ -329,13 +328,14 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
         </div>
 
         <div className={cn(
-            isChatFullscreen ? "col-span-1 h-screen p-0 m-0" : "lg:col-span-1"
+            "lg:col-span-1",
+            isChatFullscreen && "col-span-1 h-screen p-0 m-0"
         )}>
             <Card className={cn(
-               "flex flex-col",
+               "flex flex-col min-h-[500px]",
                isChatFullscreen 
                    ? "h-full rounded-none border-0" 
-                   : "h-full min-h-[500px] lg:min-h-0"
+                   : "h-full lg:min-h-0"
             )}>
               <CardHeader className="flex flex-row items-center justify-between">
                   <CardTitle className="flex items-center gap-2"><MessageSquare className="h-5 w-5"/> Live Chat</CardTitle>
@@ -380,6 +380,5 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
         </div>
       </main>
     </div>
-    </>
   );
 }
