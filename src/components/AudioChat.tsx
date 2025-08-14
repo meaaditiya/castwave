@@ -407,7 +407,9 @@ export function AudioChat({ chatRoomId, isHost, participants }: AudioChatProps) 
         if(el.srcObject !== stream) {
           el.srcObject = stream;
         }
-        (el as any).setSinkId(selectedAudioOutput).catch((err: any) => console.warn("Error setting audio output:", err));
+        if (typeof (el as any).setSinkId === 'function') {
+            (el as any).setSinkId(selectedAudioOutput).catch((err: any) => console.warn("Error setting audio output:", err));
+        }
         el.muted = el.id === `video-${currentUser?.uid}`;
       } else if (el) {
         el.srcObject = null;
