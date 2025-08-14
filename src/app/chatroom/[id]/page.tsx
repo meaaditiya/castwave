@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, use } from 'react';
@@ -11,7 +10,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { MicOff, Sparkles, Users, MessageSquare, ShieldQuestion, UserX, ArrowLeft, Expand, Shrink, X, Plus } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
-import { getChatRoomStream, ChatRoom, getMessages, Participant, getParticipants, getParticipantStream, requestToJoinChat, updateParticipantStatus, deleteMessage } from '@/services/chatRoomService';
+import { getChatRoomStream, ChatRoom, getMessages, Participant, getParticipants, getParticipantStream, requestToJoinChat, updateParticipantStatus, deleteMessage, leaveChatRoom } from '@/services/chatRoomService';
 import { useToast } from '@/hooks/use-toast';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import Link from 'next/link';
@@ -152,6 +151,26 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
       router.push('/login');
     }
   }, [authLoading, currentUser, router]);
+
+  useEffect(() => {
+      if (!currentUser || !chatRoomId || isHost) return;
+
+      const handleBeforeUnload = () => {
+          if (currentUser?.uid) {
+              leaveChatRoom(chatRoomId, currentUser.uid);
+          }
+      };
+
+      window.addEventListener('beforeunload', handleBeforeUnload);
+
+      return () => {
+          window.removeEventListener('beforeunload', handleBeforeUnload);
+          // Only mark as removed if the user is currently approved
+          if (myParticipantRecord?.status === 'approved') {
+              leaveChatRoom(chatRoomId, currentUser.uid);
+          }
+      };
+  }, [chatRoomId, currentUser, isHost, myParticipantRecord?.status]);
   
   useEffect(() => {
     if (!chatRoomId || !currentUser) return; 
@@ -316,7 +335,7 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
         </div>
 
         <div className={cn(
-            "h-[650px]",
+            "h-auto lg:h-[calc(650px+2rem)]", // Match LiveScreen height + gap
             isChatFullscreen ? "col-span-1 h-screen p-0 m-0" : ""
         )}>
             <Card className={cn(

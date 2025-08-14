@@ -1,4 +1,3 @@
-
 "use client";
 
 import { Participant, updateParticipantStatus } from "@/services/chatRoomService";
@@ -118,11 +117,11 @@ export function ParticipantsList({ chatRoomId, participants, hostId }: Participa
     const approvedCount = participants.filter(p => p.status === 'approved' && p.userId !== hostId).length;
 
 
-    if (visibleParticipants.length === 0) {
+    if (visibleParticipants.length <= 1 && pendingCount === 0) {
         return (
-             <div className="text-center text-muted-foreground p-4 flex flex-col items-center justify-center h-full">
+             <div className="text-center text-muted-foreground p-4 flex flex-col items-center justify-center h-full min-h-[10rem]">
                 <User className="h-12 w-12 text-muted-foreground/50 mb-4" />
-                <p className="font-medium">No participants yet</p>
+                <p className="font-medium">No other participants</p>
                 <p className="text-sm">Users who join will appear here.</p>
             </div>
         )
