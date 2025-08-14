@@ -294,6 +294,21 @@ export const updateParticipantStatus = async (chatRoomId: string, userId: string
     await updateDoc(participantRef, { status });
 }
 
+export const leaveChatRoom = async (chatRoomId: string, userId: string) => {
+    const participantRef = doc(db, 'chatRooms', chatRoomId, 'participants', userId);
+    try {
+        const participantDoc = await getDoc(participantRef);
+        if (participantDoc.exists()) {
+            // We set status to 'removed' instead of deleting, so host knows they left
+            // and they have to re-request to join.
+            await updateDoc(participantRef, { status: 'removed' });
+        }
+    } catch (error) {
+        // Don't throw an error to the user for this background task.
+        console.error("Error updating participant status on leave:", error);
+    }
+};
+
 export const getParticipants = (chatRoomId: string, callback: (participants: Participant[]) => void, onError?: (error: Error) => void) => {
     const participantsCol = collection(db, `chatRooms/${chatRoomId}/participants`);
     const q = query(participantsCol);
@@ -371,7 +386,7 @@ export const featureMessage = async (chatRoomId: string, message: Message, hostR
     }
 }
 
-export const clearFeaturedMessage = async (chatRoomId: string) => {
+export const clearFeaturedMessage = async (chatRoomId: string, message: Message, hostReply: string) => {
     const chatRoomRef = doc(db, 'chatRooms', chatRoomId);
     try {
         await updateDoc(chatRoomRef, {
