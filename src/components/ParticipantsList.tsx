@@ -96,9 +96,9 @@ export function ParticipantsList({ chatRoomId, participants, hostId }: Participa
     }
 
     const visibleParticipants = useMemo(() => {
-        const statusOrder = { 'pending': 1, 'approved': 2, 'denied': 3, 'removed': 4 };
+        const statusOrder = { 'pending': 1, 'approved': 2 };
         return [...participants]
-            .filter(p => p.status !== 'removed' && p.status !== 'denied')
+            .filter(p => p.isPresent && (p.status === 'pending' || p.status === 'approved'))
             .sort((a, b) => {
                 if (a.userId === hostId) return -1;
                 if (b.userId === hostId) return 1;
@@ -113,8 +113,8 @@ export function ParticipantsList({ chatRoomId, participants, hostId }: Participa
             });
     }, [participants, hostId]);
     
-    const pendingCount = participants.filter(p => p.status === 'pending').length;
-    const approvedCount = participants.filter(p => p.status === 'approved' && p.userId !== hostId).length;
+    const pendingCount = participants.filter(p => p.status === 'pending' && p.isPresent).length;
+    const approvedCount = participants.filter(p => p.status === 'approved' && p.userId !== hostId && p.isPresent).length;
 
 
     if (visibleParticipants.length <= 1 && pendingCount === 0) {

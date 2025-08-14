@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, use } from 'react';
+import { useState, useEffect, use, useRef } from 'react';
 import { Header } from '@/components/Header';
 import { LiveScreen } from '@/components/LiveScreen';
 import { LiveChat } from '@/components/LiveChat';
@@ -10,7 +10,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { MicOff, Sparkles, Users, MessageSquare, ShieldQuestion, UserX, ArrowLeft, Expand, Shrink, X, Plus } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
-import { getChatRoomStream, ChatRoom, getMessages, Participant, getParticipants, getParticipantStream, requestToJoinChat, updateParticipantStatus, deleteMessage, leaveChatRoom } from '@/services/chatRoomService';
+import { getChatRoomStream, ChatRoom, getMessages, Participant, getParticipants, getParticipantStream, requestToJoinChat, updateParticipantStatus, deleteMessage, updatePresence } from '@/services/chatRoomService';
 import { useToast } from '@/hooks/use-toast';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import Link from 'next/link';
@@ -141,6 +141,7 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
   const [pageLoading, setPageLoading] = useState(true);
   const { toast } = useToast();
   const [isChatFullscreen, setIsChatFullscreen] = useState(false);
+  const isPresentRef = useRef(false);
   
   const chatRoomId = resolvedParams.id;
   const isHost = currentUser && chatRoom && currentUser.uid === chatRoom.hostId;
@@ -153,24 +154,27 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
   }, [authLoading, currentUser, router]);
 
   useEffect(() => {
-      if (!currentUser || !chatRoomId || isHost) return;
+    if (currentUser && chatRoomId && !isPresentRef.current) {
+        updatePresence(chatRoomId, currentUser.uid, true);
+        isPresentRef.current = true;
+    }
 
-      const handleBeforeUnload = () => {
-          if (currentUser?.uid) {
-              leaveChatRoom(chatRoomId, currentUser.uid);
-          }
-      };
+    const handleBeforeUnload = () => {
+        if (currentUser && chatRoomId) {
+            updatePresence(chatRoomId, currentUser.uid, false);
+        }
+    };
 
-      window.addEventListener('beforeunload', handleBeforeUnload);
+    window.addEventListener('beforeunload', handleBeforeUnload);
 
-      return () => {
-          window.removeEventListener('beforeunload', handleBeforeUnload);
-          // Only mark as removed if the user is currently approved
-          if (myParticipantRecord?.status === 'approved') {
-              leaveChatRoom(chatRoomId, currentUser.uid);
-          }
-      };
-  }, [chatRoomId, currentUser, isHost, myParticipantRecord?.status]);
+    return () => {
+        window.removeEventListener('beforeunload', handleBeforeUnload);
+        if (currentUser && chatRoomId && isPresentRef.current) {
+            updatePresence(chatRoomId, currentUser.uid, false);
+            isPresentRef.current = false;
+        }
+    };
+  }, [currentUser, chatRoomId]);
   
   useEffect(() => {
     if (!chatRoomId || !currentUser) return; 
@@ -319,13 +323,9 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
     <div className="min-h-screen flex flex-col">
       <Header />
        <main className={cn(
-          "flex-1 container py-4 md:py-8 gap-4 md:gap-8",
-          isChatFullscreen ? "grid grid-cols-1 p-0 md:p-0" : "grid grid-cols-1 lg:grid-cols-3 px-2 sm:px-4 md:px-8"
+          "flex-1 container py-4 md:py-8 grid lg:grid-cols-3 gap-4 md:gap-8 px-2 md:px-8"
       )}>
-        <div className={cn(
-            "lg:col-span-2 space-y-4", 
-            isChatFullscreen && "hidden"
-        )}>
+        <div className="lg:col-span-2 space-y-4">
           <LiveScreen 
             {...chatRoomDetails} 
             className="h-full min-h-[650px]"
@@ -335,14 +335,14 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
         </div>
 
         <div className={cn(
-            "h-auto lg:h-[calc(650px+2rem)]", // Match LiveScreen height + gap
+            "h-[650px]",
             isChatFullscreen ? "col-span-1 h-screen p-0 m-0" : ""
         )}>
             <Card className={cn(
-               "flex flex-col",
+               "flex flex-col h-full",
                isChatFullscreen 
-                   ? "h-full rounded-none border-0" 
-                   : "h-full"
+                   ? "rounded-none border-0" 
+                   : ""
             )}>
               <CardHeader className="flex flex-row items-center justify-between">
                   <CardTitle className="flex items-center gap-2"><MessageSquare className="h-5 w-5"/> Live Chat</CardTitle>

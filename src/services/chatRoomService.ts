@@ -69,6 +69,7 @@ export interface Participant {
     isMuted?: boolean;
     handRaised?: boolean;
     lastReaction?: string;
+    isPresent?: boolean;
 }
 
 export const createChatRoom = async (input: ChatRoomInput): Promise<{ chatRoomId: string }> => {
@@ -107,6 +108,7 @@ export const createChatRoom = async (input: ChatRoomInput): Promise<{ chatRoomId
                 requestCount: 0,
                 isMuted: false,
                 handRaised: false,
+                isPresent: true,
             });
         });
         
@@ -266,9 +268,10 @@ export const requestToJoinChat = async (chatRoomId: string, userId: string) => {
              if ((participant.requestCount || 0) >= 3) {
                  throw new Error("You have reached the maximum number of join requests.");
              }
-             if (participant.status === 'denied' || participant.status === 'removed') {
+             if (participant.status === 'denied' || participant.status === 'removed' || !participant.isPresent) {
                  transaction.update(participantRef, {
                      status: 'pending',
+                     isPresent: true,
                      requestCount: increment(1)
                  });
              }
@@ -282,6 +285,7 @@ export const requestToJoinChat = async (chatRoomId: string, userId: string) => {
                 requestCount: 1,
                 isMuted: false,
                 handRaised: false,
+                isPresent: true,
             });
         }
     });
@@ -290,24 +294,33 @@ export const requestToJoinChat = async (chatRoomId: string, userId: string) => {
 
 export const updateParticipantStatus = async (chatRoomId: string, userId: string, status: Participant['status']) => {
     const participantRef = doc(db, `chatRooms/${chatRoomId}/participants`, userId);
-    await updateDoc(participantRef, { status });
+    const updateData: any = { status };
+    if (status === 'denied' || status === 'removed') {
+        updateData.isPresent = false;
+    }
+    await updateDoc(participantRef, updateData);
 }
 
-export const leaveChatRoom = async (chatRoomId: string, userId: string) => {
+export const updatePresence = async (chatRoomId: string, userId: string, isPresent: boolean) => {
     const participantRef = doc(db, 'chatRooms', chatRoomId, 'participants', userId);
     try {
         const participantDoc = await getDoc(participantRef);
         if (participantDoc.exists()) {
-            await updateDoc(participantRef, { status: 'removed' });
+            const data: any = { isPresent };
+            // If user is leaving and was approved, set status to 'removed' so they have to re-request
+            if (!isPresent && participantDoc.data().status === 'approved') {
+                data.status = 'removed';
+            }
+            await updateDoc(participantRef, data);
         }
     } catch (error) {
-        console.error("Error updating participant status on leave:", error);
+        console.error("Error updating presence:", error);
     }
 };
 
 export const getParticipants = (chatRoomId: string, callback: (participants: Participant[]) => void, onError?: (error: Error) => void) => {
     const participantsCol = collection(db, `chatRooms/${chatRoomId}/participants`);
-    const q = query(participantsCol, where('status', '!=', 'removed'));
+    const q = query(participantsCol);
     
     const unsubscribe = onSnapshot(q, (snapshot) => {
         const participants = snapshot.docs.map(doc => ({ id: doc.id, userId: doc.id, ...doc.data() } as Participant));
