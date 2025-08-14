@@ -309,13 +309,12 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
         )}>
           <LiveScreen 
             {...chatRoomDetails} 
-            className="h-full min-h-[650px]"
           />
         </div>
 
         <div className={cn(
-            "h-[650px]",
-            isChatFullscreen ? "col-span-1 h-screen p-0 m-0" : ""
+            "lg:col-span-1",
+            isChatFullscreen ? "col-span-1 h-screen p-0 m-0" : "h-[650px]"
         )}>
             <Card className={cn(
                "flex flex-col",
