@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, use } from 'react';
@@ -312,7 +311,7 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
 
         <div className={cn(
             "lg:col-span-1",
-            isChatFullscreen ? "col-span-1 h-screen p-0 m-0" : "h-[650px]"
+            isChatFullscreen ? "col-span-1 h-screen p-0 m-0" : ""
         )}>
             <Card className={cn(
                "flex flex-col",
