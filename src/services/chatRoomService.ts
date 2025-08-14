@@ -265,15 +265,18 @@ export const requestToJoinChat = async (chatRoomId: string, userId: string) => {
 
         if (participantDoc.exists()) {
              const participant = participantDoc.data() as Participant;
-             if ((participant.requestCount || 0) >= 3) {
+             if ((participant.requestCount || 0) >= 5) { // Increased limit
                  throw new Error("You have reached the maximum number of join requests.");
              }
-             if (participant.status === 'denied' || participant.status === 'removed' || !participant.isPresent) {
+             // If user was denied, removed, or previously approved but left, reset to pending
+             if (['denied', 'removed'].includes(participant.status) || (participant.status === 'approved' && !participant.isPresent)) {
                  transaction.update(participantRef, {
                      status: 'pending',
                      isPresent: true,
                      requestCount: increment(1)
                  });
+             } else if (!participant.isPresent) { // For any other case where user is not present
+                transaction.update(participantRef, { isPresent: true });
              }
         } else {
             const userProfile = await getUserProfile(userId);
@@ -306,12 +309,8 @@ export const updatePresence = async (chatRoomId: string, userId: string, isPrese
     try {
         const participantDoc = await getDoc(participantRef);
         if (participantDoc.exists()) {
-            const data: any = { isPresent };
-            // If user is leaving and was approved, set status to 'removed' so they have to re-request
-            if (!isPresent && participantDoc.data().status === 'approved') {
-                data.status = 'removed';
-            }
-            await updateDoc(participantRef, data);
+             // Only update the presence status. Do not change their approval status.
+            await updateDoc(participantRef, { isPresent });
         }
     } catch (error) {
         console.error("Error updating presence:", error);

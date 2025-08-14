@@ -46,10 +46,10 @@ export function ParticipantsList({ chatRoomId, participants, hostId }: Participa
 
             if (type === 'approveAll') {
                 action = 'approved';
-                participantsToUpdate = participants.filter(p => p.status === 'pending');
+                participantsToUpdate = participants.filter(p => p.status === 'pending' && p.isPresent);
             } else if (type === 'removeAll') {
                 action = 'removed';
-                participantsToUpdate = participants.filter(p => p.status === 'approved' && p.userId !== hostId);
+                participantsToUpdate = participants.filter(p => p.status === 'approved' && p.userId !== hostId && p.isPresent);
             }
             
             if (!action || participantsToUpdate.length === 0) {
@@ -104,8 +104,8 @@ export function ParticipantsList({ chatRoomId, participants, hostId }: Participa
                 if (b.userId === hostId) return 1;
                 const statusA = a.status || 'pending';
                 const statusB = b.status || 'pending';
-                if (statusOrder[statusA] !== statusOrder[statusB]) {
-                    return statusOrder[statusA] - statusOrder[statusB];
+                if (statusOrder[statusA as keyof typeof statusOrder] !== statusOrder[statusB as keyof typeof statusOrder]) {
+                    return statusOrder[statusA as keyof typeof statusOrder] - statusOrder[statusB as keyof typeof statusOrder];
                 }
                 if (a.displayName < b.displayName) return -1;
                 if (a.displayName > b.displayName) return 1;
