@@ -323,7 +323,8 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
     <div className="min-h-screen flex flex-col">
       <Header />
        <main className={cn(
-          "flex-1 container py-4 md:py-8 grid lg:grid-cols-3 gap-4 md:gap-8 px-2 md:px-8"
+          "flex-1 container py-4 md:py-8 grid lg:grid-cols-3 gap-4 md:gap-8 px-2 md:px-8",
+          isChatFullscreen && "hidden" 
       )}>
         <div className="lg:col-span-2 space-y-4">
           <LiveScreen 
@@ -334,20 +335,12 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
           />
         </div>
 
-        <div className={cn(
-            "h-[650px]",
-            isChatFullscreen ? "col-span-1 h-screen p-0 m-0" : ""
-        )}>
-            <Card className={cn(
-               "flex flex-col h-full",
-               isChatFullscreen 
-                   ? "rounded-none border-0" 
-                   : ""
-            )}>
+        <div className="h-[650px] lg:col-span-1">
+            <Card className="flex flex-col h-full">
               <CardHeader className="flex flex-row items-center justify-between">
                   <CardTitle className="flex items-center gap-2"><MessageSquare className="h-5 w-5"/> Live Chat</CardTitle>
                    <Button variant="ghost" size="icon" onClick={() => setIsChatFullscreen(!isChatFullscreen)}>
-                    {isChatFullscreen ? <Shrink className="h-5 w-5" /> : <Expand className="h-5 w-5" />}
+                    <Expand className="h-5 w-5" />
                   </Button>
               </CardHeader>
               <LiveChat 
@@ -386,6 +379,52 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
           </Card>
         </div>
       </main>
+
+      {isChatFullscreen && (
+        <div className="fixed inset-0 z-50 bg-background flex flex-col">
+            <Card className="flex flex-col h-full rounded-none border-0">
+              <CardHeader className="flex flex-row items-center justify-between">
+                  <CardTitle className="flex items-center gap-2"><MessageSquare className="h-5 w-5"/> Live Chat</CardTitle>
+                   <Button variant="ghost" size="icon" onClick={() => setIsChatFullscreen(!isChatFullscreen)}>
+                    <Shrink className="h-5 w-5" />
+                  </Button>
+              </CardHeader>
+              <LiveChat 
+                  chatRoom={chatRoom}
+                  messages={chatLog}
+                  participant={myParticipantRecord}
+                  canChat={isHost || isApprovedParticipant}
+                  onDeleteMessage={handleDeleteMessage}
+              />
+              <div className="mt-auto border-t">
+                  <Accordion type="single" collapsible className="w-full">
+                      {isHost && (
+                          <AccordionItem value="participants" className="border-b-0">
+                              <AccordionTrigger className="px-6 py-4">
+                                  <span className="flex items-center gap-2 text-base font-semibold"><Users className="h-5 w-5" /> Participants</span>
+                              </AccordionTrigger>
+                              <AccordionContent>
+                                <div className="px-2">
+                                  <ParticipantsList chatRoomId={chatRoomId} participants={participants} hostId={chatRoom.hostId} />
+                                </div>
+                              </AccordionContent>
+                          </AccordionItem>
+                      )}
+                      <AccordionItem value="summary" className="border-b-0">
+                          <AccordionTrigger className="px-6 py-4">
+                              <span className="flex items-center gap-2 text-base font-semibold"><Sparkles className="h-5 w-5" /> AI Summary</span>
+                          </AccordionTrigger>
+                          <AccordionContent>
+                            <div className="px-4 pb-2">
+                              <HighlightTool chatLog={fullChatLog} />
+                            </div>
+                          </AccordionContent>
+                      </AccordionItem>
+                  </Accordion>
+              </div>
+          </Card>
+        </div>
+      )}
     </div>
     </>
   );
