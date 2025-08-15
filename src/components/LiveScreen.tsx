@@ -1,4 +1,3 @@
-
 "use client";
 
 import Image from 'next/image';
@@ -134,18 +133,32 @@ export function LiveScreen({ id: chatRoomId, title, host, hostId, isLive, imageH
         isFullScreen ? "fixed inset-0 z-[100] rounded-none h-screen" : "relative h-full",
         className
     )}>
-       <CardHeader className="flex flex-row items-start justify-between gap-4 p-4 md:p-6">
-        <div className="flex flex-row items-center gap-4">
-            <Avatar className="h-16 w-16 border-2 border-primary">
+       <CardHeader className="flex flex-col gap-4 p-4 md:p-6">
+        {/* Mobile layout - Avatar on left, Back button and Fullscreen button on right */}
+        <div className="flex md:hidden items-center justify-between gap-4">
+            <Avatar className="h-12 w-12 border-2 border-primary">
               <AvatarImage src={hostProfile?.photoURL} alt={host} />
               <AvatarFallback>{getInitials(host)}</AvatarFallback>
             </Avatar>
-            <div className="flex-1">
-              <CardTitle className="text-xl md:text-2xl font-headline">{title}</CardTitle>
-              <CardDescription>Hosted by {host}</CardDescription>
+            
+            <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" onClick={() => router.back()} className="rounded-full flex-shrink-0">
+                    <ArrowLeft className="mr-2 h-4 w-4" />
+                    Back
+                </Button>
+                
+                <Button variant="ghost" size="icon" onClick={() => setIsFullScreen(!isFullScreen)}>
+                    {isFullScreen ? <Shrink className="h-5 w-5"/> : <Expand className="h-5 w-5"/>}
+                </Button>
             </div>
+        </div>
+
+        {/* Mobile layout - Title and description in separate row */}
+        <div className="flex md:hidden flex-col items-center text-center gap-1">
+            <CardTitle className="text-lg font-headline">{title}</CardTitle>
+            <CardDescription>Hosted by {host}</CardDescription>
             {isLive && (
-              <div className="items-center gap-2 text-primary font-semibold hidden sm:flex">
+              <div className="flex items-center gap-2 text-primary font-semibold mt-1">
                 <span className="relative flex h-3 w-3">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
                   <span className="relative inline-flex rounded-full h-3 w-3 bg-primary"></span>
@@ -154,17 +167,40 @@ export function LiveScreen({ id: chatRoomId, title, host, hostId, isLive, imageH
               </div>
             )}
         </div>
-         <div className="flex items-center gap-2">
-            <Button variant="ghost" size="icon" onClick={() => setIsFullScreen(!isFullScreen)}>
-                {isFullScreen ? <Shrink className="h-5 w-5"/> : <Expand className="h-5 w-5"/>}
-            </Button>
-            {!isFullScreen && (
-                <Button variant="outline" size="sm" onClick={() => router.back()} className="rounded-full flex-shrink-0">
-                    <ArrowLeft className="mr-2 h-4 w-4" />
-                    Back
+
+        {/* Desktop layout - Original layout for larger screens */}
+        <div className="hidden md:flex flex-row items-start justify-between gap-4">
+            <div className="flex flex-row items-center gap-4">
+                <Avatar className="h-16 w-16 border-2 border-primary">
+                  <AvatarImage src={hostProfile?.photoURL} alt={host} />
+                  <AvatarFallback>{getInitials(host)}</AvatarFallback>
+                </Avatar>
+                <div className="flex-1">
+                  <CardTitle className="text-xl md:text-2xl font-headline">{title}</CardTitle>
+                  <CardDescription>Hosted by {host}</CardDescription>
+                </div>
+                {isLive && (
+                  <div className="items-center gap-2 text-primary font-semibold hidden sm:flex">
+                    <span className="relative flex h-3 w-3">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-3 w-3 bg-primary"></span>
+                    </span>
+                    <span>LIVE</span>
+                  </div>
+                )}
+            </div>
+             <div className="flex items-center gap-2">
+                <Button variant="ghost" size="icon" onClick={() => setIsFullScreen(!isFullScreen)}>
+                    {isFullScreen ? <Shrink className="h-5 w-5"/> : <Expand className="h-5 w-5"/>}
                 </Button>
-            )}
-         </div>
+                {!isFullScreen && (
+                    <Button variant="outline" size="sm" onClick={() => router.back()} className="rounded-full flex-shrink-0">
+                        <ArrowLeft className="mr-2 h-4 w-4" />
+                        Back
+                    </Button>
+                )}
+             </div>
+        </div>
       </CardHeader>
       <CardContent className="bg-card/50 p-4 md:p-6 flex flex-col flex-1">
        {isLive ? (

@@ -21,7 +21,7 @@ function PublicProfileSkeleton() {
         <div className="flex flex-col min-h-screen">
             <Header />
             <main className="flex-1 bg-muted/40">
-                <div className="w-full max-w-4xl mx-auto py-12 px-4 md:px-8">
+                <div className="w-full max-w-4xl mx-auto py-12">
                     <Card className="mb-8">
                         <CardHeader className="flex flex-col sm:flex-row items-center gap-6 text-center sm:text-left p-6">
                             <Skeleton className="h-24 w-24 rounded-full" />
@@ -209,8 +209,8 @@ export default function PublicProfilePage({ params }: { params: { id: string } }
         <div className="flex flex-col min-h-screen">
             <Header />
             <main className="flex-1 bg-muted/40">
-                <div className="w-full max-w-4xl mx-auto py-12 px-4 md:px-8">
-                     <div className="mb-8">
+                <div className="w-full max-w-4xl mx-auto py-12">
+                     <div className="mb-8 px-4">
                          <Button variant="outline" size="sm" onClick={() => router.back()} className="rounded-full">
                             <ArrowLeft className="mr-2" />
                             Back
@@ -252,7 +252,7 @@ export default function PublicProfilePage({ params }: { params: { id: string } }
                     </Card>
 
 
-                    <h2 className="text-2xl font-bold tracking-tight my-6">Public Sessions</h2>
+                    <h2 className="text-2xl font-bold tracking-tight my-6 px-4">Public Sessions</h2>
                     
                     {userSessions.length > 0 ? (
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">

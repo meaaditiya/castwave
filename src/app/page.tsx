@@ -205,7 +205,7 @@ export default function Home() {
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
-      <main className="flex-1 w-full max-w-7xl mx-auto py-8 px-4 md:px-8">
+      <main className="flex-1 w-full max-w-7xl mx-auto py-8">
         <div className="relative text-center py-12 rounded-xl mb-12 overflow-hidden bg-card border">
           <div className="absolute inset-0 bg-gradient-to-b from-primary/5 to-transparent -z-10"></div>
            <div 
@@ -222,7 +222,7 @@ export default function Home() {
                   Explore Live Sessions
               </span>
           </h1>
-          <p className="text-muted-foreground text-base max-w-2xl mx-auto">
+          <p className="text-muted-foreground text-base max-w-2xl mx-auto px-4">
               Join a conversation, review a past broadcast, or see what's coming up. Your next favorite session awaits.
           </p>
         </div>
