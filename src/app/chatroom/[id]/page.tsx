@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, use, useRef } from 'react';
@@ -328,13 +329,13 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
         <div className="lg:col-span-2 space-y-4">
           <LiveScreen 
             {...chatRoomDetails} 
-            className="h-full min-h-[650px]"
+            className="h-full"
             createPollDialog={<LivePoll chatRoomId={chatRoomId} isHost={isHost} currentUserId={currentUser.uid} activePoll={chatRoom.activePoll} renderNoPollContent={() => <></>} />}
             createQuizDialog={<LiveQuiz chatRoomId={chatRoomId} isHost={isHost} currentUserId={currentUser.uid} participants={participants} activeQuiz={chatRoom.activeQuiz} renderNoQuizContent={() => <></>} />}
           />
         </div>
 
-        <div className="h-[650px] lg:col-span-1">
+        <div className="lg:col-span-1">
             <Card className="flex flex-col h-full">
               <CardHeader className="flex flex-row items-center justify-between">
                   <CardTitle className="flex items-center gap-2"><MessageSquare className="h-5 w-5"/> Live Chat</CardTitle>
