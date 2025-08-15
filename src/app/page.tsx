@@ -11,11 +11,12 @@ import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Input } from '@/components/ui/input';
-import { Search, Globe, Lock, Loader2, Waves } from 'lucide-react';
+import { Search, Globe, Lock, Loader2, Phone } from 'lucide-react';
 import { startChatRoom } from '@/services/chatRoomService';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LoadingScreen } from '@/components/LoadingScreen';
 import { cn } from '@/lib/utils';
+import Link from 'next/link';
 
 function HomePageSkeleton() {
     return (
@@ -32,29 +33,6 @@ function HomePageSkeleton() {
         </div>
     );
 }
-
-function HeroBanner() {
-    return (
-        <div className="relative text-center py-12 rounded-xl mb-12 overflow-hidden bg-card border">
-            <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-transparent -z-10"></div>
-            <div className="absolute -top-16 -right-16 w-40 h-40 bg-primary/10 rounded-full blur-2xl"></div>
-            <div className="absolute -bottom-16 -left-16 w-40 h-40 bg-primary/10 rounded-full blur-2xl"></div>
-            
-            <div className="relative z-10">
-                <Waves className="h-12 w-12 text-primary mx-auto mb-4" />
-                <h1 className="text-3xl md:text-5xl font-bold tracking-tighter mb-4" style={{textShadow: '0 2px 10px hsl(var(--background))'}}>
-                    <span className="bg-gradient-to-br from-foreground to-foreground/70 bg-clip-text text-transparent">
-                        Explore Live Sessions
-                    </span>
-                </h1>
-                <p className="text-muted-foreground text-lg max-w-2xl mx-auto px-4">
-                    Join a conversation, review a past broadcast, or see what's coming up. Your next favorite session awaits.
-                </p>
-            </div>
-        </div>
-    )
-}
-
 
 export default function Home() {
   const [allChatRooms, setAllChatRooms] = useState<ChatRoom[]>([]);
@@ -229,12 +207,15 @@ export default function Home() {
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
-      <main className="flex-1 w-full py-8">
-        <div className="px-4">
-            <HeroBanner />
+      <main className="flex-1 w-full py-8 px-2">
+         <div className="mb-8 px-2 text-sm text-center text-muted-foreground">
+            <Link href="https://connectwithaaditiya.onrender.com/contact" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 hover:text-primary transition-colors">
+                 <Phone className="h-3 w-3 text-black dark:text-white" />
+                 Contact
+            </Link>
         </div>
         
-        <div className="flex flex-col md:flex-row gap-4 mb-8 px-4">
+        <div className="flex flex-col md:flex-row gap-4 mb-8 px-2">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
             <Input 
