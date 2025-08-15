@@ -1,4 +1,3 @@
-
 "use client";
 
 import { Waves, LogOut, Loader2, PlusCircle, User, CheckCircle, XCircle, Rss } from 'lucide-react';
@@ -42,8 +41,8 @@ export function Header() {
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="flex h-14 w-full max-w-7xl mx-auto items-center px-4">
-        <Link href="/" className="flex items-center space-x-2 mr-auto">
+      <div className="flex h-14 w-full items-center justify-between px-4">
+        <Link href="/" className="flex items-center space-x-2">
           <Waves className="h-6 w-6 text-primary" />
           <span className="font-bold text-lg">CastWave</span>
         </Link>
