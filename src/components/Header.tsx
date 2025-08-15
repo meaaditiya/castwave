@@ -1,3 +1,4 @@
+
 "use client";
 
 import { Waves, LogOut, Loader2, PlusCircle, User, CheckCircle, XCircle, Rss } from 'lucide-react';
@@ -14,6 +15,8 @@ export function Header() {
   const { currentUser, logout, loading } = useAuth();
   const router = useRouter();
   const [isCreatingSession, setIsCreatingSession] = useState(false);
+  const [isNavigatingToFeed, setIsNavigatingToFeed] = useState(false);
+  const [isNavigatingToProfile, setIsNavigatingToProfile] = useState(false);
 
 
   const handleLogout = async () => {
@@ -28,6 +31,16 @@ export function Header() {
     setIsCreatingSession(true);
     router.push('/chatroom/create');
   };
+
+  const handleFeedClick = () => {
+    setIsNavigatingToFeed(true);
+    router.push('/feed');
+  }
+
+  const handleProfileClick = () => {
+    setIsNavigatingToProfile(true);
+    router.push('/profile');
+  }
 
 
   const getInitials = (usernameOrEmail: string | undefined | null) => {
@@ -52,11 +65,9 @@ export function Header() {
               <Loader2 className="animate-spin" />
             ) : currentUser ? (
               <>
-                <Button variant="ghost" asChild className="hidden sm:flex px-2 sm:px-3">
-                   <Link href="/feed">
-                        <Rss className="h-4 w-4" />
-                        <span className="hidden sm:inline ml-2">Feed</span>
-                   </Link>
+                <Button variant="ghost" onClick={handleFeedClick} disabled={isNavigatingToFeed} className="hidden sm:flex px-2 sm:px-3">
+                    {isNavigatingToFeed ? <Loader2 className="h-4 w-4 animate-spin" /> : <Rss className="h-4 w-4" />}
+                    <span className="hidden sm:inline ml-2">Feed</span>
                 </Button>
                 <Button variant="ghost" onClick={handleCreateSessionClick} disabled={isCreatingSession} className="flex px-2 sm:px-3">
                     {isCreatingSession ? (
@@ -85,11 +96,13 @@ export function Header() {
                            )}
                         </DropdownMenuLabel>
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem asChild>
-                           <Link href="/profile"><User className="mr-2 h-4 w-4"/>Profile</Link>
+                        <DropdownMenuItem onClick={handleProfileClick} disabled={isNavigatingToProfile}>
+                            {isNavigatingToProfile ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <User className="mr-2 h-4 w-4"/>}
+                            Profile
                         </DropdownMenuItem>
-                         <DropdownMenuItem asChild className="sm:hidden">
-                           <Link href="/feed"><Rss className="mr-2 h-4 w-4"/>Feed</Link>
+                         <DropdownMenuItem onClick={handleFeedClick} disabled={isNavigatingToFeed} className="sm:hidden">
+                           {isNavigatingToFeed ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Rss className="mr-2 h-4 w-4"/>}
+                           Feed
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={handleCreateSessionClick} className="sm:hidden">
                             <PlusCircle className="mr-2 h-4 w-4" />
