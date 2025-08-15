@@ -1,3 +1,4 @@
+
 "use client";
 
 import Image from 'next/image';
@@ -129,7 +130,7 @@ export function LiveScreen({ id: chatRoomId, title, host, hostId, isLive, imageH
 
   return (
     <Card className={cn(
-        "overflow-hidden shadow-lg flex flex-col transition-all duration-300 min-h-[400px]",
+        "overflow-hidden shadow-lg flex flex-col transition-all duration-300",
         isFullScreen ? "fixed inset-0 z-[100] rounded-none h-screen" : "relative h-full",
         className
     )}>
