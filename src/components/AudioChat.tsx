@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from 'react';
@@ -408,7 +407,7 @@ export function AudioChat({ chatRoomId, isHost, participants }: AudioChatProps) 
         if(el.srcObject !== stream) {
           el.srcObject = stream;
         }
-        if (typeof (el as any).setSinkId === 'function') {
+        if (el && typeof (el as any).setSinkId === 'function') {
             (el as any).setSinkId(selectedAudioOutput).catch((err: any) => console.warn("Error setting audio output:", err));
         }
         el.muted = el.id === `video-${currentUser?.uid}`;
@@ -645,7 +644,18 @@ export function AudioChat({ chatRoomId, isHost, participants }: AudioChatProps) 
             </PopoverContent>
           </Popover>
 
-          <Tooltip>
+           {!isHost && (
+            <Tooltip>
+                <TooltipTrigger asChild>
+                    <Button onClick={handleHandRaise} variant={myParticipantInfo?.handRaised ? "default" : "secondary"} size="lg" className="rounded-full h-14 w-14">
+                        <Hand />
+                    </Button>
+                </TooltipTrigger>
+                <TooltipContent>{myParticipantInfo?.handRaised ? 'Lower Hand' : 'Raise Hand'}</TooltipContent>
+            </Tooltip>
+           )}
+
+            <Tooltip>
              <TooltipTrigger asChild>
                 <Button onClick={handleLeave} variant="destructive" size="lg" className="rounded-full h-14 w-14">
                     <PhoneOff />
@@ -654,17 +664,6 @@ export function AudioChat({ chatRoomId, isHost, participants }: AudioChatProps) 
             <TooltipContent>Leave Call</TooltipContent>
           </Tooltip>
          
-           {!isHost && (
-            <Tooltip>
-                <TooltipTrigger asChild>
-                    <Button onClick={handleHandRaise} variant={myParticipantInfo?.handRaised ? "default" : "secondary"} size="lg" className="rounded-full h-14 w-14">
-                        <Hand />
-                    </Button>
-                </TooltipTrigger>
-                <TooltipContent>{myParticipantInfo?.handRaised ? 'Lower Hand' : 'Willing to Speak'}</TooltipContent>
-            </Tooltip>
-           )}
-
              <Popover>
                 <Tooltip>
                     <TooltipTrigger asChild>
