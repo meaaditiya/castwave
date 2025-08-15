@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from 'react';
@@ -483,72 +484,76 @@ export function AudioChat({ chatRoomId, isHost, participants }: AudioChatProps) 
     );
   }
 
-  return (
-    <TooltipProvider>
-    <div className={cn("w-full h-full flex flex-col", fullscreenUser && "bg-black")}>
-       <div className={cn("grid flex-1 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 mb-4", fullscreenUser && "hidden")}>
-        {sortedParticipants.map(p => {
-            const hasVideo = (p.userId === currentUser?.uid && isVideoOn && localStream?.getVideoTracks().length > 0) || (videoStreams[p.userId] && videoStreams[p.userId].getVideoTracks().length > 0);
+  const VideoGrid = (
+    <div className={cn(
+        "grid flex-1 gap-4 mb-4",
+        "grid-cols-1 sm:grid-cols-2",
+        sortedParticipants.length > 4 && "md:grid-cols-3",
+        sortedParticipants.length > 9 && "lg:grid-cols-4",
+        fullscreenUser && "hidden"
+    )}>
+    {sortedParticipants.map(p => {
+        const hasVideo = (p.userId === currentUser?.uid && isVideoOn && localStream?.getVideoTracks().length > 0) || (videoStreams[p.userId] && videoStreams[p.userId].getVideoTracks().length > 0);
+        
+        return (
+        <div key={p.userId} className={cn(
+            "relative group flex flex-col items-center rounded-lg border text-center transition-all aspect-square justify-center overflow-hidden bg-card",
+            speakingPeers[p.userId] && !hasVideo && "bg-primary/20 border-primary shadow-lg scale-105",
+            p.handRaised && "border-yellow-500 border-2"
+        )}>
+             {hasVideo ? (
+                <video
+                    id={`video-${p.userId}`}
+                    ref={el => videoRefs.current[p.userId] = el}
+                    autoPlay 
+                    playsInline
+                    muted={p.userId === currentUser?.uid || !isSpeakerOn} 
+                    className="w-full h-full object-cover absolute top-0 left-0"
+                />
+             ) : (
+                <Avatar className="h-16 w-16">
+                    <AvatarImage src={p.photoURL} alt={p.displayName}/>
+                    <AvatarFallback>{getInitials(p.displayName)}</AvatarFallback>
+                </Avatar>
+             )}
             
-            return (
-            <div key={p.userId} className={cn(
-                "relative flex flex-col items-center gap-2 p-3 rounded-lg border text-center transition-all aspect-square justify-center overflow-hidden",
-                speakingPeers[p.userId] && !hasVideo && "bg-primary/20 border-primary shadow-lg scale-105",
-                p.handRaised && "border-yellow-500 border-2"
-            )}>
-                 {hasVideo ? (
-                    <video
-                        id={`video-${p.userId}`}
-                        ref={el => videoRefs.current[p.userId] = el}
-                        autoPlay 
-                        playsInline
-                        muted={p.userId === currentUser?.uid || !isSpeakerOn} 
-                        className="w-full h-full object-cover absolute top-0 left-0"
-                    />
-                 ) : (
-                    <Avatar className="h-16 w-16">
-                        <AvatarImage src={p.photoURL} alt={p.displayName}/>
-                        <AvatarFallback>{getInitials(p.displayName)}</AvatarFallback>
-                    </Avatar>
-                 )}
-                
-                <div className="absolute bottom-2 left-2 right-2 bg-black/50 p-1 rounded-md text-white z-10">
-                    <div className="flex items-center justify-center gap-1">
-                        {(p.userId === currentUser?.uid ? isActuallyMuted : p.isMuted) && <MicOff className="h-4 w-4 text-red-300" />}
-                        <p className="font-semibold text-sm truncate w-full">{p.displayName} {p.userId === currentUser?.uid ? "(You)" : ""}</p>
-                    </div>
+            <div className="absolute bottom-2 left-2 right-2 bg-black/50 p-1 rounded-md text-white z-10">
+                <div className="flex items-center justify-center gap-1">
+                    {(p.userId === currentUser?.uid ? isActuallyMuted : p.isMuted) && <MicOff className="h-4 w-4 text-red-300" />}
+                    <p className="font-semibold text-sm truncate w-full">{p.displayName} {p.userId === currentUser?.uid ? "(You)" : ""}</p>
                 </div>
+            </div>
 
-                 {reactions[p.userId] && (
-                    <div className="absolute top-0 right-0 -mt-4 -mr-2 text-4xl animate-in fade-in zoom-in-50 slide-in-from-bottom-5 duration-500 z-10"
-                         onAnimationEnd={() => setReactions(prev => { const newReactions = {...prev}; delete newReactions[p.userId]; return newReactions;})}>
-                        {reactions[p.userId]}
-                    </div>
-                )}
-                {p.handRaised && (
-                    <Tooltip>
-                        <TooltipTrigger asChild>
-                            <span className="absolute top-1 right-1"><Hand className="h-5 w-5 text-yellow-500 bg-black/50 rounded-full p-1" /></span>
-                        </TooltipTrigger>
-                        <TooltipContent>Wants to speak</TooltipContent>
-                    </Tooltip>
-                )}
-                
+             {reactions[p.userId] && (
+                <div className="absolute top-0 right-0 -mt-4 -mr-2 text-4xl animate-in fade-in zoom-in-50 slide-in-from-bottom-5 duration-500 z-10"
+                     onAnimationEnd={() => setReactions(prev => { const newReactions = {...prev}; delete newReactions[p.userId]; return newReactions;})}>
+                    {reactions[p.userId]}
+                </div>
+            )}
+            {p.handRaised && (
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                        <span className="absolute top-1 right-1"><Hand className="h-5 w-5 text-yellow-500 bg-black/50 rounded-full p-1" /></span>
+                    </TooltipTrigger>
+                    <TooltipContent>Wants to speak</TooltipContent>
+                </Tooltip>
+            )}
+            
+            <div className="absolute top-1 right-1 z-10 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
                 {hasVideo && (
                     <Tooltip>
                         <TooltipTrigger asChild>
-                            <Button size="sm" variant="outline" className="absolute top-1 right-1 h-7 w-7 p-0 z-10" onClick={() => setFullscreenUser(p.userId)}>
+                            <Button size="sm" variant="secondary" className="h-7 w-7 p-0" onClick={() => setFullscreenUser(p.userId)}>
                                 <Expand className="h-4 w-4" />
                             </Button>
                         </TooltipTrigger>
                         <TooltipContent>Fullscreen</TooltipContent>
                     </Tooltip>
                 )}
-                
                 {isHost && p.userId !== currentUser?.uid && (
                      <Tooltip>
                         <TooltipTrigger asChild>
-                             <Button size="sm" variant="outline" className="absolute top-1 left-1 h-7 w-7 p-0 z-10" onClick={() => handleHostMute(p.userId, !p.isMuted)}>
+                             <Button size="sm" variant="secondary" className="h-7 w-7 p-0" onClick={() => handleHostMute(p.userId, !p.isMuted)}>
                                 {p.isMuted ? <Mic className="h-4 w-4" /> : <MicOff className="h-4 w-4"/>}
                             </Button>
                         </TooltipTrigger>
@@ -556,8 +561,15 @@ export function AudioChat({ chatRoomId, isHost, participants }: AudioChatProps) 
                     </Tooltip>
                 )}
             </div>
-        )})}
-       </div>
+        </div>
+    )})}
+   </div>
+  );
+
+  return (
+    <TooltipProvider>
+    <div className={cn("w-full h-full flex flex-col group/container", fullscreenUser && "bg-black")}>
+       {VideoGrid}
 
         {fullscreenUser && (
             <div className="flex-1 relative mb-4">
@@ -566,19 +578,21 @@ export function AudioChat({ chatRoomId, isHost, participants }: AudioChatProps) 
                     ref={el => videoRefs.current[fullscreenUser] = el}
                     autoPlay
                     playsInline
-                    muted={fullscreenUser === currentUser?.uid} 
+                    muted={fullscreenUser === currentUser?.uid || !isSpeakerOn}
                     className="w-full h-full object-contain"
                 />
-                 <Button size="icon" variant="destructive" className="absolute top-4 right-4 z-20" onClick={() => setFullscreenUser(null)}>
-                    <Shrink className="h-5 w-5" />
-                 </Button>
+                 <div className="absolute top-4 right-4 z-20 opacity-0 group-hover/container:opacity-100 transition-opacity">
+                    <Button size="icon" variant="secondary" onClick={() => setFullscreenUser(null)}>
+                        <Shrink className="h-5 w-5" />
+                    </Button>
+                 </div>
             </div>
         )}
        
-       <div className="mt-auto flex items-center justify-center flex-wrap gap-2 md:gap-4 pt-4 border-t">
+       <div className="mt-auto flex items-center justify-center flex-wrap gap-2 md:gap-4 pt-4 border-t md:opacity-0 group-hover/container:opacity-100 transition-opacity md:absolute md:bottom-4 md:left-1/2 md:-translate-x-1/2 md:bg-background/80 md:backdrop-blur-sm md:p-4 md:rounded-full md:border">
           <Tooltip>
             <TooltipTrigger asChild>
-                <Button onClick={toggleSelfMute} variant={isActuallyMuted ? 'destructive' : 'outline'} size="lg" className="rounded-full h-14 w-14" disabled={!isHost && (myParticipantInfo?.isMuted ?? false)}>
+                <Button onClick={toggleSelfMute} variant={isActuallyMuted ? 'destructive' : 'secondary'} size="lg" className="rounded-full h-14 w-14" disabled={!isHost && (myParticipantInfo?.isMuted ?? false)}>
                     {isActuallyMuted ? <MicOff /> : <Mic />}
                 </Button>
             </TooltipTrigger>
@@ -587,7 +601,7 @@ export function AudioChat({ chatRoomId, isHost, participants }: AudioChatProps) 
           
           <Tooltip>
              <TooltipTrigger asChild>
-                <Button onClick={toggleVideo} variant={isVideoOn ? "default" : "outline"} size="lg" className="rounded-full h-14 w-14">
+                <Button onClick={toggleVideo} variant={isVideoOn ? "default" : "secondary"} size="lg" className="rounded-full h-14 w-14">
                     {isVideoOn ? <VideoOff /> : <Video />}
                 </Button>
             </TooltipTrigger>
@@ -598,7 +612,7 @@ export function AudioChat({ chatRoomId, isHost, participants }: AudioChatProps) 
             <Tooltip>
                 <TooltipTrigger asChild>
                     <PopoverTrigger asChild>
-                        <Button variant="outline" size="lg" className="rounded-full h-14 w-14">
+                        <Button variant="secondary" size="lg" className="rounded-full h-14 w-14">
                             {isSpeakerOn ? <Volume2 /> : <VolumeX />}
                         </Button>
                     </PopoverTrigger>
@@ -643,7 +657,7 @@ export function AudioChat({ chatRoomId, isHost, participants }: AudioChatProps) 
            {!isHost && (
             <Tooltip>
                 <TooltipTrigger asChild>
-                    <Button onClick={handleHandRaise} variant={myParticipantInfo?.handRaised ? "default" : "outline"} size="lg" className="rounded-full h-14 w-14">
+                    <Button onClick={handleHandRaise} variant={myParticipantInfo?.handRaised ? "default" : "secondary"} size="lg" className="rounded-full h-14 w-14">
                         <Hand />
                     </Button>
                 </TooltipTrigger>
@@ -655,7 +669,7 @@ export function AudioChat({ chatRoomId, isHost, participants }: AudioChatProps) 
                 <Tooltip>
                     <TooltipTrigger asChild>
                         <PopoverTrigger asChild>
-                            <Button variant="outline" size="lg" className="rounded-full h-14 w-14">
+                            <Button variant="secondary" size="lg" className="rounded-full h-14 w-14">
                                 <SmilePlus />
                             </Button>
                         </PopoverTrigger>
@@ -672,13 +686,13 @@ export function AudioChat({ chatRoomId, isHost, participants }: AudioChatProps) 
             <>
                 <Tooltip>
                     <TooltipTrigger asChild>
-                        <Button onClick={() => handleBulkMute(true)} variant="outline" size="lg" className="rounded-full h-14 w-14"><Volume1 /></Button>
+                        <Button onClick={() => handleBulkMute(true)} variant="secondary" size="lg" className="rounded-full h-14 w-14"><Volume1 /></Button>
                     </TooltipTrigger>
                     <TooltipContent>Mute All</TooltipContent>
                 </Tooltip>
                 <Tooltip>
                     <TooltipTrigger asChild>
-                        <Button onClick={() => handleBulkMute(false)} variant="outline" size="lg" className="rounded-full h-14 w-14"><Volume /></Button>
+                        <Button onClick={() => handleBulkMute(false)} variant="secondary" size="lg" className="rounded-full h-14 w-14"><Volume /></Button>
                     </TooltipTrigger>
                     <TooltipContent>Unmute All</TooltipContent>
                 </Tooltip>

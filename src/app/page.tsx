@@ -13,7 +13,8 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Input } from '@/components/ui/input';
 import { Search, Globe, Lock, Loader2, Waves } from 'lucide-react';
 import { startChatRoom } from '@/services/chatRoomService';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { LoadingScreen } from '@/components/LoadingScreen';
 
 function HomePageSkeleton() {
     return (
@@ -156,11 +157,7 @@ export default function Home() {
   }
   
   if (authLoading || !currentUser) {
-    return (
-        <div className="flex items-center justify-center h-screen bg-muted/40">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        </div>
-    );
+    return <LoadingScreen />;
   }
 
   const renderRoomList = (rooms: ChatRoom[]) => {
