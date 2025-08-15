@@ -486,9 +486,7 @@ export function AudioChat({ chatRoomId, isHost, participants }: AudioChatProps) 
   const VideoGrid = (
     <div className={cn(
         "grid flex-1 gap-4 mb-4",
-        "grid-cols-1 sm:grid-cols-2",
-        sortedParticipants.length > 4 && "md:grid-cols-3",
-        sortedParticipants.length > 9 && "lg:grid-cols-4",
+        "grid-cols-2 sm:grid-cols-3 md:grid-cols-4",
         fullscreenUser && "hidden"
     )}>
     {sortedParticipants.map(p => {
