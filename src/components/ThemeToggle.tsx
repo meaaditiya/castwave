@@ -28,6 +28,11 @@ const themes = [
     { name: 'Yellow', theme: 'yellow', icon: Palette },
     { name: 'Slate', theme: 'slate', icon: Palette },
     { name: 'Stone', theme: 'stone', icon: Palette },
+    { name: 'Zinc', theme: 'zinc', icon: Palette },
+    { name: 'Lime', theme: 'lime', icon: Palette },
+    { name: 'Sky', theme: 'sky', icon: Palette },
+    { name: 'Amber', theme: 'amber', icon: Palette },
+    { name: 'Teal', theme: 'teal', icon: Palette },
 ];
 
 export function ThemeToggle() {

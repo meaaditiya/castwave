@@ -249,6 +249,116 @@
     --input: 35 25% 90%;
     --ring: 35 75% 55%;
   }
+
+  .zinc {
+    --background: 240 5.9% 10%;
+    --foreground: 240 5% 95%;
+    --card: 240 5.9% 10%;
+    --card-foreground: 240 5% 95%;
+    --popover: 240 5.9% 10%;
+    --popover-foreground: 240 5% 95%;
+    --primary: 240 5% 95%;
+    --primary-foreground: 240 5.9% 10%;
+    --secondary: 240 3.7% 15.9%;
+    --secondary-foreground: 240 5% 95%;
+    --muted: 240 3.7% 15.9%;
+    --muted-foreground: 240 5% 64.9%;
+    --accent: 240 3.7% 15.9%;
+    --accent-foreground: 240 5% 95%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 85.7% 97.3%;
+    --border: 240 3.7% 15.9%;
+    --input: 240 3.7% 15.9%;
+    --ring: 240 4.9% 83.9%;
+  }
+
+  .lime {
+    --background: 84 80% 98%;
+    --foreground: 84 90% 10%;
+    --card: 84 80% 98%;
+    --card-foreground: 84 90% 10%;
+    --popover: 84 80% 98%;
+    --popover-foreground: 84 90% 10%;
+    --primary: 84 65% 50%;
+    --primary-foreground: 84 90% 10%;
+    --secondary: 84 70% 96%;
+    --secondary-foreground: 84 90% 10%;
+    --muted: 84 70% 96%;
+    --muted-foreground: 84 15% 45%;
+    --accent: 84 70% 96%;
+    --accent-foreground: 84 90% 10%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 84 60% 91%;
+    --input: 84 60% 91%;
+    --ring: 84 65% 50%;
+  }
+
+  .sky {
+    --background: 200 100% 98%;
+    --foreground: 200 90% 10%;
+    --card: 200 100% 98%;
+    --card-foreground: 200 90% 10%;
+    --popover: 200 100% 98%;
+    --popover-foreground: 200 90% 10%;
+    --primary: 200 90% 55%;
+    --primary-foreground: 200 90% 10%;
+    --secondary: 200 80% 96%;
+    --secondary-foreground: 200 90% 10%;
+    --muted: 200 80% 96%;
+    --muted-foreground: 200 20% 45%;
+    --accent: 200 80% 96%;
+    --accent-foreground: 200 90% 10%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 200 70% 91%;
+    --input: 200 70% 91%;
+    --ring: 200 90% 55%;
+  }
+  
+  .amber {
+    --background: 39 100% 97%;
+    --foreground: 39 90% 10%;
+    --card: 39 100% 97%;
+    --card-foreground: 39 90% 10%;
+    --popover: 39 100% 97%;
+    --popover-foreground: 39 90% 10%;
+    --primary: 39 95% 50%;
+    --primary-foreground: 39 90% 10%;
+    --secondary: 39 80% 96%;
+    --secondary-foreground: 39 90% 10%;
+    --muted: 39 80% 96%;
+    --muted-foreground: 39 20% 45%;
+    --accent: 39 80% 96%;
+    --accent-foreground: 39 90% 10%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 39 70% 91%;
+    --input: 39 70% 91%;
+    --ring: 39 95% 50%;
+  }
+
+  .teal {
+    --background: 165 80% 98%;
+    --foreground: 165 80% 10%;
+    --card: 165 80% 98%;
+    --card-foreground: 165 80% 10%;
+    --popover: 165 80% 98%;
+    --popover-foreground: 165 80% 10%;
+    --primary: 165 75% 45%;
+    --primary-foreground: 165 80% 98%;
+    --secondary: 165 70% 96%;
+    --secondary-foreground: 165 80% 10%;
+    --muted: 165 70% 96%;
+    --muted-foreground: 165 20% 45%;
+    --accent: 165 70% 96%;
+    --accent-foreground: 165 80% 10%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 165 60% 91%;
+    --input: 165 60% 91%;
+    --ring: 165 75% 45%;
+  }
 }
 
 @layer base {
@@ -268,6 +378,11 @@
   .theme-preview-yellow > .theme-icon { @apply bg-yellow-200 text-yellow-500; }
   .theme-preview-slate > .theme-icon { @apply bg-slate-500 text-slate-100; }
   .theme-preview-stone > .theme-icon { @apply bg-stone-300 text-stone-600; }
+  .theme-preview-zinc > .theme-icon { @apply bg-zinc-800 text-zinc-300; }
+  .theme-preview-lime > .theme-icon { @apply bg-lime-200 text-lime-600; }
+  .theme-preview-sky > .theme-icon { @apply bg-sky-200 text-sky-600; }
+  .theme-preview-amber > .theme-icon { @apply bg-amber-200 text-amber-600; }
+  .theme-preview-teal > .theme-icon { @apply bg-teal-200 text-teal-600; }
 
   .theme-preview-light { @apply bg-white; }
   .theme-preview-dark { @apply bg-slate-950; }
@@ -279,6 +394,11 @@
   .theme-preview-yellow { @apply bg-yellow-50; }
   .theme-preview-slate { @apply bg-slate-900; }
   .theme-preview-stone { @apply bg-stone-100; }
+  .theme-preview-zinc { @apply bg-zinc-950; }
+  .theme-preview-lime { @apply bg-lime-50; }
+  .theme-preview-sky { @apply bg-sky-50; }
+  .theme-preview-amber { @apply bg-amber-50; }
+  .theme-preview-teal { @apply bg-teal-50; }
 }
 
 @layer utilities {

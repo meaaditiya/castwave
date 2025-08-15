@@ -19,7 +19,7 @@ import { cn } from '@/lib/utils';
 
 function HomePageSkeleton() {
     return (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 px-2">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 px-4">
             {Array.from({ length: 8 }).map((_, i) => (
                 <div key={i} className="flex flex-col space-y-3">
                     <Skeleton className="h-[225px] w-full rounded-xl" />
@@ -34,54 +34,15 @@ function HomePageSkeleton() {
 }
 
 function HeroBanner() {
-    const ref = useRef<HTMLDivElement>(null);
-    const [style, setStyle] = useState({});
-
-    const onMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-        if (!ref.current) return;
-        const { clientX, clientY } = e;
-        const { width, height, left, top } = ref.current.getBoundingClientRect();
-        const x = clientX - left;
-        const y = clientY - top;
-        const rotateX = (y / height - 0.5) * -15; // Invert for natural feel
-        const rotateY = (x / width - 0.5) * 15;
-
-        setStyle({
-            transform: `perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale3d(1.05, 1.05, 1.05)`,
-            '--glow-x': `${x}px`,
-            '--glow-y': `${y}px`,
-        });
-    };
-
-    const onMouseLeave = () => {
-        setStyle({
-            transform: 'perspective(1000px) rotateX(0deg) rotateY(0deg) scale3d(1, 1, 1)',
-        });
-    };
-
     return (
-        <div 
-            ref={ref}
-            className="group relative text-center py-12 rounded-xl mb-12 overflow-hidden bg-card border transition-transform duration-300 ease-out"
-            style={{ transformStyle: 'preserve-3d', ...style }}
-            onMouseMove={onMouseMove}
-            onMouseLeave={onMouseLeave}
-        >
-             <div 
-                className="absolute inset-0 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent transition-opacity duration-500 group-hover:opacity-50 -z-10"
-                style={{ transform: 'translateZ(-10px)' }}
-            ></div>
-            <div 
-                className="absolute inset-0 w-full h-full -z-20 opacity-0 transition-opacity duration-300 group-hover:opacity-100"
-                style={{
-                    background: 'radial-gradient(circle at var(--glow-x) var(--glow-y), hsl(var(--primary) / 0.15), transparent 40%)',
-                    transform: 'translateZ(-20px)',
-                }}
-            />
+        <div className="relative text-center py-12 rounded-xl mb-12 overflow-hidden bg-card border">
+            <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-transparent -z-10"></div>
+            <div className="absolute -top-16 -right-16 w-40 h-40 bg-primary/10 rounded-full blur-2xl"></div>
+            <div className="absolute -bottom-16 -left-16 w-40 h-40 bg-primary/10 rounded-full blur-2xl"></div>
             
-            <div style={{ transform: 'translateZ(50px)' }}>
+            <div className="relative z-10">
                 <Waves className="h-12 w-12 text-primary mx-auto mb-4" />
-                <h1 className="text-3xl md:text-5xl font-bold tracking-tighter mb-4 text-shadow">
+                <h1 className="text-3xl md:text-5xl font-bold tracking-tighter mb-4" style={{textShadow: '0 2px 10px hsl(var(--background))'}}>
                     <span className="bg-gradient-to-br from-foreground to-foreground/70 bg-clip-text text-transparent">
                         Explore Live Sessions
                     </span>
@@ -227,7 +188,7 @@ export default function Home() {
     if (loadingRooms) return <HomePageSkeleton />;
     if (rooms.length > 0) {
         return (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 px-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 px-4">
                 {rooms.map(chatRoom => (
                     <ChatRoomCard 
                         key={chatRoom.id} 
@@ -257,7 +218,7 @@ export default function Home() {
     const currentEmptyState = emptyStateMessages[currentTab as keyof typeof emptyStateMessages];
     
     return (
-        <div className="text-center py-16 text-muted-foreground border-2 border-dashed rounded-lg mx-2">
+        <div className="text-center py-16 text-muted-foreground border-2 border-dashed rounded-lg mx-4">
            {currentEmptyState.icon}
            <p className="font-semibold text-lg">{currentEmptyState.title}</p>
            <p>{currentEmptyState.description}</p>
@@ -268,10 +229,12 @@ export default function Home() {
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
-      <main className="flex-1 w-full py-8 px-2">
-        <HeroBanner />
+      <main className="flex-1 w-full py-8">
+        <div className="px-4">
+            <HeroBanner />
+        </div>
         
-        <div className="flex flex-col md:flex-row gap-4 mb-8">
+        <div className="flex flex-col md:flex-row gap-4 mb-8 px-4">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
             <Input 
