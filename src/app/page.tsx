@@ -205,7 +205,7 @@ export default function Home() {
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
-      <main className="flex-1 container py-8 px-2 md:px-8">
+      <main className="flex-1 w-full max-w-7xl mx-auto py-8 px-4 md:px-8">
         <div className="relative text-center py-12 rounded-xl mb-12 overflow-hidden bg-card border">
           <div className="absolute inset-0 bg-gradient-to-b from-primary/5 to-transparent -z-10"></div>
            <div 

@@ -260,7 +260,7 @@ export default function FeedPage() {
     return (
         <div className="min-h-screen flex flex-col">
             <Header />
-            <main className="flex-1 container py-8 px-2 md:px-8">
+            <main className="flex-1 w-full max-w-7xl mx-auto py-8 px-4 md:px-8">
                  <div className="mb-8">
                     <Button variant="outline" size="sm" onClick={() => router.back()} className="rounded-full mb-4">
                         <ArrowLeft className="mr-2" />
@@ -291,5 +291,3 @@ export default function FeedPage() {
         </div>
     )
 }
-
-    

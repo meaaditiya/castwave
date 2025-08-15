@@ -21,7 +21,7 @@ function PublicProfileSkeleton() {
         <div className="flex flex-col min-h-screen">
             <Header />
             <main className="flex-1 bg-muted/40">
-                <div className="container max-w-4xl py-12 px-2 md:px-8">
+                <div className="w-full max-w-4xl mx-auto py-12 px-4 md:px-8">
                     <Card className="mb-8">
                         <CardHeader className="flex flex-col sm:flex-row items-center gap-6 text-center sm:text-left p-6">
                             <Skeleton className="h-24 w-24 rounded-full" />
@@ -209,7 +209,7 @@ export default function PublicProfilePage({ params }: { params: { id: string } }
         <div className="flex flex-col min-h-screen">
             <Header />
             <main className="flex-1 bg-muted/40">
-                <div className="container max-w-4xl py-12 px-2 md:px-8">
+                <div className="w-full max-w-4xl mx-auto py-12 px-4 md:px-8">
                      <div className="mb-8">
                          <Button variant="outline" size="sm" onClick={() => router.back()} className="rounded-full">
                             <ArrowLeft className="mr-2" />
