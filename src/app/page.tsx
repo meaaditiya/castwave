@@ -208,13 +208,6 @@ export default function Home() {
     <div className="min-h-screen flex flex-col">
       <Header />
       <main className="flex-1 w-full py-8">
-         <div className="mb-8 px-2 text-sm text-left text-muted-foreground">
-            <Link href="https://connectwithaaditiya.onrender.com/contact" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 hover:text-primary transition-colors">
-                 <Phone className="h-3 w-3 text-black dark:text-white" />
-                 Contact for help
-            </Link>
-        </div>
-        
         <div className="flex flex-col md:flex-row gap-4 mb-8 px-2">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />

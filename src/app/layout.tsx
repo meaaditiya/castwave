@@ -5,6 +5,7 @@ import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
 import { AuthProvider } from '@/context/AuthContext';
 import { ThemeProvider } from '@/context/ThemeContext';
+import { Footer } from '@/components/Footer';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 
@@ -30,7 +31,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${inter.variable} font-sans bg-background text-foreground antialiased`}>
+      <body className={`${inter.variable} font-sans bg-background text-foreground antialiased flex flex-col min-h-screen`}>
         <ThemeProvider
             attribute="class"
             defaultTheme="system"
@@ -39,7 +40,10 @@ export default function RootLayout({
             themes={['light', 'dark', 'rose', 'green', 'orange', 'blue', 'violet', 'yellow', 'slate', 'stone', 'zinc', 'lime', 'sky', 'amber', 'teal']}
         >
             <AuthProvider>
-              {children}
+              <div className="flex-1">
+                {children}
+              </div>
+              <Footer />
             </AuthProvider>
             <Toaster />
         </ThemeProvider>
