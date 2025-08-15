@@ -166,9 +166,9 @@ export function LiveScreen({ id: chatRoomId, title, host, hostId, isLive, imageH
             )}
          </div>
       </CardHeader>
-      <CardContent className="bg-card/50 p-4 md:p-6 flex flex-col flex-1 min-h-0">
+      <CardContent className="bg-card/50 p-4 md:p-6 flex flex-col flex-1">
        {isLive ? (
-        <div className="flex flex-col flex-1 min-h-0">
+        <div className="flex flex-col flex-1 min-h-[400px]">
             <Tabs value={currentTab} onValueChange={setCurrentTab} className="w-full">
                 <TabsList className="grid w-full grid-cols-3">
                     <TabsTrigger value="interaction">
