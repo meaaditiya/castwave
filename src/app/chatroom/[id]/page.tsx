@@ -325,7 +325,7 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
       <Header />
        <main className={cn(
           "flex-1 grid lg:grid-cols-3 gap-4 md:gap-8 py-8",
-          isChatFullscreen && "hidden" 
+          isChatFullscreen ? "hidden" : ""
       )}>
         <div className="lg:col-span-2 space-y-4 min-w-0">
           <LiveScreen 
