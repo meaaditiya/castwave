@@ -268,7 +268,7 @@ export default function Home() {
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
-      <main className="flex-1 w-full max-w-screen-xl mx-auto py-8">
+      <main className="flex-1 w-full py-8">
         <HeroBanner />
         
         <div className="flex flex-col md:flex-row gap-4 mb-8 px-4">
