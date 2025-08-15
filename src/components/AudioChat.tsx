@@ -363,7 +363,7 @@ export function AudioChat({ chatRoomId, isHost, participants }: AudioChatProps) 
     } else if (!isVideoOn) {
          try {
             const videoStream = await navigator.mediaDevices.getUserMedia({ video: true });
-            const newVideoTrack = videoStream.getTracks()[0];
+            const newVideoTrack = videoStream.getVideoTracks()[0];
             localStream.addTrack(newVideoTrack);
             Object.values(peersRef.current).forEach(peer => peer.addTrack(newVideoTrack, localStream));
             setIsVideoOn(true);
@@ -532,7 +532,7 @@ export function AudioChat({ chatRoomId, isHost, participants }: AudioChatProps) 
             {p.handRaised && (
                 <Tooltip>
                     <TooltipTrigger asChild>
-                        <span className="absolute top-1 right-1"><Hand className="h-5 w-5 text-yellow-500 bg-black/50 rounded-full p-1" /></span>
+                        <span className="absolute top-1 left-1"><Hand className="h-5 w-5 text-yellow-500 bg-black/50 rounded-full p-1" /></span>
                     </TooltipTrigger>
                     <TooltipContent>Wants to speak</TooltipContent>
                 </Tooltip>
@@ -588,7 +588,7 @@ export function AudioChat({ chatRoomId, isHost, participants }: AudioChatProps) 
             </div>
         )}
        
-       <div className="mt-auto flex items-center justify-center flex-wrap gap-2 md:gap-4 pt-4 border-t md:opacity-0 group-hover/container:opacity-100 transition-opacity md:absolute md:bottom-4 md:left-1/2 md:-translate-x-1/2 md:bg-background/80 md:backdrop-blur-sm md:p-4 md:rounded-full md:border">
+       <div className="mt-auto flex items-center justify-center flex-wrap gap-2 md:gap-4 pt-4 border-t">
           <Tooltip>
             <TooltipTrigger asChild>
                 <Button onClick={toggleSelfMute} variant={isActuallyMuted ? 'destructive' : 'secondary'} size="lg" className="rounded-full h-14 w-14" disabled={!isHost && (myParticipantInfo?.isMuted ?? false)}>
