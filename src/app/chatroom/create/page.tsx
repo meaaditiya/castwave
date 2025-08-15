@@ -117,169 +117,171 @@ export default function CreateChatRoomPage() {
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
-      <main className="flex-1 w-full py-8 flex flex-col items-center bg-muted/40 px-2">
-        <div className="w-full mb-4">
-             <Button variant="outline" size="sm" onClick={() => router.back()} className="rounded-full">
-                <ArrowLeft className="mr-2" />
-                Back
-            </Button>
-        </div>
-        <Card className="w-full shadow-xl">
-           <CardHeader>
-            <CardTitle className="text-2xl font-bold tracking-tight text-center">Create a New Session</CardTitle>
-            <CardDescription className="text-center">Fill out the details below to start your new podcast session.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                <FormField
-                  control={form.control}
-                  name="title"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Session Title</FormLabel>
-                      <FormControl>
-                        <Input placeholder="e.g., The Future of Artificial Intelligence" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="description"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Session Description</FormLabel>
-                      <FormControl>
-                        <Textarea
-                          placeholder="Describe what your session will be about in a few sentences..."
-                          className="resize-none"
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="scheduleOption"
-                  render={({ field }) => (
-                    <FormItem className="space-y-3">
-                        <FormLabel>When to start?</FormLabel>
+      <main className="flex-1 w-full py-8 bg-muted/40 px-2">
+        <div className="w-full max-w-2xl mx-auto">
+            <div className="w-full mb-4">
+                <Button variant="outline" size="sm" onClick={() => router.back()} className="rounded-full">
+                    <ArrowLeft className="mr-2" />
+                    Back
+                </Button>
+            </div>
+            <Card className="w-full shadow-xl">
+            <CardHeader>
+                <CardTitle className="text-2xl font-bold tracking-tight text-center">Create a New Session</CardTitle>
+                <CardDescription className="text-center">Fill out the details below to start your new podcast session.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <Form {...form}>
+                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                    <FormField
+                    control={form.control}
+                    name="title"
+                    render={({ field }) => (
+                        <FormItem>
+                        <FormLabel>Session Title</FormLabel>
                         <FormControl>
-                            <RadioGroup
-                                onValueChange={field.onChange}
-                                defaultValue={field.value}
-                                className="flex flex-col sm:flex-row sm:space-x-4 sm:space-y-0"
-                            >
-                                <FormItem className="flex items-center space-x-3 space-y-0 rounded-md border p-4 flex-1 has-[:checked]:border-primary">
-                                    <FormControl>
-                                        <RadioGroupItem value="now" />
-                                    </FormControl>
-                                    <FormLabel className="font-normal flex items-center gap-2">
-                                        <Mic /> Go Live Now
-                                    </FormLabel>
-                                </FormItem>
-                                <FormItem className="flex items-center space-x-3 space-y-0 rounded-md border p-4 flex-1 has-[:checked]:border-primary">
-                                    <FormControl>
-                                        <RadioGroupItem value="later" />
-                                    </FormControl>
-                                    <FormLabel className="font-normal flex items-center gap-2">
-                                        <Clock /> Schedule for Later
-                                    </FormLabel>
-                                </FormItem>
-                            </RadioGroup>
+                            <Input placeholder="e.g., The Future of Artificial Intelligence" {...field} />
                         </FormControl>
                         <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                {scheduleOption === 'later' && (
-                  <FormField
-                    control={form.control}
-                    name="scheduledAt"
-                    render={({ field }) => (
-                      <FormItem className="flex flex-col">
-                        <FormLabel>Scheduled Date & Time (IST)</FormLabel>
-                        <Popover>
-                          <PopoverTrigger asChild>
-                            <FormControl>
-                              <Button
-                                variant={"outline"}
-                                className={cn(
-                                  "w-full pl-3 text-left font-normal",
-                                  !field.value && "text-muted-foreground"
-                                )}
-                              >
-                                {field.value ? (
-                                  format(field.value, "PPP HH:mm")
-                                ) : (
-                                  <span>Pick a date and time</span>
-                                )}
-                                <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                              </Button>
-                            </FormControl>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-auto p-0" align="start">
-                            <Calendar
-                              mode="single"
-                              selected={field.value}
-                              onSelect={field.onChange}
-                              disabled={(date) => date < new Date(new Date().setHours(0,0,0,0))}
-                              initialFocus
-                            />
-                             <div className="p-2 border-t border-border">
-                                <Input type="time" onChange={(e) => {
-                                    const time = e.target.value;
-                                    const [hours, minutes] = time.split(':');
-                                    const newDate = new Date(field.value || new Date());
-                                    newDate.setHours(Number(hours), Number(minutes));
-                                    field.onChange(newDate);
-                                }}/>
-                            </div>
-                          </PopoverContent>
-                        </Popover>
-                        <FormMessage />
-                      </FormItem>
+                        </FormItem>
                     )}
-                  />
-                )}
+                    />
+                    <FormField
+                    control={form.control}
+                    name="description"
+                    render={({ field }) => (
+                        <FormItem>
+                        <FormLabel>Session Description</FormLabel>
+                        <FormControl>
+                            <Textarea
+                            placeholder="Describe what your session will be about in a few sentences..."
+                            className="resize-none"
+                            {...field}
+                            />
+                        </FormControl>
+                        <FormMessage />
+                        </FormItem>
+                    )}
+                    />
 
-                 <FormField
-                  control={form.control}
-                  name="isPrivate"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                      <div className="space-y-0.5">
-                        <FormLabel className="text-base flex items-center gap-2">
-                          <Lock className="h-4 w-4" />
-                          Private Session
-                        </FormLabel>
-                        <FormDescription>
-                          Private sessions will not be shown on the homepage. Only users with a direct link can join.
-                        </FormDescription>
-                      </div>
-                      <FormControl>
-                        <Switch
-                          checked={field.value}
-                          onCheckedChange={field.onChange}
-                        />
-                      </FormControl>
-                    </FormItem>
-                  )}
-                />
+                    <FormField
+                    control={form.control}
+                    name="scheduleOption"
+                    render={({ field }) => (
+                        <FormItem className="space-y-3">
+                            <FormLabel>When to start?</FormLabel>
+                            <FormControl>
+                                <RadioGroup
+                                    onValueChange={field.onChange}
+                                    defaultValue={field.value}
+                                    className="flex flex-col sm:flex-row sm:space-x-4 sm:space-y-0"
+                                >
+                                    <FormItem className="flex items-center space-x-3 space-y-0 rounded-md border p-4 flex-1 has-[:checked]:border-primary">
+                                        <FormControl>
+                                            <RadioGroupItem value="now" />
+                                        </FormControl>
+                                        <FormLabel className="font-normal flex items-center gap-2">
+                                            <Mic /> Go Live Now
+                                        </FormLabel>
+                                    </FormItem>
+                                    <FormItem className="flex items-center space-x-3 space-y-0 rounded-md border p-4 flex-1 has-[:checked]:border-primary">
+                                        <FormControl>
+                                            <RadioGroupItem value="later" />
+                                        </FormControl>
+                                        <FormLabel className="font-normal flex items-center gap-2">
+                                            <Clock /> Schedule for Later
+                                        </FormLabel>
+                                    </FormItem>
+                                </RadioGroup>
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                    />
+                    {scheduleOption === 'later' && (
+                    <FormField
+                        control={form.control}
+                        name="scheduledAt"
+                        render={({ field }) => (
+                        <FormItem className="flex flex-col">
+                            <FormLabel>Scheduled Date & Time (IST)</FormLabel>
+                            <Popover>
+                            <PopoverTrigger asChild>
+                                <FormControl>
+                                <Button
+                                    variant={"outline"}
+                                    className={cn(
+                                    "w-full pl-3 text-left font-normal",
+                                    !field.value && "text-muted-foreground"
+                                    )}
+                                >
+                                    {field.value ? (
+                                    format(field.value, "PPP HH:mm")
+                                    ) : (
+                                    <span>Pick a date and time</span>
+                                    )}
+                                    <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                </Button>
+                                </FormControl>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0" align="start">
+                                <Calendar
+                                mode="single"
+                                selected={field.value}
+                                onSelect={field.onChange}
+                                disabled={(date) => date < new Date(new Date().setHours(0,0,0,0))}
+                                initialFocus
+                                />
+                                <div className="p-2 border-t border-border">
+                                    <Input type="time" onChange={(e) => {
+                                        const time = e.target.value;
+                                        const [hours, minutes] = time.split(':');
+                                        const newDate = new Date(field.value || new Date());
+                                        newDate.setHours(Number(hours), Number(minutes));
+                                        field.onChange(newDate);
+                                    }}/>
+                                </div>
+                            </PopoverContent>
+                            </Popover>
+                            <FormMessage />
+                        </FormItem>
+                        )}
+                    />
+                    )}
 
-                <Button type="submit" size="lg" className="w-full font-bold" disabled={isLoading}>
-                  {isLoading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Mic className="mr-2 h-5 w-5" />}
-                  {scheduleOption === 'now' ? 'Start Live Session' : 'Schedule Session'}
-                </Button>
-              </form>
-            </Form>
-          </CardContent>
-        </Card>
+                    <FormField
+                    control={form.control}
+                    name="isPrivate"
+                    render={({ field }) => (
+                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                        <div className="space-y-0.5">
+                            <FormLabel className="text-base flex items-center gap-2">
+                            <Lock className="h-4 w-4" />
+                            Private Session
+                            </FormLabel>
+                            <FormDescription>
+                            Private sessions will not be shown on the homepage. Only users with a direct link can join.
+                            </FormDescription>
+                        </div>
+                        <FormControl>
+                            <Switch
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                            />
+                        </FormControl>
+                        </FormItem>
+                    )}
+                    />
+
+                    <Button type="submit" size="lg" className="w-full font-bold" disabled={isLoading}>
+                    {isLoading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Mic className="mr-2 h-5 w-5" />}
+                    {scheduleOption === 'now' ? 'Start Live Session' : 'Schedule Session'}
+                    </Button>
+                </form>
+                </Form>
+            </CardContent>
+            </Card>
+        </div>
       </main>
     </div>
   );
