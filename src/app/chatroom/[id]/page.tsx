@@ -27,7 +27,7 @@ function ChatRoomPageSkeleton() {
     return (
         <div className="min-h-screen flex flex-col">
             <Header />
-            <main className="flex-1 w-full max-w-7xl mx-auto py-4 md:py-8 grid lg:grid-cols-3 gap-4 md:gap-8 px-4 md:px-8">
+            <main className="flex-1 container py-4 md:py-8 grid lg:grid-cols-3 gap-4 md:gap-8 px-2 md:px-8">
                 <div className="lg:col-span-2 space-y-4">
                      <Card>
                         <CardHeader className="flex flex-row items-center gap-4 p-4 md:p-6">
@@ -66,7 +66,7 @@ function AwaitingApprovalScreen() {
     return (
         <div className="min-h-screen flex flex-col">
             <Header />
-            <main className="flex-1 w-full max-w-7xl mx-auto py-8 flex items-center justify-center px-4 md:px-8">
+            <main className="flex-1 container py-8 flex items-center justify-center px-2 md:px-8">
                 <Card className="w-full max-w-md text-center p-8">
                     <CardHeader>
                         <ShieldQuestion className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
@@ -88,7 +88,7 @@ function AccessDeniedScreen({ onReRequest }: { onReRequest: () => void }) {
     return (
         <div className="min-h-screen flex flex-col">
             <Header />
-            <main className="flex-1 w-full max-w-7xl mx-auto py-8 flex items-center justify-center px-4 md:px-8">
+            <main className="flex-1 container py-8 flex items-center justify-center px-2 md:px-8">
                 <Card className="w-full max-w-md text-center p-8">
                     <CardHeader>
                         <UserX className="h-16 w-16 text-destructive mx-auto mb-4" />
@@ -111,7 +111,7 @@ function RemovedScreen({ onReRequest }: { onReRequest: () => void }) {
      return (
         <div className="min-h-screen flex flex-col">
             <Header />
-            <main className="flex-1 w-full max-w-7xl mx-auto py-8 flex items-center justify-center px-4 md:px-8">
+            <main className="flex-1 container py-8 flex items-center justify-center px-2 md:px-8">
                 <Card className="w-full max-w-md text-center p-8">
                     <CardHeader>
                         <UserX className="h-16 w-16 text-destructive mx-auto mb-4" />
@@ -280,7 +280,7 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
       return (
           <div className="min-h-screen flex flex-col">
               <Header />
-              <main className="flex-1 w-full max-w-7xl mx-auto py-8 flex items-center justify-center px-4 md:px-8">
+              <main className="flex-1 container py-8 flex items-center justify-center px-2 md:px-8">
                   <Card className="w-full max-w-md text-center p-8">
                       <CardHeader>
                           <MicOff className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
@@ -320,10 +320,11 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
 
 
   return (
+    <>
     <div className="min-h-screen flex flex-col">
       <Header />
        <main className={cn(
-          "flex-1 w-full max-w-7xl mx-auto py-4 md:py-8 grid lg:grid-cols-3 gap-4 md:gap-8 px-2 sm:px-4 md:px-8 lg:min-h-[650px]",
+          "flex-1 grid lg:grid-cols-3 gap-4 md:gap-8 px-2 sm:px-4 md:px-8",
           isChatFullscreen && "hidden" 
       )}>
         <div className="lg:col-span-2 space-y-4">
@@ -381,7 +382,7 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
       </main>
 
       {isChatFullscreen && (
-        <div className="fixed inset-0 z-50 bg-background flex flex-col p-4">
+        <div className="fixed inset-0 z-50 bg-background flex flex-col">
             <Card className="flex flex-col h-full rounded-none border-0">
               <CardHeader className="flex flex-row items-center justify-between">
                   <CardTitle className="flex items-center gap-2"><MessageSquare className="h-5 w-5"/> Live Chat</CardTitle>
@@ -426,5 +427,6 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
         </div>
       )}
     </div>
+    </>
   );
 }
