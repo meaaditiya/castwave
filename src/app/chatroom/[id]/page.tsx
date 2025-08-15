@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, use, useRef } from 'react';
@@ -66,7 +65,7 @@ function AwaitingApprovalScreen() {
     return (
         <div className="min-h-screen flex flex-col">
             <Header />
-            <main className="flex-1 container py-8 flex items-center justify-center">
+            <main className="flex-1 container py-8 flex items-center justify-center px-2 md:px-8">
                 <Card className="w-full max-w-md text-center p-8">
                     <CardHeader>
                         <ShieldQuestion className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
@@ -88,7 +87,7 @@ function AccessDeniedScreen({ onReRequest }: { onReRequest: () => void }) {
     return (
         <div className="min-h-screen flex flex-col">
             <Header />
-            <main className="flex-1 container py-8 flex items-center justify-center">
+            <main className="flex-1 container py-8 flex items-center justify-center px-2 md:px-8">
                 <Card className="w-full max-w-md text-center p-8">
                     <CardHeader>
                         <UserX className="h-16 w-16 text-destructive mx-auto mb-4" />
@@ -111,7 +110,7 @@ function RemovedScreen({ onReRequest }: { onReRequest: () => void }) {
      return (
         <div className="min-h-screen flex flex-col">
             <Header />
-            <main className="flex-1 container py-8 flex items-center justify-center">
+            <main className="flex-1 container py-8 flex items-center justify-center px-2 md:px-8">
                 <Card className="w-full max-w-md text-center p-8">
                     <CardHeader>
                         <UserX className="h-16 w-16 text-destructive mx-auto mb-4" />
@@ -280,7 +279,7 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
       return (
           <div className="min-h-screen flex flex-col">
               <Header />
-              <main className="flex-1 container py-8 flex items-center justify-center">
+              <main className="flex-1 container py-8 flex items-center justify-center px-2 md:px-8">
                   <Card className="w-full max-w-md text-center p-8">
                       <CardHeader>
                           <MicOff className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
@@ -324,19 +323,19 @@ export default function ChatRoomPage({ params }: { params: { id: string } }) {
     <div className="min-h-screen flex flex-col">
       <Header />
        <main className={cn(
-          "flex-1 grid lg:grid-cols-3 gap-4 md:gap-8 py-8",
-          isChatFullscreen ? "hidden" : ""
+          "flex-1 container py-4 md:py-8 grid lg:grid-cols-3 gap-4 md:gap-8 px-2 md:px-8",
+          isChatFullscreen && "hidden" 
       )}>
-        <div className="lg:col-span-2 space-y-4 min-w-0">
+        <div className="lg:col-span-2 space-y-4">
           <LiveScreen 
             {...chatRoomDetails} 
-            className="h-full"
+            className="h-full min-h-[650px]"
             createPollDialog={<LivePoll chatRoomId={chatRoomId} isHost={isHost} currentUserId={currentUser.uid} activePoll={chatRoom.activePoll} renderNoPollContent={() => <></>} />}
             createQuizDialog={<LiveQuiz chatRoomId={chatRoomId} isHost={isHost} currentUserId={currentUser.uid} participants={participants} activeQuiz={chatRoom.activeQuiz} renderNoQuizContent={() => <></>} />}
           />
         </div>
 
-        <div className="lg:col-span-1 flex flex-col min-h-[500px] lg:min-h-0">
+        <div className="h-[650px] lg:col-span-1">
             <Card className="flex flex-col h-full">
               <CardHeader className="flex flex-row items-center justify-between">
                   <CardTitle className="flex items-center gap-2"><MessageSquare className="h-5 w-5"/> Live Chat</CardTitle>
