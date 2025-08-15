@@ -79,12 +79,12 @@ export function ChatRoomCard({ id, title, host, hostId, isLive, isOwner, onDelet
   return (
     <Card className="relative hover:border-primary/50 hover:shadow-lg transition-all duration-300 overflow-hidden h-full flex flex-col group shadow-md border-border bg-card">
        <div className="relative flex-1 flex flex-col">
-            <Link href={`/chatroom/${id}`} className="block" onClick={handleJoinClick}>
-                <CardHeader className="p-0 relative">
-                    <div className="w-full h-48 flex items-center justify-center bg-gradient-to-br from-primary/20 via-primary/10 to-background relative overflow-hidden group-hover:from-primary/30 transition-all duration-300">
+            <Link href={`/chatroom/${id}`} className="block flex-1" onClick={handleJoinClick}>
+                <CardHeader className="p-0 relative h-full">
+                    <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary/20 via-primary/10 to-background relative overflow-hidden group-hover:from-primary/30 transition-all duration-300 min-h-[192px]">
                         <div className="absolute inset-0 bg-card/20"></div>
                         <div className="relative z-10 text-center px-4">
-                            <h3 className="text-lg font-bold text-card-foreground leading-tight line-clamp-2">{title}</h3>
+                            <h3 className="text-lg font-bold text-card-foreground leading-tight line-clamp-3">{title}</h3>
                         </div>
                         <div className="absolute -top-4 -right-4 w-20 h-20 bg-primary/10 rounded-full blur-xl group-hover:bg-primary/20 transition-all duration-300"></div>
                         <div className="absolute -bottom-4 -left-4 w-16 h-16 bg-primary/10 rounded-full blur-xl group-hover:bg-primary/20 transition-all duration-300"></div>
