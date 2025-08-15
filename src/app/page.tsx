@@ -19,7 +19,7 @@ import { cn } from '@/lib/utils';
 
 function HomePageSkeleton() {
     return (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 p-4">
             {Array.from({ length: 8 }).map((_, i) => (
                 <div key={i} className="flex flex-col space-y-3">
                     <Skeleton className="h-[225px] w-full rounded-xl" />
@@ -62,7 +62,7 @@ function HeroBanner() {
     return (
         <div 
             ref={ref}
-            className="group relative text-center py-12 rounded-xl mb-12 overflow-hidden bg-card border transition-transform duration-300 ease-out"
+            className="group relative text-center py-12 rounded-xl mb-12 overflow-hidden bg-card border transition-transform duration-300 ease-out mx-4"
             style={{ transformStyle: 'preserve-3d', ...style }}
             onMouseMove={onMouseMove}
             onMouseLeave={onMouseLeave}
@@ -227,7 +227,7 @@ export default function Home() {
     if (loadingRooms) return <HomePageSkeleton />;
     if (rooms.length > 0) {
         return (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 px-4">
                 {rooms.map(chatRoom => (
                     <ChatRoomCard 
                         key={chatRoom.id} 
@@ -257,7 +257,7 @@ export default function Home() {
     const currentEmptyState = emptyStateMessages[currentTab as keyof typeof emptyStateMessages];
     
     return (
-        <div className="text-center py-16 text-muted-foreground border-2 border-dashed rounded-lg">
+        <div className="text-center py-16 text-muted-foreground border-2 border-dashed rounded-lg mx-4">
            {currentEmptyState.icon}
            <p className="font-semibold text-lg">{currentEmptyState.title}</p>
            <p>{currentEmptyState.description}</p>
@@ -268,10 +268,10 @@ export default function Home() {
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
-      <main className="flex-1 w-full max-w-screen-xl mx-auto py-8 px-4">
+      <main className="flex-1 w-full max-w-screen-xl mx-auto py-8">
         <HeroBanner />
         
-        <div className="flex flex-col md:flex-row gap-4 mb-8">
+        <div className="flex flex-col md:flex-row gap-4 mb-8 px-4">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
             <Input 
