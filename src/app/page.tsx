@@ -207,11 +207,11 @@ export default function Home() {
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
-      <main className="flex-1 w-full py-8 px-2">
-         <div className="mb-8 px-2 text-sm text-center text-muted-foreground">
+      <main className="flex-1 w-full py-8">
+         <div className="mb-8 px-2 text-sm text-left text-muted-foreground">
             <Link href="https://connectwithaaditiya.onrender.com/contact" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 hover:text-primary transition-colors">
                  <Phone className="h-3 w-3 text-black dark:text-white" />
-                 Contact
+                 Contact for help
             </Link>
         </div>
         
