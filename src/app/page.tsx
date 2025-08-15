@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { Header } from '@/components/Header';
 import { ChatRoomCard } from '@/components/ChatRoomCard';
@@ -15,6 +15,7 @@ import { Search, Globe, Lock, Loader2, Waves } from 'lucide-react';
 import { startChatRoom } from '@/services/chatRoomService';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LoadingScreen } from '@/components/LoadingScreen';
+import { cn } from '@/lib/utils';
 
 function HomePageSkeleton() {
     return (
@@ -31,6 +32,68 @@ function HomePageSkeleton() {
         </div>
     );
 }
+
+function HeroBanner() {
+    const ref = useRef<HTMLDivElement>(null);
+    const [style, setStyle] = useState({});
+
+    const onMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+        if (!ref.current) return;
+        const { clientX, clientY } = e;
+        const { width, height, left, top } = ref.current.getBoundingClientRect();
+        const x = clientX - left;
+        const y = clientY - top;
+        const rotateX = (y / height - 0.5) * -15; // Invert for natural feel
+        const rotateY = (x / width - 0.5) * 15;
+
+        setStyle({
+            transform: `perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale3d(1.05, 1.05, 1.05)`,
+            '--glow-x': `${x}px`,
+            '--glow-y': `${y}px`,
+        });
+    };
+
+    const onMouseLeave = () => {
+        setStyle({
+            transform: 'perspective(1000px) rotateX(0deg) rotateY(0deg) scale3d(1, 1, 1)',
+        });
+    };
+
+    return (
+        <div 
+            ref={ref}
+            className="group relative text-center py-12 rounded-xl mb-12 overflow-hidden bg-card border transition-transform duration-300 ease-out"
+            style={{ transformStyle: 'preserve-3d', ...style }}
+            onMouseMove={onMouseMove}
+            onMouseLeave={onMouseLeave}
+        >
+             <div 
+                className="absolute inset-0 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent transition-opacity duration-500 group-hover:opacity-50 -z-10"
+                style={{ transform: 'translateZ(-10px)' }}
+            ></div>
+            <div 
+                className="absolute inset-0 w-full h-full -z-20 opacity-0 transition-opacity duration-300 group-hover:opacity-100"
+                style={{
+                    background: 'radial-gradient(circle at var(--glow-x) var(--glow-y), hsl(var(--primary) / 0.15), transparent 40%)',
+                    transform: 'translateZ(-20px)',
+                }}
+            />
+            
+            <div style={{ transform: 'translateZ(50px)' }}>
+                <Waves className="h-12 w-12 text-primary mx-auto mb-4" />
+                <h1 className="text-3xl md:text-5xl font-bold tracking-tighter mb-4 text-shadow">
+                    <span className="bg-gradient-to-br from-foreground to-foreground/70 bg-clip-text text-transparent">
+                        Explore Live Sessions
+                    </span>
+                </h1>
+                <p className="text-muted-foreground text-lg max-w-2xl mx-auto px-4">
+                    Join a conversation, review a past broadcast, or see what's coming up. Your next favorite session awaits.
+                </p>
+            </div>
+        </div>
+    )
+}
+
 
 export default function Home() {
   const [allChatRooms, setAllChatRooms] = useState<ChatRoom[]>([]);
@@ -206,26 +269,7 @@ export default function Home() {
     <div className="min-h-screen flex flex-col">
       <Header />
       <main className="flex-1 w-full max-w-7xl mx-auto py-8 px-2 sm:px-4">
-        <div className="relative text-center py-12 rounded-xl mb-12 overflow-hidden bg-card border">
-          <div className="absolute inset-0 bg-gradient-to-b from-primary/5 to-transparent -z-10"></div>
-           <div 
-                className="absolute top-0 left-0 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-primary/10 rounded-full blur-3xl -z-10"
-                aria-hidden="true">
-            </div>
-            <div 
-                className="absolute bottom-0 right-0 translate-x-1/2 translate-y-1/2 w-96 h-96 bg-primary/10 rounded-full blur-3xl -z-10"
-                aria-hidden="true">
-            </div>
-          <Waves className="h-12 w-12 text-primary mx-auto mb-4" />
-          <h1 className="text-3xl md:text-4xl font-bold tracking-tighter mb-4">
-              <span className="bg-gradient-to-br from-primary via-primary/80 to-primary/60 bg-clip-text text-transparent">
-                  Explore Live Sessions
-              </span>
-          </h1>
-          <p className="text-muted-foreground text-base max-w-2xl mx-auto px-4">
-              Join a conversation, review a past broadcast, or see what's coming up. Your next favorite session awaits.
-          </p>
-        </div>
+        <HeroBanner />
         
         <div className="flex flex-col md:flex-row gap-4 mb-8">
           <div className="relative flex-1">
